@@ -1,0 +1,9 @@
+services:
+  trading-bot:
+    build: .
+    container_name: matchbook_trading_bot
+    restart: "no"
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
