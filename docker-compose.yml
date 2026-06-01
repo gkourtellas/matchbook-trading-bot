@@ -5,5 +5,13 @@ services:
     restart: "no"
     env_file:
       - .env
+    environment:
+      - LOG_DIR=/app/logs
     volumes:
       - ./src:/app/src
+      - ./logs:/app/logs
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

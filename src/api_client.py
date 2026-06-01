@@ -1,3 +1,8 @@
+"""Matchbook REST API client and optional Telegram alerts.
+
+See README.md and docs/API.md for usage and endpoints.
+"""
+
 import os
 import requests
 import json
@@ -107,10 +112,11 @@ class MatchbookClient:
             return None
 
     def get_order_status(self, offer_id):
-        """Queries the status of a specific submitted offer ID to find its settlement state."""
-        url = f"{self.base_url}/v2/offers/{offer_id}"
+        """Fetch one offer by ID (Matchbook: GET /v2/offers?offer-ids=...)."""
+        url = f"{self.base_url}/v2/offers"
+        params = {"offer-ids": str(offer_id), "per-page": 1}
         try:
-            response = requests.get(url, headers=self.headers)
+            response = requests.get(url, params=params, headers=self.headers)
             if response.status_code == 200:
                 return response.json()
             elif response.status_code == 401:
@@ -120,6 +126,128 @@ class MatchbookClient:
         except Exception as e:
             print(f"Error checking offer status: {str(e)}")
             return None
+
+    @staticmethod
+    def unwrap_offer(data):
+        """Normalize GET offer response (single object or offers list)."""
+        if not data:
+            return None
+        offers = data.get("offers")
+        if offers:
+            return offers[0]
+        if data.get("id") is not None:
+            return data
+        return None
+
+    def outcome_from_offer(self, offer):
+        """Return 'won' or 'lost' from one offer object, or None if not settled."""
+        if not offer:
+            return None
+
+        result = (offer.get("result") or "").upper()
+        if result == "WIN":
+            return "won"
+        if result in ("LOSE", "LOST"):
+            return "lost"
+
+        status = (offer.get("status") or "").upper()
+
+        for key in ("settled-items", "settled_items"):
+            items = offer.get(key) or []
+            if items:
+                pl = items[0].get("profit-loss", items[0].get("profit_and_loss", 0))
+                return "won" if pl > 0 else "lost"
+
+        if status in ("SETTLED", "FLUSHED"):
+            pl = offer.get("profit-loss", offer.get("profit_and_loss"))
+            if pl is not None:
+                return "won" if pl > 0 else "lost"
+
+        for key in ("matched-bets", "matched_bets"):
+            for bet in offer.get(key) or []:
+                bet_result = (bet.get("result") or "").upper()
+                if bet_result == "WIN":
+                    return "won"
+                if bet_result in ("LOSE", "LOST"):
+                    return "lost"
+                if status in ("SETTLED", "FLUSHED"):
+                    pl = bet.get("profit-loss", bet.get("profit_and_loss"))
+                    if pl is not None:
+                        return "won" if pl > 0 else "lost"
+
+        return None
+
+    @staticmethod
+    def _outcome_from_settled_bet(bet):
+        bet_result = (bet.get("result") or "").upper()
+        if bet_result == "WIN":
+            return "won"
+        if bet_result in ("LOSE", "LOST"):
+            return "lost"
+        if bet_result in ("PUSH_WIN",):
+            return "won"
+        if bet_result in ("PUSH", "PUSH_LOSE"):
+            return "lost"
+        pl = bet.get("profit-loss", bet.get("profit_and_loss"))
+        if pl is not None:
+            return "won" if pl > 0 else "lost"
+        return None
+
+    def get_settled_outcome_for_offer(self, offer_id, after_dt=None, event_id=None):
+        """Look up offer in Matchbook settled-bets report (WIN / LOSE / profit-loss)."""
+        url = f"{self.base_url}/reports/v2/bets/settled"
+        target = str(offer_id)
+        offset = 0
+        per_page = 500
+
+        while True:
+            params = {"per-page": per_page, "offset": offset, "sport-ids": "15"}
+            if after_dt:
+                params["after"] = after_dt.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+            if event_id:
+                params["event-ids"] = str(event_id)
+
+            try:
+                response = requests.get(url, params=params, headers=self.headers)
+                if response.status_code == 401:
+                    if self.login():
+                        continue
+                    return None
+                if response.status_code != 200:
+                    return None
+
+                data = response.json()
+                for market in data.get("markets", []):
+                    for selection in market.get("selections", []):
+                        for bet in selection.get("bets", []):
+                            if str(bet.get("offer-id", bet.get("offer_id"))) != target:
+                                continue
+                            return self._outcome_from_settled_bet(bet)
+
+                total = data.get("total", 0)
+                offset += per_page
+                if offset >= total:
+                    return None
+            except Exception as e:
+                print(f"Error fetching settled bets: {str(e)}")
+                return None
+
+    def resolve_offer_outcome(self, offer_id, after_dt=None, event_id=None):
+        """Resolve won/lost from Matchbook only (offers API + settled-bets report)."""
+        outcome = self.get_settled_outcome_for_offer(offer_id, after_dt, event_id)
+        if outcome:
+            return outcome, "settled-report"
+
+        raw = self.get_order_status(offer_id)
+        offer = self.unwrap_offer(raw)
+        outcome = self.outcome_from_offer(offer)
+        status_label = (offer.get("status") if offer else None) or (
+            "not_found" if raw is None else "unknown"
+        )
+        if outcome:
+            return outcome, status_label
+
+        return None, status_label
 
     def send_telegram(self, message):
         """Helper service to push instant alerts to your Telegram chat."""
