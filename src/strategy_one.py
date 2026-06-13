@@ -6,10 +6,11 @@ See README.md and docs/STRATEGY.md for behavior and configuration.
 import json
 import os
 import time
-import requests
 from datetime import datetime, timedelta
 from api_client import MatchbookClient
 from log_util import install_print_logger, setup_logging
+
+STATE_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "state.json")
 
 
 def load_settings():
@@ -27,6 +28,47 @@ def stake_for_step(settings, step):
         ladder = settings.get("stakes", {}).get("testing", [0.10])
     idx = max(0, min(step - 1, len(ladder) - 1))
     return float(ladder[idx])
+
+
+def load_state():
+    """Loads active bet information and step tracking from disk if present."""
+    if not os.path.isfile(STATE_FILE):
+        return 1, None
+    try:
+        with open(STATE_FILE, "r", encoding="utf-8") as f:
+            state = json.load(f)
+            current_step = state.get("current_step", 1)
+            active_bet_info = state.get("active_bet_info")
+            
+            if active_bet_info:
+                # Restore datetime instances from stored string formats
+                active_bet_info["start_time"] = datetime.fromisoformat(active_bet_info["start_time"])
+                active_bet_info["placed_at"] = datetime.fromisoformat(active_bet_info["placed_at"])
+                
+            return current_step, active_bet_info
+    except Exception as e:
+        print(f"⚠️ Error loading state file: {str(e)}. Falling back to clean slate.")
+        return 1, None
+
+
+def save_state(current_step, active_bet_info):
+    """Saves active bet information and step tracking securely to disk."""
+    try:
+        state_to_save = {
+            "current_step": current_step,
+            "active_bet_info": None
+        }
+        if active_bet_info:
+            # Serialize datetime fields into ISO format strings for JSON compatibility
+            state_to_save["active_bet_info"] = {
+                **active_bet_info,
+                "start_time": active_bet_info["start_time"].isoformat(),
+                "placed_at": active_bet_info["placed_at"].isoformat()
+            }
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state_to_save, f, indent=2)
+    except Exception as e:
+        print(f"⚠️ Error updating state file: {str(e)}")
 
 
 def main():
@@ -53,127 +95,116 @@ def main():
     target_sport_id = "15"
     loop_interval = 15
 
-    current_step = 1
+    # Recover state on startup sequence
+    current_step, active_bet_info = load_state()
+    if active_bet_info:
+        print(f"🔄 Recovered existing active bet profile for: {active_bet_info['event_name']}")
 
     try:
         while True:
-            print(f"\n--- Scanning markets at {time.strftime('%Y-%m-%d %H:%M:%S')} (Step {current_step}/{max_steps}) ---")
+            # Skip scanning if we recovered an ongoing trackable bet profile
+            if not active_bet_info:
+                print(f"\n--- Scanning markets at {time.strftime('%Y-%m-%d %H:%M:%S')} (Step {current_step}/{max_steps}) ---")
 
-            url = f"{client.base_url}/events"
-            params = {
-                "sport-ids": target_sport_id,
-                "states": "open",
-                "include-prices": "true",
-                "price-depth": 1,
-                "price-mode": "expanded",
-                "odds-type": "DECIMAL",
-                "exchange-type": "back-lay",
-                "per-page": 30
-            }
+                data = client.get_live_events(sport_ids=target_sport_id, per_page=30)
 
-            try:
-                response = requests.get(url, params=params, headers=client.headers)
-                data = response.json() if response.status_code == 200 else None
-            except Exception as e:
-                print(f"Error scanning markets: {str(e)}")
-                data = None
+                if data and "events" in data:
+                    current_utc = datetime.utcnow()
 
-            active_bet_info = None
-
-            if data and "events" in data:
-                current_utc = datetime.utcnow()
-
-                for event in data["events"]:
-                    if event.get("in-play") is True or event.get("live-execution") is True:
-                        continue
-
-                    start_str = event.get("start")
-                    if start_str:
-                        try:
-                            start_time = datetime.strptime(start_str.replace("Z", ""), "%Y-%m-%dT%H:%M:%S.%f")
-                            if current_utc >= start_time:
-                                continue
-                        except Exception:
+                    for event in data["events"]:
+                        if event.get("in-play") is True or event.get("live-execution") is True:
                             continue
-                    else:
-                        continue
 
-                    event_name = event.get("name", "Unknown Match")
+                        start_str = event.get("start")
+                        if start_str:
+                            try:
+                                start_time = datetime.strptime(start_str.replace("Z", ""), "%Y-%m-%dT%H:%M:%S.%f")
+                                if current_utc >= start_time:
+                                    continue
+                            except Exception:
+                                continue
+                        else:
+                            continue
 
-                    meta_tags = event.get("meta-tags", [])
-                    league_name = "Unknown League"
-                    for tag in meta_tags:
-                        if tag.get("type") == "COMPETITION":
-                            league_name = tag.get("name")
-                            break
+                        event_name = event.get("name", "Unknown Match")
 
-                    for market in event.get("markets", []):
-                        if market.get("name") == "Match Odds":
-                            for runner in market.get("runners", []):
-                                runner_id = runner.get("id")
-                                runner_name = runner.get("name")
-                                prices = runner.get("prices", [])
+                        meta_tags = event.get("meta-tags", [])
+                        league_name = "Unknown League"
+                        for tag in meta_tags:
+                            if tag.get("type") == "COMPETITION":
+                                league_name = tag.get("name")
+                                break
 
-                                backs = [p for p in prices if p.get("side") == "back"]
-                                if backs:
-                                    best_back = backs[0].get("odds")
+                        for market in event.get("markets", []):
+                            if market.get("name") == "Match Odds":
+                                for runner in market.get("runners", []):
+                                    runner_id = runner.get("id")
+                                    runner_name = runner.get("name")
+                                    prices = runner.get("prices", [])
 
-                                    if odds_min <= best_back <= odds_max:
-                                        print(f"🎯 Trigger conditions met for: {event_name} -> {runner_name}")
+                                    backs = [p for p in prices if p.get("side") == "back"]
+                                    if backs:
+                                        best_back = backs[0].get("odds")
 
-                                        target_side = "back"
-                                        target_odds = best_back
-                                        target_stake = stake_for_step(settings, current_step)
+                                        if odds_min <= best_back <= odds_max:
+                                            print(f"🎯 Trigger conditions met for: {event_name} -> {runner_name}")
 
-                                        order_status = client.submit_order(
-                                            runner_id=runner_id,
-                                            side=target_side,
-                                            odds=target_odds,
-                                            stake=target_stake
-                                        )
+                                            target_side = "back"
+                                            target_odds = best_back
+                                            target_stake = stake_for_step(settings, current_step)
 
-                                        if order_status:
-                                            offers = order_status.get("offers", [])
-                                            placed_offer = offers[0] if offers else {}
-                                            offer_id = placed_offer.get("id")
-                                            event_id = placed_offer.get("event-id")
-
-                                            # Convert UTC start time to Athens time (+3 hours offset)
-                                            athens_time = start_time + timedelta(hours=3)
-                                            athens_time_str = athens_time.strftime("%H:%M")
-
-                                            msg = (
-                                                f"🚀 Bet Placed!\n"
-                                                f"Step: {current_step}/{max_steps}\n"
-                                                f"League: {league_name}\n"
-                                                f"Match: {event_name}\n"
-                                                f"Selection: {runner_name}\n"
-                                                f"Action: {target_side}\n"
-                                                f"Odds: {target_odds}\n"
-                                                f"Stake: {target_stake}\n"
-                                                f"Start Time: {athens_time_str}"
+                                            order_status = client.submit_order(
+                                                runner_id=runner_id,
+                                                side=target_side,
+                                                odds=target_odds,
+                                                stake=target_stake
                                             )
-                                            print(msg)
-                                            client.send_telegram(msg)
 
-                                            active_bet_info = {
-                                                "offer_id": offer_id,
-                                                "event_id": event_id,
-                                                "start_time": start_time,
-                                                "placed_at": datetime.utcnow(),
-                                                "selection_name": runner_name,
-                                                "event_name": event_name,
-                                            }
-                                            break
-                                        else:
-                                            print(f"⚠️ Execution routing declined by backend exchange rules.")
-                    if active_bet_info:
-                        break
+                                            if order_status:
+                                                offers = order_status.get("offers", [])
+                                                placed_offer = offers[0] if offers else {}
+                                                offer_id = placed_offer.get("id")
+                                                event_id = placed_offer.get("event-id")
+
+                                                athens_time = start_time + timedelta(hours=3)
+                                                athens_time_str = athens_time.strftime("%H:%M")
+
+                                                msg = (
+                                                    f"🚀 Bet Placed!\n"
+                                                    f"Step: {current_step}/{max_steps}\n"
+                                                    f"League: {league_name}\n"
+                                                    f"Match: {event_name}\n"
+                                                    f"Selection: {runner_name}\n"
+                                                    f"Action: {target_side}\n"
+                                                    f"Odds: {target_odds}\n"
+                                                    f"Stake: {target_stake}\n"
+                                                    f"Start Time: {athens_time_str}"
+                                                )
+                                                print(msg)
+                                                client.send_telegram(msg)
+
+                                                active_bet_info = {
+                                                    "offer_id": offer_id,
+                                                    "event_id": event_id,
+                                                    "start_time": start_time,
+                                                    "placed_at": datetime.utcnow(),
+                                                    "selection_name": runner_name,
+                                                    "event_name": event_name,
+                                                }
+                                                # Persistent save after placing a new bet
+                                                save_state(current_step, active_bet_info)
+                                                break
+                                            else:
+                                                print(f"⚠️ Execution routing declined by backend exchange rules.")
+                        if active_bet_info:
+                            break
 
             if active_bet_info:
                 resume_time = active_bet_info["start_time"] + timedelta(minutes=110)
                 resume_athens = resume_time + timedelta(hours=3)
-                print(f"⏳ Bet placed. Holding all market checks until 110 minutes after kickoff ({resume_athens.strftime('%H:%M')} Athens time)...")
+                
+                if datetime.utcnow() < resume_time:
+                    print(f"⏳ Active bet track verified. Holding market checks until 110 minutes after kickoff ({resume_athens.strftime('%H:%M')} Athens time)...")
 
                 while datetime.utcnow() < resume_time:
                     time.sleep(30)
@@ -216,6 +247,9 @@ def main():
                     client.send_telegram(settle_msg)
 
                     current_step = next_step
+                    active_bet_info = None
+                    # Clear active bet profile and persist updated ladder step level
+                    save_state(current_step, active_bet_info)
                     break
 
             time.sleep(loop_interval)
