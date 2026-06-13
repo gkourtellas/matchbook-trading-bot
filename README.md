@@ -46,15 +46,15 @@ strategy_one.py  →  MatchbookClient (api_client.py)  →  Matchbook REST API
 
 ## Runtime behavior (current code)
 
-These values are **hardcoded** in `strategy_one.py` today. The file `config/settings.json` describes intended settings but is **not loaded** yet.
+Loaded from `config/settings.json` at startup (`mode`, odds band, per-step stakes, `max_steps`).
 
 | Setting | Value |
 |---------|-------|
 | Sport ID | `15` (football) |
 | Market | Match Odds |
-| Odds band | 1.45 – 1.60 (best back) |
-| Stake | `0.10` |
-| Max steps | `6` |
+| Odds band | `odds_min` – `odds_max` in settings |
+| Stake | Per step from `stakes.testing` or `stakes.production` |
+| Max steps | `max_steps` in settings |
 | Scan interval | 15 seconds |
 | Post-bet hold | 110 minutes after kickoff |
 

@@ -9,6 +9,7 @@ services:
       - LOG_DIR=/app/logs
     volumes:
       - ./src:/app/src
+      - ./config:/app/config
       - ./logs:/app/logs
     logging:
       driver: json-file

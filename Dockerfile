@@ -11,5 +11,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY src/ /app/src/
+COPY config/ /app/config/
 
 CMD ["python", "-u", "src/strategy_one.py"]

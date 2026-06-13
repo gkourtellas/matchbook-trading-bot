@@ -52,8 +52,8 @@ Other prioritized work (not the fixes above). Move to [Done log](#done-log) when
 
 ### High priority
 
-- [ ] **Load `config/settings.json` in code** — `mode`, odds bounds, `max_steps`, per-step stakes from `stakes.testing` / `stakes.production`
-- [ ] **Use step index for stake** — replace hardcoded `0.10` with stake from config for `current_step`
+- [x] **Load `config/settings.json` in code** — `mode`, odds bounds, `max_steps`, per-step stakes from `stakes.testing` / `stakes.production`
+- [x] **Use step index for stake** — stake from config for `current_step`
 - [ ] **Confirm `.env` is not tracked** — if it was ever committed, rotate credentials and `git rm --cached .env` (see [TROUBLESHOOTING.md](TROUBLESHOOTING.md#secrets-exposed-in-git))
 
 ### Medium priority
