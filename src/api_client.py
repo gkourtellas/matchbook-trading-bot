@@ -6,6 +6,8 @@ See README.md and docs/API.md for usage and endpoints.
 import os
 import requests
 import json
+import time
+from datetime import datetime, timedelta
 
 class MatchbookClient:
     def __init__(self):
@@ -13,46 +15,78 @@ class MatchbookClient:
         self.password = os.getenv("MATCHBOOK_PASSWORD")
         self.tg_token = os.getenv("TELEGRAM_BOT_TOKEN")
         self.tg_chat_id = os.getenv("TELEGRAM_CHAT_ID")
-        
+
         self.auth_url = "https://api.matchbook.com/bpapi/rest/security/session"
         self.base_url = "https://api.matchbook.com/edge/rest"
         self.session_token = None
+        self.last_login_time = None
         self.headers = {
             "content-type": "application/json;charset=UTF-8",
             "accept": "application/json"
         }
 
     def login(self):
-        """Authenticates with Matchbook and stores the session token."""
+        """Authenticates with Matchbook and stores the session token with rate-limit recovery."""
         payload = {
             "username": self.username,
             "password": self.password
         }
-        try:
-            response = requests.post(self.auth_url, data=json.dumps(payload), headers=self.headers)
-            if response.status_code == 200:
-                data = response.json()
-                self.session_token = data.get("session-token")
-                self.headers["session-token"] = self.session_token
-                self.send_telegram("✅ Matchbook login successful. Session token acquired.")
-                return True
-            else:
-                self.send_telegram(f"❌ Login failed. Status: {response.status_code}")
+        
+        attempt = 1
+        wait_time = 10  # Start with a 10 second wait on 429 errors
+
+        while True:
+            try:
+                response = requests.post(self.auth_url, data=json.dumps(payload), headers=self.headers)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    self.session_token = data.get("session-token")
+                    self.headers["session-token"] = self.session_token
+                    self.last_login_time = datetime.utcnow()
+                    self.send_telegram("✅ Matchbook login successful. Session token acquired.")
+                    return True
+                
+                elif response.status_code == 429:
+                    print(f"⚠️ Matchbook API login returned 429 (Rate Limited). Attempt {attempt}. Retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                    attempt += 1
+                    wait_time = min(wait_time * 2, 300)  # Double the wait time, capping at 5 minutes
+                    continue
+                    
+                else:
+                    self.send_telegram(f"❌ Login failed. Status: {response.status_code}")
+                    return False
+                    
+            except Exception as e:
+                self.send_telegram(f"❌ Login exception encountered: {str(e)}")
                 return False
-        except Exception as e:
-            self.send_telegram(f"❌ Login exception encountered: {str(e)}")
-            return False
+
+    def ensure_valid_session(self):
+        """Proactively checks if the current token is older than 4 hours and refreshes if needed."""
+        if not self.last_login_time or not self.session_token:
+            print("No active session token found. Initializing login...")
+            return self.login()
+        
+        # If token is older than 4 hours, force a proactive background refresh
+        if datetime.utcnow() - self.last_login_time > timedelta(hours=4):
+            print("🔄 Session token is older than 4 hours. Executing proactive background refresh...")
+            return self.login()
+        return True
 
     def get_navigation(self):
         """Retrieves the navigation hierarchy to locate sports and markets."""
+        self.ensure_valid_session()
         url = f"{self.base_url}/navigation"
         try:
             response = requests.get(url, headers=self.headers)
+            if response.status_code == 401:
+                print("⚠️ Received 401 Unauthorized on get_navigation. Attempting reactive session refresh...")
+                if self.login():
+                    response = requests.get(url, headers=self.headers)
+            
             if response.status_code == 200:
                 return response.json()
-            elif response.status_code == 401:
-                if self.login():
-                    return self.get_navigation()
             return None
         except Exception as e:
             print(f"Error fetching navigation: {str(e)}")
@@ -60,6 +94,7 @@ class MatchbookClient:
 
     def get_live_events(self, sport_ids, per_page=20):
         """Fetches active events, runners, and exchange market odds for specified sport IDs."""
+        self.ensure_valid_session()
         url = f"{self.base_url}/events"
         params = {
             "sport-ids": sport_ids,
@@ -73,11 +108,13 @@ class MatchbookClient:
         }
         try:
             response = requests.get(url, params=params, headers=self.headers)
+            if response.status_code == 401:
+                print("⚠️ Received 401 Unauthorized on get_live_events. Attempting reactive session refresh...")
+                if self.login():
+                    response = requests.get(url, params=params, headers=self.headers)
+                    
             if response.status_code == 200:
                 return response.json()
-            elif response.status_code == 401:
-                if self.login():
-                    return self.get_live_events(sport_ids, per_page)
             return None
         except Exception as e:
             print(f"Error fetching live events: {str(e)}")
@@ -85,6 +122,7 @@ class MatchbookClient:
 
     def submit_order(self, runner_id, side, odds, stake):
         """Submits an exchange order for a specific selection runner ID."""
+        self.ensure_valid_session()
         url = f"{self.base_url}/v2/offers"
         payload = {
             "odds-type": "DECIMAL",
@@ -100,11 +138,13 @@ class MatchbookClient:
         }
         try:
             response = requests.post(url, data=json.dumps(payload), headers=self.headers)
+            if response.status_code == 401:
+                print("⚠️ Received 401 Unauthorized on submit_order. Attempting reactive session refresh...")
+                if self.login():
+                    response = requests.post(url, data=json.dumps(payload), headers=self.headers)
+
             if response.status_code in [200, 201]:
                 return response.json()
-            elif response.status_code == 401:
-                if self.login():
-                    return self.submit_order(runner_id, side, odds, stake)
             print(f"Order submission rejected. Status: {response.status_code}, Response: {response.text}")
             return None
         except Exception as e:
@@ -113,15 +153,18 @@ class MatchbookClient:
 
     def get_order_status(self, offer_id):
         """Fetch one offer by ID (Matchbook: GET /v2/offers?offer-ids=...)."""
+        self.ensure_valid_session()
         url = f"{self.base_url}/v2/offers"
         params = {"offer-ids": str(offer_id), "per-page": 1}
         try:
             response = requests.get(url, params=params, headers=self.headers)
+            if response.status_code == 401:
+                print("⚠️ Received 401 Unauthorized on get_order_status. Attempting reactive session refresh...")
+                if self.login():
+                    response = requests.get(url, params=params, headers=self.headers)
+
             if response.status_code == 200:
                 return response.json()
-            elif response.status_code == 401:
-                if self.login():
-                    return self.get_order_status(offer_id)
             return None
         except Exception as e:
             print(f"Error checking offer status: {str(e)}")
@@ -195,6 +238,7 @@ class MatchbookClient:
 
     def get_settled_outcome_for_offer(self, offer_id, after_dt=None, event_id=None):
         """Look up offer in Matchbook settled-bets report (WIN / LOSE / profit-loss)."""
+        self.ensure_valid_session()
         url = f"{self.base_url}/reports/v2/bets/settled"
         target = str(offer_id)
         offset = 0
@@ -210,9 +254,10 @@ class MatchbookClient:
             try:
                 response = requests.get(url, params=params, headers=self.headers)
                 if response.status_code == 401:
+                    print("⚠️ Received 401 Unauthorized on get_settled_outcome_for_offer. Attempting reactive session refresh...")
                     if self.login():
-                        continue
-                    return None
+                        response = requests.get(url, params=params, headers=self.headers)
+
                 if response.status_code != 200:
                     return None
 

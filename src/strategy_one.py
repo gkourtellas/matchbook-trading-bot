@@ -211,6 +211,8 @@ def main():
 
                 print("⏰ 110 minutes elapsed since kickoff. Transitioning to minute-by-minute status tracking...")
 
+                consecutive_failures = 0
+
                 while True:
                     time.sleep(60)
                     offer_id = active_bet_info.get("offer_id")
@@ -230,6 +232,21 @@ def main():
                     )
 
                     if outcome not in ("won", "lost"):
+                        if source in ("not_found", "unknown"):
+                            consecutive_failures += 1
+                            if consecutive_failures >= 5:
+                                alert_msg = (
+                                    f"🚨 Settlement Loop Error\n"
+                                    f"Offer {offer_id} returned status: {source} 5 times consecutively.\n"
+                                    f"Breaking loop to prevent lockup. Retaining current step: {current_step}."
+                                )
+                                print(alert_msg)
+                                client.send_telegram(alert_msg)
+                                active_bet_info = None
+                                save_state(current_step, active_bet_info)
+                                break
+                        else:
+                            consecutive_failures = 0
                         continue
 
                     result_label = "Won" if outcome == "won" else "Lost"

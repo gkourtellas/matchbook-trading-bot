@@ -1,5 +1,5 @@
 {
-  "mode": "testing",
+  "mode": "production",
   "max_steps": 6,
   "odds_min": 1.45,
   "odds_max": 1.60,
