@@ -1,0 +1,34 @@
+services:
+  trading-bot:
+    build: .
+    container_name: matchbook_trading_bot
+    restart: "no"
+    env_file:
+      - .env
+    environment:
+      - LOG_DIR=/app/logs
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./logs:/app/logs
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  dashboard:
+    build: .
+    container_name: matchbook_dashboard
+    restart: "no"
+    command: ["python", "-u", "src/dashboard.py"]
+    ports:
+      - "8050:8050"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

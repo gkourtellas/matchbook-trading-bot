@@ -1,0 +1,56 @@
+Fetching all sports from Matchbook...
+
+Found 48 sports (total available: 48):
+
+================================================================================
+Name: American Football              ID: 1
+Name: Athletics                      ID: 555636871580009
+Name: Australian Rules               ID: 112
+Name: Auto Racing                    ID: 13
+Name: Baseball                       ID: 3
+Name: Basketball                     ID: 4
+Name: Boxing                         ID: 14
+Name: Chess                          ID: 1387652895550017
+Name: Cricket                        ID: 110
+Name: Current Events                 ID: 11
+Name: Cycling                        ID: 115
+Name: Darts                          ID: 116
+Name: E Specials                     ID: 2365767644720008
+Name: Enhanced Specials              ID: 1532612887820003
+Name: Especial Mejorado              ID: 32917219908400047
+Name: Eurovision 2022                ID: 2061617389960016
+Name: Eurovision 2023                ID: 2371634230370008
+Name: Formula 1                      ID: 29471135545400054
+Name: Gaelic Football                ID: 117
+Name: Golf                           ID: 8
+Name: Greyhound Racing               ID: 241798357140019
+Name: Handball                       ID: 1326054153540017
+Name: Horse Racing                   ID: 24735152712200
+Name: Horse Racing (Ante Post)       ID: 222109340250019
+Name: Horse Racing Beta              ID: 231138347942400
+Name: Hurling                        ID: 118
+Name: Ice Hockey                     ID: 6
+Name: MMA                            ID: 126
+Name: Motorsport                     ID: 29469772436600060
+Name: Multiples                      ID: 974500494700042
+Name: NCAA Basketball                ID: 5
+Name: NCAA Football                  ID: 2
+Name: Olympics                       ID: 1389296437280017
+Name: Player Props                   ID: 1647799938050011
+Name: Podcast Specials               ID: 1931049418390001
+Name: Poker                          ID: 1390943636090017
+Name: Politics                       ID: 385227477790005
+Name: Pool                           ID: 979564283980041
+Name: Rugby League                   ID: 114
+Name: Rugby Union                    ID: 18
+Name: Snooker                        ID: 120
+Name: Soccer                         ID: 15
+Name: TV Specials                    ID: 670369566180014
+Name: Table Tennis                   ID: 1389388027310017
+Name: Tennis                         ID: 9
+Name: Test Sport                     ID: 502491395980009
+Name: Volleyball                     ID: 1939998342510016
+Name: eSports                        ID: 123
+================================================================================
+
+Saved to matchbook_sports.json

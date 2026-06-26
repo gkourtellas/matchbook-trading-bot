@@ -1,0 +1,6 @@
+.env
+config/bets.db
+config/state/
+logs/
+__pycache__/
+*.pyc

@@ -1,0 +1,290 @@
+[
+  {
+    "name": "American Football",
+    "id": 1,
+    "type": "SPORT",
+    "url-name": "american-football"
+  },
+  {
+    "name": "Athletics",
+    "id": 555636871580009,
+    "type": "SPORT",
+    "url-name": "athletics"
+  },
+  {
+    "name": "Australian Rules",
+    "id": 112,
+    "type": "SPORT",
+    "url-name": "australian-rules"
+  },
+  {
+    "name": "Auto Racing",
+    "id": 13,
+    "type": "SPORT",
+    "url-name": "auto-racing"
+  },
+  {
+    "name": "Baseball",
+    "id": 3,
+    "type": "SPORT",
+    "url-name": "baseball"
+  },
+  {
+    "name": "Basketball",
+    "id": 4,
+    "type": "SPORT",
+    "url-name": "basketball"
+  },
+  {
+    "name": "Boxing",
+    "id": 14,
+    "type": "SPORT",
+    "url-name": "boxing"
+  },
+  {
+    "name": "Chess",
+    "id": 1387652895550017,
+    "type": "SPORT",
+    "url-name": "chess"
+  },
+  {
+    "name": "Cricket",
+    "id": 110,
+    "type": "SPORT",
+    "url-name": "cricket"
+  },
+  {
+    "name": "Current Events",
+    "id": 11,
+    "type": "SPORT",
+    "url-name": "current-events"
+  },
+  {
+    "name": "Cycling",
+    "id": 115,
+    "type": "SPORT",
+    "url-name": "cycling"
+  },
+  {
+    "name": "Darts",
+    "id": 116,
+    "type": "SPORT",
+    "url-name": "darts"
+  },
+  {
+    "name": "E Specials",
+    "id": 2365767644720008,
+    "type": "SPORT",
+    "url-name": "e-specials"
+  },
+  {
+    "name": "Enhanced Specials",
+    "id": 1532612887820003,
+    "type": "SPORT",
+    "url-name": "enhanced-specials"
+  },
+  {
+    "name": "Especial Mejorado",
+    "id": 32917219908400047,
+    "type": "SPORT",
+    "url-name": "especial-mejorado"
+  },
+  {
+    "name": "Eurovision 2022",
+    "id": 2061617389960016,
+    "type": "SPORT",
+    "url-name": "eurovision-2022"
+  },
+  {
+    "name": "Eurovision 2023",
+    "id": 2371634230370008,
+    "type": "SPORT",
+    "url-name": "eurovision-2023"
+  },
+  {
+    "name": "Formula 1",
+    "id": 29471135545400054,
+    "type": "SPORT",
+    "url-name": "formula-1"
+  },
+  {
+    "name": "Gaelic Football",
+    "id": 117,
+    "type": "SPORT",
+    "url-name": "gaelic-football"
+  },
+  {
+    "name": "Golf",
+    "id": 8,
+    "type": "SPORT",
+    "url-name": "golf"
+  },
+  {
+    "name": "Greyhound Racing",
+    "id": 241798357140019,
+    "type": "SPORT",
+    "url-name": "greyhound-racing"
+  },
+  {
+    "name": "Handball",
+    "id": 1326054153540017,
+    "type": "SPORT",
+    "url-name": "handball"
+  },
+  {
+    "name": "Horse Racing",
+    "id": 24735152712200,
+    "type": "SPORT",
+    "url-name": "horse-racing"
+  },
+  {
+    "name": "Horse Racing (Ante Post)",
+    "id": 222109340250019,
+    "type": "SPORT",
+    "url-name": "horse-racing-antepost"
+  },
+  {
+    "name": "Horse Racing Beta",
+    "id": 231138347942400,
+    "type": "SPORT",
+    "url-name": "old-horse-racing-beta"
+  },
+  {
+    "name": "Hurling",
+    "id": 118,
+    "type": "SPORT",
+    "url-name": "hurling"
+  },
+  {
+    "name": "Ice Hockey",
+    "id": 6,
+    "type": "SPORT",
+    "url-name": "ice-hockey"
+  },
+  {
+    "name": "MMA",
+    "id": 126,
+    "type": "SPORT",
+    "url-name": "mma"
+  },
+  {
+    "name": "Motorsport",
+    "id": 29469772436600060,
+    "type": "SPORT",
+    "url-name": "motorsport"
+  },
+  {
+    "name": "Multiples",
+    "id": 974500494700042,
+    "type": "SPORT",
+    "url-name": "multiples"
+  },
+  {
+    "name": "NCAA Basketball",
+    "id": 5,
+    "type": "SPORT",
+    "url-name": "ncaa-basketball"
+  },
+  {
+    "name": "NCAA Football",
+    "id": 2,
+    "type": "SPORT",
+    "url-name": "ncaa-football"
+  },
+  {
+    "name": "Olympics",
+    "id": 1389296437280017,
+    "type": "SPORT",
+    "url-name": "olympics"
+  },
+  {
+    "name": "Player Props",
+    "id": 1647799938050011,
+    "type": "SPORT",
+    "url-name": "player-props"
+  },
+  {
+    "name": "Podcast Specials",
+    "id": 1931049418390001,
+    "type": "SPORT",
+    "url-name": "podcast-specials"
+  },
+  {
+    "name": "Poker",
+    "id": 1390943636090017,
+    "type": "SPORT",
+    "url-name": "poker"
+  },
+  {
+    "name": "Politics",
+    "id": 385227477790005,
+    "type": "SPORT",
+    "url-name": "politics"
+  },
+  {
+    "name": "Pool",
+    "id": 979564283980041,
+    "type": "SPORT",
+    "url-name": "pool"
+  },
+  {
+    "name": "Rugby League",
+    "id": 114,
+    "type": "SPORT",
+    "url-name": "rugby-league"
+  },
+  {
+    "name": "Rugby Union",
+    "id": 18,
+    "type": "SPORT",
+    "url-name": "rugby-union"
+  },
+  {
+    "name": "Snooker",
+    "id": 120,
+    "type": "SPORT",
+    "url-name": "snooker"
+  },
+  {
+    "name": "Soccer",
+    "id": 15,
+    "type": "SPORT",
+    "url-name": "soccer"
+  },
+  {
+    "name": "TV Specials",
+    "id": 670369566180014,
+    "type": "SPORT",
+    "url-name": "tv-specials"
+  },
+  {
+    "name": "Table Tennis",
+    "id": 1389388027310017,
+    "type": "SPORT",
+    "url-name": "table-tennis"
+  },
+  {
+    "name": "Tennis",
+    "id": 9,
+    "type": "SPORT",
+    "url-name": "tennis"
+  },
+  {
+    "name": "Test Sport",
+    "id": 502491395980009,
+    "type": "SPORT",
+    "url-name": "test-sport"
+  },
+  {
+    "name": "Volleyball",
+    "id": 1939998342510016,
+    "type": "SPORT",
+    "url-name": "volleyball"
+  },
+  {
+    "name": "eSports",
+    "id": 123,
+    "type": "SPORT",
+    "url-name": "esports"
+  }
+]
