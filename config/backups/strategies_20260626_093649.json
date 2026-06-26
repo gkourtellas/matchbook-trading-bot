@@ -90,7 +90,7 @@
       "base_stake": 0.11,
       "currency": "EUR",
       "description": "Cloned from Win_Step 6/1.5",
-      "enabled": false,
+      "enabled": true,
       "event_lookahead_minutes": 180,
       "keep_in_play": false,
       "market_name": "Moneyline",

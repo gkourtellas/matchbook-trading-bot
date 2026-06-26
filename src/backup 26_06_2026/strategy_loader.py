@@ -32,11 +32,7 @@ def _get_sport_ids(client):
 
 
 def load_strategies(client):
-    """Returns the list of enabled, valid strategies from strategies.json.
-    A strategy with a problem (e.g. its sport isn't offered right now)
-    is skipped with a clear warning — it does not stop the other
-    strategies from running.
-    """
+    """Returns the list of enabled strategies from strategies.json."""
     if not os.path.isfile(STRATEGIES_FILE):
         raise FileNotFoundError(f"Missing config: {STRATEGIES_FILE}")
 
@@ -52,13 +48,13 @@ def load_strategies(client):
 
     sport_ids = _get_sport_ids(client)
 
-    valid = []
     for s in enabled:
         sport = s.get("sport_name") or (s.get("sport_names") or [None])[0]
         if sport not in sport_ids:
-            print(f"[{s['name']}] ⚠️ SKIPPED — sport '{sport}' is not offered on Matchbook "
-                  f"right now. Available: {sorted(sport_ids.keys())}")
-            continue
+            raise ValueError(
+                f"Strategy '{s['name']}': sport '{sport}' not found on Matchbook right now. "
+                f"Available: {sorted(sport_ids.keys())}"
+            )
         s["_sport_id"] = sport_ids[sport]
 
         ladder = s.get("staking_plan", [])
@@ -67,6 +63,4 @@ def load_strategies(client):
             print(f"[{s['name']}] ⚠️ staking_steps ({steps}) doesn't match "
                   f"staking_plan length ({len(ladder)}). Using staking_plan length.")
 
-        valid.append(s)
-
-    return valid
+    return enabled

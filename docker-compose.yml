@@ -27,6 +27,7 @@ services:
     volumes:
       - ./src:/app/src
       - ./config:/app/config
+      - /var/run/docker.sock:/var/run/docker.sock
     logging:
       driver: json-file
       options:
