@@ -4,15 +4,48 @@
 
 Then open http://localhost:8050 in your browser.
 Reads config/bets.db — does not touch the bot or place any bets.
+
+Set DASHBOARD_PASSWORD in your .env to require a password when accessed
+from outside (e.g. through the Cloudflare tunnel).
 """
 
 import os
+import json
 import sqlite3
-from flask import Flask, jsonify, render_template_string
+from functools import wraps
+from flask import Flask, jsonify, render_template_string, request, Response
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "bets.db")
+STRATEGIES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "strategies.json")
+DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD")
 
 app = Flask(__name__)
+
+
+def get_enabled_strategy_names():
+    """Returns the set of strategy names currently enabled in strategies.json."""
+    try:
+        with open(STRATEGIES_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        return {s["name"] for s in data.get("strategies", []) if s.get("enabled", True)}
+    except Exception:
+        return None  # unknown — don't mark anything inactive if file can't be read
+
+
+def require_password(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not DASHBOARD_PASSWORD:
+            return view(*args, **kwargs)
+        auth = request.authorization
+        if not auth or auth.password != DASHBOARD_PASSWORD:
+            return Response(
+                "Password required.", 401,
+                {"WWW-Authenticate": 'Basic realm="Dashboard"'}
+            )
+        return view(*args, **kwargs)
+    return wrapped
+
 
 PAGE = """
 <!DOCTYPE html>
@@ -132,6 +165,9 @@ PAGE = """
     <a class="nav-btn" href="/analytics">Analytics →</a>
   </div>
 
+  <h1>Open Positions <span style="font-weight:400; text-transform:none; letter-spacing:0;">— currently pending</span></h1>
+  <div class="card"><div id="pending"></div></div>
+
   <h1>Strategy Performance</h1>
   <div class="card"><div id="summary"></div></div>
 
@@ -159,8 +195,10 @@ function cls(n) { return n >= 0 ? 'profit' : 'loss'; }
 fetch('/api/summary').then(r => r.json()).then(data => {
   let html = '<table><tr><th>Strategy</th><th>Bets</th><th>Won</th><th>Lost</th><th>Pending</th><th>Win %</th><th>Profit</th></tr>';
   data.forEach(s => {
-    html += `<tr>
-      <td>${s.strategy_name}</td>
+    const rowStyle = s.enabled ? '' : ' style="opacity:0.45;"';
+    const nameLabel = s.enabled ? s.strategy_name : `${s.strategy_name} (inactive)`;
+    html += `<tr${rowStyle}>
+      <td>${nameLabel}</td>
       <td>${s.total}</td>
       <td>${s.won}</td>
       <td>${s.lost}</td>
@@ -189,10 +227,13 @@ fetch('/api/steps').then(r => r.json()).then(data => {
   document.getElementById('steps').innerHTML = html;
 });
 
-fetch('/api/recent').then(r => r.json()).then(data => {
-  let html = '<table><tr><th>Time</th><th>Strategy</th><th>Match</th><th>Selection</th><th>Odds</th><th>Stake</th><th>Step</th><th>Result</th><th>Profit</th></tr>';
+fetch('/api/pending').then(r => r.json()).then(data => {
+  if (!data.length) {
+    document.getElementById('pending').innerHTML = '<p class="small">No open positions right now.</p>';
+    return;
+  }
+  let html = '<table><tr><th>Placed</th><th>Strategy</th><th>Match</th><th>Selection</th><th>Odds</th><th>Stake</th><th>Step</th></tr>';
   data.forEach(b => {
-    const resultClass = b.result === 'won' ? 'profit' : (b.result === 'lost' ? 'loss' : 'pending');
     html += `<tr>
       <td>${(b.placed_at || '').replace('T', ' ').slice(0, 16)}</td>
       <td>${b.strategy_name}</td>
@@ -201,8 +242,26 @@ fetch('/api/recent').then(r => r.json()).then(data => {
       <td>${b.odds}</td>
       <td>${b.stake}</td>
       <td>${b.step}</td>
-      <td class="${resultClass}">${b.result || 'pending'}</td>
-      <td class="${cls(b.profit || 0)}">${b.profit != null ? fmt(b.profit) : '-'}</td>
+    </tr>`;
+  });
+  html += '</table>';
+  document.getElementById('pending').innerHTML = html;
+});
+
+fetch('/api/recent').then(r => r.json()).then(data => {
+  let html = '<table><tr><th>Time</th><th>Strategy</th><th>Match</th><th>Selection</th><th>Odds</th><th>Stake</th><th>Step</th><th>Result</th><th>Profit</th></tr>';
+  data.forEach(b => {
+    const resultClass = b.result === 'won' ? 'profit' : 'loss';
+    html += `<tr>
+      <td>${(b.placed_at || '').replace('T', ' ').slice(0, 16)}</td>
+      <td>${b.strategy_name}</td>
+      <td>${b.event_name}</td>
+      <td>${b.selection_name}</td>
+      <td>${b.odds}</td>
+      <td>${b.stake}</td>
+      <td>${b.step}</td>
+      <td class="${resultClass}">${b.result}</td>
+      <td class="${cls(b.profit || 0)}">${fmt(b.profit)}</td>
     </tr>`;
   });
   html += '</table>';
@@ -438,16 +497,19 @@ def query(sql, params=()):
 
 
 @app.route("/")
+@require_password
 def home():
     return render_template_string(PAGE)
 
 
 @app.route("/analytics")
+@require_password
 def analytics_page():
     return render_template_string(ANALYTICS_PAGE)
 
 
 @app.route("/api/summary")
+@require_password
 def summary():
     rows = query("""
         SELECT strategy_name,
@@ -460,13 +522,18 @@ def summary():
         GROUP BY strategy_name
         ORDER BY strategy_name
     """)
+    enabled_names = get_enabled_strategy_names()
     for r in rows:
         settled = r["won"] + r["lost"]
         r["win_rate"] = round(100 * r["won"] / settled, 1) if settled else 0
+        r["enabled"] = True if enabled_names is None else (r["strategy_name"] in enabled_names)
+
+    rows.sort(key=lambda r: (not r["enabled"], r["strategy_name"]))
     return jsonify(rows)
 
 
 @app.route("/api/steps")
+@require_password
 def steps():
     rows = query("""
         SELECT strategy_name, step, COUNT(*) as count
@@ -481,6 +548,7 @@ def steps():
 
 
 @app.route("/api/profit_periods")
+@require_password
 def profit_periods():
     daily = query("""
         SELECT date(settled_at) as period, COALESCE(SUM(profit), 0) as profit
@@ -507,6 +575,7 @@ def profit_periods():
 
 
 @app.route("/api/chart_data")
+@require_password
 def chart_data():
     cumulative = query("""
         SELECT settled_at, strategy_name, profit
@@ -565,10 +634,23 @@ def chart_data():
     })
 
 
+@app.route("/api/pending")
+@require_password
+def pending():
+    rows = query("""
+        SELECT * FROM bets
+        WHERE result IS NULL
+        ORDER BY placed_at DESC
+    """)
+    return jsonify(rows)
+
+
 @app.route("/api/recent")
+@require_password
 def recent():
     rows = query("""
         SELECT * FROM bets
+        WHERE result IS NOT NULL
         ORDER BY placed_at DESC
         LIMIT 50
     """)

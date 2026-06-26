@@ -26,8 +26,10 @@ def find_opportunity(market, strategy):
         if not backs:
             continue
 
-        odds = backs[0].get("odds")
-        size_available = backs[0].get("available-amount", backs[0].get("available_amount"))
+        # Best back price = lowest odds available to back (not necessarily first in the list).
+        best = min(backs, key=lambda p: p.get("odds", float("inf")))
+        odds = best.get("odds")
+        size_available = best.get("available-amount", best.get("available_amount"))
 
         if odds is None:
             continue

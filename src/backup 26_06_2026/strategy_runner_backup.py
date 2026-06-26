@@ -6,7 +6,6 @@ every other strategy. They don't affect each other.
 
 import asyncio
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 
 import market_match_odds
 import market_total
@@ -44,8 +43,7 @@ class StrategyRunner:
         self.min_seconds_to_start = strategy.get("min_seconds_to_start", 300)
 
     def log(self, msg):
-        ts = datetime.now(ZoneInfo("Europe/Athens")).strftime("%Y-%m-%d %H:%M:%S")
-        print(f"[{ts}] [{self.name}] {msg}")
+        print(f"[{self.name}] {msg}")
 
     def stake_for_step(self):
         idx = max(0, min(self.current_step - 1, len(self.staking_plan) - 1))
