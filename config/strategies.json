@@ -1,21 +1,34 @@
 {
   "strategies": [
     {
-      "name": "Win_Step 6/1.5",
+      "autoRestart": false,
+      "bankroll": 10,
+      "base_stake": 0.1,
+      "currency": "EUR",
       "description": "Primary Soccer Match Odds strategy with martingale staking",
       "enabled": true,
-      "sport_name": "Soccer",
+      "event_lookahead_minutes": 180,
+      "keep_in_play": false,
       "market_name": "Match Odds",
-      "sport_names": [
-        "Soccer"
-      ],
       "market_names": [
         "Match Odds"
       ],
-      "staking_steps": 6,
-      "min_back_odds": 1.45,
       "max_back_odds": 1.6,
-      "base_stake": 0.1,
+      "max_open_bets": 1,
+      "max_session_loss": 10,
+      "max_total_exposure": 10,
+      "min_back_odds": 1.45,
+      "min_seconds_to_start": 300,
+      "minimum_liquidity": 2,
+      "name": "Win_Step 6/1.5",
+      "odds_type": "DECIMAL",
+      "open_positions_cooldown_seconds": 600,
+      "pause_scanning_with_open_positions": true,
+      "poll_interval_seconds": 600,
+      "sport_name": "Soccer",
+      "sport_names": [
+        "Soccer"
+      ],
       "staking_plan": [
         0.1,
         0.3,
@@ -24,42 +37,40 @@
         8.1,
         24.3
       ],
-      "max_open_bets": 1,
-      "max_total_exposure": 10,
-      "max_session_loss": 10,
+      "staking_steps": 6,
       "target_profit": 10,
-      "bankroll": 10,
-      "poll_interval_seconds": 600,
-      "pause_scanning_with_open_positions": true,
-      "open_positions_cooldown_seconds": 600,
-      "event_lookahead_minutes": 180,
-      "min_seconds_to_start": 300,
-      "odds_type": "DECIMAL",
-      "currency": "EUR",
-      "minimum_liquidity": 2,
-      "keep_in_play": false,
-      "autoRestart": false,
-      "total_range": null,
-      "total_direction": null
+      "total_direction": null,
+      "total_range": null
     },
     {
-      "name": "More_Step 6/1.5",
+      "autoRestart": false,
+      "bankroll": 10,
+      "base_stake": 0.1,
+      "currency": "EUR",
       "description": "Secondary Soccer Over/Under 2.5 strategy running in parallel",
       "enabled": true,
-      "sport_name": "Soccer",
+      "event_lookahead_minutes": 180,
+      "keep_in_play": false,
       "market_name": "Total",
-      "sport_names": [
-        "Soccer"
-      ],
       "market_names": [
         "Total"
       ],
-      "total_range": "2.5",
-      "total_direction": "Over",
-      "staking_steps": 6,
-      "min_back_odds": 1.45,
       "max_back_odds": 1.6,
-      "base_stake": 0.1,
+      "max_open_bets": 1,
+      "max_session_loss": 10,
+      "max_total_exposure": 10,
+      "min_back_odds": 1.45,
+      "min_seconds_to_start": 300,
+      "minimum_liquidity": 2,
+      "name": "More_Step 6/1.5",
+      "odds_type": "DECIMAL",
+      "open_positions_cooldown_seconds": 600,
+      "pause_scanning_with_open_positions": true,
+      "poll_interval_seconds": 600,
+      "sport_name": "Soccer",
+      "sport_names": [
+        "Soccer"
+      ],
       "staking_plan": [
         0.1,
         0.3,
@@ -68,38 +79,40 @@
         8.1,
         24.3
       ],
-      "max_open_bets": 1,
-      "max_total_exposure": 10,
-      "max_session_loss": 10,
-      "bankroll": 10,
-      "poll_interval_seconds": 600,
-      "pause_scanning_with_open_positions": true,
-      "open_positions_cooldown_seconds": 600,
-      "event_lookahead_minutes": 180,
-      "min_seconds_to_start": 300,
-      "odds_type": "DECIMAL",
-      "currency": "EUR",
-      "minimum_liquidity": 2,
-      "keep_in_play": false,
-      "autoRestart": false,
-      "target_profit": 10
+      "staking_steps": 6,
+      "target_profit": 10,
+      "total_direction": "Over",
+      "total_range": "2.5"
     },
     {
-      "name": "Hockey_6 Steps_1.5",
+      "autoRestart": false,
+      "bankroll": 10,
+      "base_stake": 0.11,
+      "currency": "EUR",
       "description": "Cloned from Win_Step 6/1.5",
       "enabled": false,
-      "sport_name": "Ice Hockey",
+      "event_lookahead_minutes": 180,
+      "keep_in_play": false,
       "market_name": "Moneyline",
+      "market_names": [
+        "Moneyline"
+      ],
+      "max_back_odds": 1.6,
+      "max_open_bets": 1,
+      "max_session_loss": 10,
+      "max_total_exposure": 10,
+      "min_back_odds": 1.45,
+      "min_seconds_to_start": 300,
+      "minimum_liquidity": 2,
+      "name": "Hockey_6 Steps_1.5",
+      "odds_type": "DECIMAL",
+      "open_positions_cooldown_seconds": 600,
+      "pause_scanning_with_open_positions": true,
+      "poll_interval_seconds": 600,
+      "sport_name": "Ice Hockey",
       "sport_names": [
         "Ice Hockey"
       ],
-      "market_names": [
-        "Moneyline"
-      ],
-      "staking_steps": 6,
-      "min_back_odds": 1.45,
-      "max_back_odds": 1.6,
-      "base_stake": 0.1,
       "staking_plan": [
         0.11,
         0.12,
@@ -108,40 +121,40 @@
         0.15,
         0.16
       ],
-      "max_open_bets": 1,
-      "max_total_exposure": 10,
-      "max_session_loss": 10,
-      "bankroll": 10,
-      "poll_interval_seconds": 600,
-      "pause_scanning_with_open_positions": true,
-      "open_positions_cooldown_seconds": 600,
-      "event_lookahead_minutes": 180,
-      "min_seconds_to_start": 300,
-      "odds_type": "DECIMAL",
-      "currency": "EUR",
-      "minimum_liquidity": 2,
-      "keep_in_play": false,
-      "autoRestart": false,
-      "total_range": null,
+      "staking_steps": 6,
+      "target_profit": 5,
       "total_direction": null,
-      "target_profit": 5
+      "total_range": null
     },
     {
-      "name": "Baseball",
+      "autoRestart": false,
+      "bankroll": 10,
+      "base_stake": 0.1,
+      "currency": "EUR",
       "description": "Cloned from Win_Step 6/1.5",
       "enabled": false,
-      "sport_name": "Baseball",
+      "event_lookahead_minutes": 180,
+      "keep_in_play": false,
       "market_name": "Moneyline",
+      "market_names": [
+        "Moneyline"
+      ],
+      "max_back_odds": 1.6,
+      "max_open_bets": 1,
+      "max_session_loss": 10,
+      "max_total_exposure": 10,
+      "min_back_odds": 1.45,
+      "min_seconds_to_start": 300,
+      "minimum_liquidity": 2,
+      "name": "Baseball",
+      "odds_type": "DECIMAL",
+      "open_positions_cooldown_seconds": 600,
+      "pause_scanning_with_open_positions": true,
+      "poll_interval_seconds": 600,
+      "sport_name": "Baseball",
       "sport_names": [
         "Baseball"
       ],
-      "market_names": [
-        "Moneyline"
-      ],
-      "staking_steps": 6,
-      "min_back_odds": 1.45,
-      "max_back_odds": 1.6,
-      "base_stake": 0.1,
       "staking_plan": [
         0.11,
         0.12,
@@ -150,60 +163,47 @@
         0.15,
         0.16
       ],
-      "max_open_bets": 1,
-      "max_total_exposure": 10,
-      "max_session_loss": 10,
-      "bankroll": 10,
-      "poll_interval_seconds": 600,
-      "pause_scanning_with_open_positions": true,
-      "open_positions_cooldown_seconds": 600,
-      "event_lookahead_minutes": 180,
-      "min_seconds_to_start": 300,
-      "odds_type": "DECIMAL",
-      "currency": "EUR",
-      "minimum_liquidity": 2,
-      "keep_in_play": false,
-      "autoRestart": false,
-      "total_range": null,
+      "staking_steps": 6,
+      "target_profit": 5,
       "total_direction": null,
-      "target_profit": 5
+      "total_range": null
     },
     {
-      "name": "Test Fixed Bet",
+      "autoRestart": false,
+      "bankroll": 0.1,
+      "base_stake": 1,
+      "currency": "EUR",
       "description": "Cloned from Win_Step 6/1.5",
       "enabled": true,
-      "sport_name": "Soccer",
+      "event_lookahead_minutes": 180,
+      "keep_in_play": false,
       "market_name": "Match Odds",
-      "sport_names": [
-        "Soccer"
-      ],
       "market_names": [
         "Match Odds"
       ],
-      "staking_steps": 1,
-      "min_back_odds": 1.45,
       "max_back_odds": 1.6,
-      "base_stake": 1.0,
+      "max_open_bets": 3,
+      "max_session_loss": 10,
+      "max_total_exposure": 10,
+      "min_back_odds": 1.45,
+      "min_seconds_to_start": 300,
+      "minimum_liquidity": 2,
+      "name": "Test Fixed Bet",
+      "odds_type": "DECIMAL",
+      "open_positions_cooldown_seconds": 600,
+      "pause_scanning_with_open_positions": true,
+      "poll_interval_seconds": 600,
+      "sport_name": "Soccer",
+      "sport_names": [
+        "Soccer"
+      ],
       "staking_plan": [
         1
       ],
-      "max_open_bets": 3,
-      "max_total_exposure": 10,
-      "max_session_loss": 10,
+      "staking_steps": 1,
       "target_profit": 0.1,
-      "bankroll": 0.1,
-      "poll_interval_seconds": 600,
-      "pause_scanning_with_open_positions": true,
-      "open_positions_cooldown_seconds": 600,
-      "event_lookahead_minutes": 180,
-      "min_seconds_to_start": 300,
-      "odds_type": "DECIMAL",
-      "currency": "EUR",
-      "minimum_liquidity": 2,
-      "keep_in_play": false,
-      "autoRestart": false,
-      "total_range": null,
-      "total_direction": null
+      "total_direction": null,
+      "total_range": null
     }
   ]
 }
