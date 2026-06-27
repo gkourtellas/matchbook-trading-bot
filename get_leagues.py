@@ -1,10 +1,13 @@
 import json
 import os
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # --- Configuration ---
-USERNAME = "nintza13"
-PASSWORD = "!IB0d0@QEjMEOp!!"
+USERNAME = os.environ["MATCHBOOK_USERNAME"]
+PASSWORD = os.environ["MATCHBOOK_PASSWORD"]
 TARGET_SPORT_IDS = [15]  # Configured for Soccer
 OUTPUT_FILE = "leagues.json"
 
@@ -29,7 +32,6 @@ login_headers = {
     "content-type": "application/json;charset=UTF-8",
     "accept": "application/json",
 }
-
 response = requests.post(
     LOGIN_URL, data=json.dumps(login_payload), headers=login_headers
 )
@@ -45,7 +47,6 @@ authenticated_headers = {
 # 4. Pull Events for the chosen Sports
 sport_ids_str = ",".join(map(str, TARGET_SPORT_IDS))
 query_params = {"sport-ids": sport_ids_str, "per-page": "100", "states": "open"}
-
 events_response = requests.get(
     EVENTS_URL, headers=authenticated_headers, params=query_params
 )
