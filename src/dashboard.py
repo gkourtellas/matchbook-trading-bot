@@ -332,8 +332,10 @@ fetch('/api/pending').then(r => r.json()).then(data => {
     return;
   }
   let html = '<table><tr><th>Placed</th><th>Strategy</th><th>Match</th><th>Selection</th><th>Odds</th><th>Stake</th><th>Step</th></tr>';
+  let lastStrategy = null;
   data.forEach(b => {
-    html += `<tr>
+    const newBlock = lastStrategy !== null && lastStrategy !== b.strategy_name;
+    html += `<tr class="${newBlock ? 'strategy-block' : ''}">
       <td>${(b.placed_at || '').replace('T', ' ').slice(0, 16)}</td>
       <td>${b.strategy_name}</td>
       <td>${b.event_name}</td>
@@ -342,6 +344,7 @@ fetch('/api/pending').then(r => r.json()).then(data => {
       <td>${b.stake}</td>
       <td>${b.step}</td>
     </tr>`;
+    lastStrategy = b.strategy_name;
   });
   html += '</table>';
   document.getElementById('pending').innerHTML = html;
@@ -1061,7 +1064,7 @@ def pending():
     rows = query("""
         SELECT * FROM bets
         WHERE result IS NULL
-        ORDER BY placed_at DESC
+        ORDER BY strategy_name, placed_at DESC
     """)
     return jsonify(rows)
 

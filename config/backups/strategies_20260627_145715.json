@@ -206,42 +206,42 @@
       "total_range": null
     },
     {
-      "autoRestart": false,
-      "bankroll": 2,
-      "base_stake": 1,
-      "cash_out_at_percent": 5,
-      "currency": "EUR",
-      "description": "",
-      "enabled": true,
-      "event_lookahead_minutes": 180,
-      "keep_in_play": false,
-      "market_name": "Total",
-      "market_names": [
-        "Total"
-      ],
-      "max_back_odds": 2,
-      "max_open_bets": 4,
-      "max_session_loss": 10,
-      "max_total_exposure": 2,
-      "min_back_odds": 1.6,
-      "min_seconds_to_start": 300,
-      "minimum_liquidity": 2,
       "name": "Under 2.5 Cash Out",
-      "odds_type": "DECIMAL",
-      "open_positions_cooldown_seconds": 600,
-      "pause_scanning_with_open_positions": true,
-      "poll_interval_seconds": 600,
+      "enabled": true,
       "sport_name": "Soccer",
       "sport_names": [
         "Soccer"
       ],
+      "market_name": "Total",
+      "market_names": [
+        "Total"
+      ],
+      "min_back_odds": 1.7,
+      "max_back_odds": 2,
       "staking_plan": [
-        1
+        0.2
       ],
       "staking_steps": 1,
+      "base_stake": 0.2,
+      "max_open_bets": 2,
+      "bankroll": 2,
+      "max_total_exposure": 2,
+      "max_session_loss": 10,
       "target_profit": 10,
+      "poll_interval_seconds": 600,
+      "open_positions_cooldown_seconds": 600,
+      "pause_scanning_with_open_positions": true,
+      "event_lookahead_minutes": 180,
+      "min_seconds_to_start": 300,
+      "odds_type": "DECIMAL",
+      "currency": "EUR",
+      "minimum_liquidity": 2,
+      "cash_out_at_percent": 10,
+      "keep_in_play": false,
+      "autoRestart": false,
+      "total_range": "2.5",
       "total_direction": "Under",
-      "total_range": "2.5"
+      "description": ""
     }
   ]
 }
