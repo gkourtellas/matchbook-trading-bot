@@ -92,6 +92,26 @@ class MatchbookClient:
             print(f"Error fetching navigation: {str(e)}")
             return None
 
+    def get_runner_prices(self, event_id, market_id, runner_id):
+        """Fetches current back/lay prices for one specific runner.
+        Used to check if a position can be cashed out at a good price,
+        without re-scanning the whole event list.
+        """
+        self.ensure_valid_session()
+        url = f"{self.base_url}/events/{event_id}/markets/{market_id}/runners/{runner_id}/prices"
+        params = {"odds-type": "DECIMAL", "exchange-type": "back-lay"}
+        try:
+            response = requests.get(url, params=params, headers=self.headers)
+            if response.status_code == 401:
+                if self.login():
+                    response = requests.get(url, params=params, headers=self.headers)
+            if response.status_code == 200:
+                return response.json()
+            return None
+        except Exception as e:
+            print(f"Error fetching runner prices: {str(e)}")
+            return None
+
     def get_live_events(self, sport_ids, per_page=20):
         """Fetches active events, runners, and exchange market odds for specified sport IDs."""
         self.ensure_valid_session()

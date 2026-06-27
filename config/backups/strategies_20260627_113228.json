@@ -204,44 +204,6 @@
       "target_profit": 0.1,
       "total_direction": null,
       "total_range": null
-    },
-    {
-      "name": "Under 2.5 Cash Out",
-      "enabled": true,
-      "sport_name": "Soccer",
-      "sport_names": [
-        "Soccer"
-      ],
-      "market_name": "Total",
-      "market_names": [
-        "Total"
-      ],
-      "min_back_odds": 1.7,
-      "max_back_odds": 2,
-      "staking_plan": [
-        0.2
-      ],
-      "staking_steps": 1,
-      "base_stake": 0.2,
-      "max_open_bets": 2,
-      "bankroll": 2,
-      "max_total_exposure": 2,
-      "max_session_loss": 10,
-      "target_profit": 10,
-      "poll_interval_seconds": 600,
-      "open_positions_cooldown_seconds": 600,
-      "pause_scanning_with_open_positions": true,
-      "event_lookahead_minutes": 180,
-      "min_seconds_to_start": 300,
-      "odds_type": "DECIMAL",
-      "currency": "EUR",
-      "minimum_liquidity": 2,
-      "cash_out_at_percent": 10,
-      "keep_in_play": false,
-      "autoRestart": false,
-      "total_range": "2.5",
-      "total_direction": "Under",
-      "description": ""
     }
   ]
 }
