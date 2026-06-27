@@ -12,6 +12,7 @@ import market_match_odds
 import market_total
 from state_store import load_state, save_state
 from bet_records import record_bet_placed, record_bet_settled
+from league_tracker import record_league
 
 MATCHERS = {
     "Match Odds": market_match_odds,
@@ -121,6 +122,9 @@ class StrategyRunner:
                 if not order_status:
                     self.log("⚠️ Bet was rejected.")
                     continue
+
+                sport = self.cfg.get("sport_name") or (self.cfg.get("sport_names") or ["?"])[0]
+                record_league(sport, event)
 
                 offers = order_status.get("offers", [])
                 placed_offer = offers[0] if offers else {}
