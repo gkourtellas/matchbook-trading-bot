@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 import market_match_odds
 import market_total
 from state_store import load_state, save_state
-from bet_records import record_bet_placed, record_bet_settled, record_bet_cashed_out
+from bet_records import record_bet_placed, record_bet_settled
 from league_tracker import record_league
 
 MATCHERS = {
@@ -44,20 +44,6 @@ class StrategyRunner:
         self.lookahead_minutes = strategy.get("event_lookahead_minutes", 180)
         self.min_seconds_to_start = strategy.get("min_seconds_to_start", 300)
 
-        # If set, automatically locks in this % of the stake as guaranteed
-        # profit (win or lose) as soon as live odds make it possible.
-        # e.g. cash_out_at_percent: 5 on a 10 EUR stake locks in 0.50 EUR.
-        # Only applies to single-step strategies — multi-step (martingale
-        # ladder) strategies don't support cash-out yet.
-        requested_cash_out = strategy.get("cash_out_at_percent")
-        if requested_cash_out and self.max_steps > 1:
-            print(f"[{self.name}] ⚠️ cash_out_at_percent is set but this strategy has "
-                  f"{self.max_steps} steps. Cash-out is only supported for single-step "
-                  f"strategies right now — ignoring it.")
-            self.cash_out_at_percent = None
-        else:
-            self.cash_out_at_percent = requested_cash_out
-
     def log(self, msg):
         ts = datetime.now(ZoneInfo("Europe/Athens")).strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{ts}] [{self.name}] {msg}")
@@ -72,9 +58,6 @@ class StrategyRunner:
             try:
                 if len(self.active_bets) < self.max_open_bets:
                     await self.scan_and_bet()
-
-                if self.cash_out_at_percent:
-                    await self.check_cash_out()
 
                 await self.check_settlements()
 
@@ -149,8 +132,6 @@ class StrategyRunner:
                 bet = {
                     "offer_id": placed_offer.get("id"),
                     "event_id": placed_offer.get("event-id"),
-                    "market_id": market.get("id"),
-                    "runner_id": runner_id,
                     "start_time": start_time,
                     "placed_at": datetime.utcnow(),
                     "selection_name": runner_name,
@@ -179,71 +160,6 @@ class StrategyRunner:
                 return  # one new bet per scan pass
 
         self.log("Scan done: nothing matched the strategy right now.")
-
-    async def check_cash_out(self):
-        """For each open bet, checks if current lay odds let us lock in
-        the target % of stake as guaranteed profit. If so, places the
-        lay bet and marks this bet as closed (cashed out).
-        """
-        for bet in self.active_bets:
-            if bet.get("cashed_out") or bet.get("settled_via_cashout"):
-                continue
-            if not all(bet.get(k) for k in ("event_id", "market_id", "runner_id")):
-                continue  # older bet placed before these fields existed
-
-            response = await asyncio.to_thread(
-                self.client.get_runner_prices, bet["event_id"], bet["market_id"], bet["runner_id"]
-            )
-            if not response:
-                continue
-            prices = response.get("prices", []) if isinstance(response, dict) else response
-            if not prices:
-                continue
-
-            lays = [p for p in prices if p.get("side") == "lay"]
-            if not lays:
-                continue
-
-            best_lay = min(lays, key=lambda p: p.get("odds", float("inf")))
-            lay_odds = best_lay.get("odds")
-            available = best_lay.get("available-amount", best_lay.get("available_amount"))
-            if lay_odds is None:
-                continue
-
-            stake = bet["stake"]
-            target_profit = round(stake * (self.cash_out_at_percent / 100), 4)
-            lay_stake = round(target_profit + stake, 2)
-
-            if available is not None and available < lay_stake:
-                continue  # not enough liquidity to fully hedge yet
-
-            win_case_profit = round(stake * (bet["odds"] - 1) - lay_stake * (lay_odds - 1), 4)
-            lose_case_profit = round(lay_stake - stake, 4)
-
-            if win_case_profit >= target_profit - 0.01 and lose_case_profit >= target_profit - 0.01:
-                self.log(f"💰 Cashing out '{bet['event_name']}' — locking in ~{lose_case_profit} "
-                         f"({self.cash_out_at_percent}% of stake) via lay @ {lay_odds}")
-
-                order_status = await asyncio.to_thread(
-                    self.client.submit_order,
-                    runner_id=bet["runner_id"], side="lay", odds=lay_odds, stake=lay_stake
-                )
-
-                if not order_status:
-                    self.log(f"⚠️ Cash-out lay bet was rejected for '{bet['event_name']}'.")
-                    continue
-
-                bet["cashed_out"] = True
-                bet["cash_out_profit"] = lose_case_profit
-                if bet.get("record_id"):
-                    record_bet_cashed_out(bet["record_id"], lose_case_profit)
-
-                msg = (f"💰 Cashed Out [{self.name}]\nMatch: {bet['event_name']}\n"
-                       f"Locked in profit: {lose_case_profit}")
-                self.client.send_telegram(msg)
-
-        self.active_bets = [b for b in self.active_bets if not b.get("cashed_out")]
-        save_state(self.name, self.current_step, self.active_bets)
 
     async def check_settlements(self):
         if not self.active_bets:

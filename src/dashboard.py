@@ -78,6 +78,16 @@ def validate_strategies(strategies):
         if s.get("min_back_odds", 0) > s.get("max_back_odds", 0):
             return f"Strategy '{s['name']}': min_back_odds is greater than max_back_odds."
 
+        if s.get("cash_out_at_percent") and len(ladder) > 1:
+            return (f"Strategy '{s['name']}': cash_out_at_percent is only supported for "
+                    f"single-step strategies (staking_plan with one number).")
+
+        market = s.get("market_name") or (s.get("market_names") or [None])[0]
+        if market == "Total" and not (s.get("total_range") and s.get("total_direction")):
+            return f"Strategy '{s['name']}': market is 'Total' but total_range/total_direction are missing."
+        if market != "Total" and (s.get("total_range") or s.get("total_direction")):
+            return f"Strategy '{s['name']}': total_range/total_direction are set but market isn't 'Total'."
+
     if len(names) != len(set(names)):
         return "Two strategies have the same name. Names must be unique."
 
@@ -644,6 +654,18 @@ STRATEGIES_PAGE = """
         <div class="field"><label>Market</label><input id="f_market" placeholder="e.g. Match Odds"></div>
         <div class="field"><label>Min back odds</label><input id="f_min_odds" type="number" step="0.01"></div>
         <div class="field"><label>Max back odds</label><input id="f_max_odds" type="number" step="0.01"></div>
+        <div class="field">
+          <label>Total line <span style="color:var(--muted); text-transform:none;">(Total market only)</span></label>
+          <input id="f_total_range" placeholder="e.g. 2.5">
+        </div>
+        <div class="field">
+          <label>Direction <span style="color:var(--muted); text-transform:none;">(Total market only)</span></label>
+          <select id="f_total_direction">
+            <option value="">— not a Total market —</option>
+            <option value="Over">Over</option>
+            <option value="Under">Under</option>
+          </select>
+        </div>
         <div class="field full"><label>Staking plan (comma-separated)</label><input id="f_staking_plan" placeholder="0.1, 0.3, 0.9, 2.7, 8.1, 24.3"></div>
         <div class="field"><label>Max open bets</label><input id="f_max_open_bets" type="number"></div>
         <div class="field"><label>Bankroll</label><input id="f_bankroll" type="number" step="0.01"></div>
@@ -654,6 +676,10 @@ STRATEGIES_PAGE = """
         <div class="field"><label>Lookahead (minutes)</label><input id="f_lookahead" type="number"></div>
         <div class="field"><label>Min seconds to start</label><input id="f_min_seconds" type="number"></div>
         <div class="field"><label>Minimum liquidity</label><input id="f_min_liquidity" type="number" step="0.01"></div>
+        <div class="field">
+          <label>Cash out at % of stake <span style="color:var(--muted); text-transform:none;">(single-step only)</span></label>
+          <input id="f_cash_out_percent" type="number" step="0.1" placeholder="e.g. 5 — leave blank to disable">
+        </div>
         <div class="field full">
           <div class="checkbox-row"><input type="checkbox" id="f_enabled"><label style="margin:0;">Enabled</label></div>
         </div>
@@ -671,6 +697,14 @@ let editingIndex = null;
 
 function fetchStrategies() {
   fetch('/api/strategies').then(r => r.json()).then(data => {
+    if (data && data.error) {
+      document.getElementById('strategyList').innerHTML =
+        `<div class="card" style="border-color: var(--loss); color: var(--loss); font-family: 'JetBrains Mono', monospace; font-size: 13px;">
+          Could not read strategies.json: ${data.error}
+        </div>`;
+      strategies = [];
+      return;
+    }
     strategies = data;
     renderList();
   });
@@ -686,7 +720,7 @@ function renderList() {
     html += `<div class="card strat-row">
       <div>
         <div class="strat-name"><span class="badge ${badgeClass}">${badgeText}</span>${s.name}</div>
-        <div class="strat-meta">${sport} · ${market} · odds ${s.min_back_odds}-${s.max_back_odds}</div>
+        <div class="strat-meta">${sport} · ${market}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}</div>
       </div>
       <div class="row-actions">
         <button class="btn" onclick="openModal(${i})">Edit</button>
@@ -708,6 +742,8 @@ function openModal(index) {
   document.getElementById('f_market').value = s.market_name || (s.market_names || [])[0] || '';
   document.getElementById('f_min_odds').value = s.min_back_odds ?? 1.45;
   document.getElementById('f_max_odds').value = s.max_back_odds ?? 1.6;
+  document.getElementById('f_total_range').value = s.total_range ?? '';
+  document.getElementById('f_total_direction').value = s.total_direction ?? '';
   document.getElementById('f_staking_plan').value = (s.staking_plan || [0.1,0.3,0.9,2.7,8.1,24.3]).join(', ');
   document.getElementById('f_max_open_bets').value = s.max_open_bets ?? 1;
   document.getElementById('f_bankroll').value = s.bankroll ?? 10;
@@ -718,6 +754,7 @@ function openModal(index) {
   document.getElementById('f_lookahead').value = s.event_lookahead_minutes ?? 180;
   document.getElementById('f_min_seconds').value = s.min_seconds_to_start ?? 300;
   document.getElementById('f_min_liquidity').value = s.minimum_liquidity ?? 2;
+  document.getElementById('f_cash_out_percent').value = s.cash_out_at_percent ?? '';
   document.getElementById('f_enabled').checked = s.enabled !== false;
   document.getElementById('modalBg').classList.add('open');
 }
@@ -735,6 +772,27 @@ function saveStrategy() {
   if (!plan.length) { showError('Staking plan must have at least one number.'); return; }
 
   const existing = editingIndex === null ? {} : strategies[editingIndex];
+  const cashOutValue = document.getElementById('f_cash_out_percent').value;
+  const cashOutPercent = cashOutValue === '' ? null : parseFloat(cashOutValue);
+
+  if (cashOutPercent && plan.length > 1) {
+    showError('Cash out is only supported for single-step strategies (staking plan with one number). Remove the extra steps or clear the cash out field.');
+    return;
+  }
+
+  const market = document.getElementById('f_market').value.trim();
+  const totalRange = document.getElementById('f_total_range').value.trim();
+  const totalDirection = document.getElementById('f_total_direction').value;
+
+  if (market === 'Total' && (!totalRange || !totalDirection)) {
+    showError('Market is "Total" — Total line and Direction are both required (e.g. 2.5 + Over).');
+    return;
+  }
+  if (market !== 'Total' && (totalRange || totalDirection)) {
+    showError('Total line / Direction are set but Market is not "Total". Clear them or change the market.');
+    return;
+  }
+
   const updated = {
     ...existing,
     name: name,
@@ -761,10 +819,11 @@ function saveStrategy() {
     odds_type: existing.odds_type || 'DECIMAL',
     currency: existing.currency || 'EUR',
     minimum_liquidity: parseFloat(document.getElementById('f_min_liquidity').value),
+    cash_out_at_percent: cashOutPercent,
     keep_in_play: existing.keep_in_play ?? false,
     autoRestart: existing.autoRestart ?? false,
-    total_range: existing.total_range ?? null,
-    total_direction: existing.total_direction ?? null,
+    total_range: market === 'Total' ? totalRange : null,
+    total_direction: market === 'Total' ? totalDirection : null,
     description: existing.description || '',
   };
 

@@ -24,14 +24,9 @@ def _connect():
             placed_at TEXT,
             settled_at TEXT,
             result TEXT,
-            profit REAL,
-            result_type TEXT
+            profit REAL
         )
     """)
-    # Older databases won't have result_type yet — add it if missing.
-    cols = [r[1] for r in conn.execute("PRAGMA table_info(bets)").fetchall()]
-    if "result_type" not in cols:
-        conn.execute("ALTER TABLE bets ADD COLUMN result_type TEXT")
     return conn
 
 
@@ -54,22 +49,8 @@ def record_bet_settled(row_id, result, odds, stake):
     profit = round(stake * (odds - 1), 4) if result == "won" else -stake
     conn = _connect()
     conn.execute(
-        "UPDATE bets SET result = ?, profit = ?, settled_at = ?, result_type = 'normal' WHERE id = ?",
+        "UPDATE bets SET result = ?, profit = ?, settled_at = ? WHERE id = ?",
         (result, profit, datetime.utcnow().isoformat(), row_id),
-    )
-    conn.commit()
-    conn.close()
-
-
-def record_bet_cashed_out(row_id, locked_in_profit):
-    """Call this when a bet is closed early via a cash-out (hedge) lay bet,
-    instead of record_bet_settled. Keeps cash-outs distinguishable from
-    normal wins/losses in reports.
-    """
-    conn = _connect()
-    conn.execute(
-        "UPDATE bets SET result = 'won', profit = ?, settled_at = ?, result_type = 'cashed_out' WHERE id = ?",
-        (locked_in_profit, datetime.utcnow().isoformat(), row_id),
     )
     conn.commit()
     conn.close()
