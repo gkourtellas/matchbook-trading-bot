@@ -20,6 +20,7 @@ from flask import Flask, jsonify, render_template_string, request, Response
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "bets.db")
 STRATEGIES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "strategies.json")
+LEAGUES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "leagues.json")
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD")
 
 app = Flask(__name__)
@@ -287,9 +288,11 @@ PAGE = """
   <div class="card"><div id="recent"></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <script>
 function fmt(n) { return (n >= 0 ? '+' : '') + n.toFixed(2); }
 function cls(n) { return n >= 0 ? 'profit' : 'loss'; }
+if (window.ChartDataLabels) { Chart.register(window.ChartDataLabels); }
 
 fetch('/api/summary').then(r => r.json()).then(data => {
   let html = '<table><tr><th>Strategy</th><th>Bets</th><th>Won</th><th>Lost</th><th>Pending</th><th>Win %</th><th>Profit</th></tr>';
@@ -382,7 +385,16 @@ fetch('/api/profit_periods').then(r => r.json()).then(data => {
       type: 'bar',
       data: { labels: labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4 }] },
       options: {
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            color: '#e4e7ec',
+            font: { family: 'JetBrains Mono', size: 11, weight: '600' },
+            anchor: 'end',
+            align: 'end',
+            formatter: v => fmt(v)
+          }
+        },
         scales: {
           x: { grid: { color: '#1c2330' }, ticks: { color: '#7a8699', font: { family: 'JetBrains Mono', size: 11 } } },
           y: { grid: { color: '#1c2330' }, ticks: { color: '#7a8699', font: { family: 'JetBrains Mono', size: 11 } } }
@@ -465,10 +477,17 @@ ANALYTICS_PAGE = """
       <h2>Stake vs Profit</h2>
       <canvas id="scatterChart" height="160"></canvas>
     </div>
+
+    <div class="card full">
+      <h2>Profit per Strategy</h2>
+      <canvas id="profitPerStrategyChart" height="90"></canvas>
+    </div>
   </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <script>
+if (window.ChartDataLabels) { Chart.register(window.ChartDataLabels); }
 const muted = '#7a8699';
 const gridColor = '#1c2330';
 const win = '#2dd4a8';
@@ -498,7 +517,7 @@ fetch('/api/chart_data').then(r => r.json()).then(data => {
         fill: true, tension: 0.25, pointRadius: 0, borderWidth: 2
       }]},
       options: {
-        plugins: { legend: { display: false } },
+        plugins: { legend: { display: false }, datalabels: { display: false } },
         scales: {
           x: { grid: baseGrid, ticks: { ...baseTicks, maxTicksLimit: 8, maxRotation: 0 } },
           y: { grid: baseGrid, ticks: baseTicks }
@@ -517,7 +536,16 @@ fetch('/api/chart_data').then(r => r.json()).then(data => {
       type: 'bar',
       data: { labels, datasets: [{ data: rates, backgroundColor: win, borderRadius: 4 }] },
       options: {
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            color: '#0a0e14',
+            font: { family: 'JetBrains Mono', size: 11, weight: '600' },
+            anchor: 'end',
+            align: 'top',
+            formatter: v => v + '%'
+          }
+        },
         scales: { x: { grid: baseGrid, ticks: baseTicks }, y: { grid: baseGrid, ticks: baseTicks, max: 100 } }
       }
     });
@@ -533,7 +561,16 @@ fetch('/api/chart_data').then(r => r.json()).then(data => {
         labels: data.market_mix.map(m => m.strategy_name),
         datasets: [{ data: data.market_mix.map(m => m.total), backgroundColor: palette, borderWidth: 0 }]
       },
-      options: { plugins: { legend: { position: 'bottom', labels: { color: muted, font: { size: 11 } } } } }
+      options: {
+        plugins: {
+          legend: { position: 'bottom', labels: { color: muted, font: { size: 11 } } },
+          datalabels: {
+            color: '#0a0e14',
+            font: { family: 'JetBrains Mono', size: 11, weight: '600' },
+            formatter: v => v
+          }
+        }
+      }
     });
   } else {
     document.getElementById('mixChart').outerHTML = '<div class="empty">No bets yet</div>';
@@ -544,7 +581,18 @@ fetch('/api/chart_data').then(r => r.json()).then(data => {
     new Chart(document.getElementById('weekdayChart'), {
       type: 'bar',
       data: { labels: data.weekday.map(d => d.day), datasets: [{ data: data.weekday.map(d => d.total), backgroundColor: accent, borderRadius: 4 }] },
-      options: { plugins: { legend: { display: false } }, scales: { x: { grid: baseGrid, ticks: baseTicks }, y: { grid: baseGrid, ticks: baseTicks } } }
+      options: {
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            color: '#e4e7ec',
+            font: { family: 'JetBrains Mono', size: 11, weight: '600' },
+            anchor: 'end',
+            align: 'top'
+          }
+        },
+        scales: { x: { grid: baseGrid, ticks: baseTicks }, y: { grid: baseGrid, ticks: baseTicks } }
+      }
     });
   } else {
     document.getElementById('weekdayChart').outerHTML = '<div class="empty">No bets yet</div>';
@@ -558,7 +606,7 @@ fetch('/api/chart_data').then(r => r.json()).then(data => {
       type: 'scatter',
       data: { datasets: [{ data: points, backgroundColor: colors, pointRadius: 5 }] },
       options: {
-        plugins: { legend: { display: false } },
+        plugins: { legend: { display: false }, datalabels: { display: false } },
         scales: {
           x: { title: { display: true, text: 'Stake', color: muted }, grid: baseGrid, ticks: baseTicks },
           y: { title: { display: true, text: 'Profit', color: muted }, grid: baseGrid, ticks: baseTicks }
@@ -567,6 +615,33 @@ fetch('/api/chart_data').then(r => r.json()).then(data => {
     });
   } else {
     document.getElementById('scatterChart').outerHTML = '<div class="empty">No settled bets yet</div>';
+  }
+
+  // 6. Profit per strategy
+  if (data.profit_per_strategy && data.profit_per_strategy.length) {
+    const labels = data.profit_per_strategy.map(s => s.strategy_name);
+    const values = data.profit_per_strategy.map(s => s.profit);
+    const colors = values.map(v => v >= 0 ? win : loss);
+    new Chart(document.getElementById('profitPerStrategyChart'), {
+      type: 'bar',
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4 }] },
+      options: {
+        indexAxis: 'y',
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            color: '#e4e7ec',
+            font: { family: 'JetBrains Mono', size: 11, weight: '600' },
+            anchor: 'end',
+            align: 'right',
+            formatter: v => (v >= 0 ? '+' : '') + v.toFixed(2)
+          }
+        },
+        scales: { x: { grid: baseGrid, ticks: baseTicks }, y: { grid: baseGrid, ticks: baseTicks } }
+      }
+    });
+  } else if (document.getElementById('profitPerStrategyChart')) {
+    document.getElementById('profitPerStrategyChart').outerHTML = '<div class="empty">No settled bets yet</div>';
   }
 });
 </script>
@@ -684,6 +759,10 @@ STRATEGIES_PAGE = """
           <input id="f_cash_out_percent" type="number" step="0.1" placeholder="e.g. 5 — leave blank to disable">
         </div>
         <div class="field full">
+          <label>Exclude leagues <span style="color:var(--muted); text-transform:none;">(this strategy will skip matches in checked leagues)</span></label>
+          <div id="f_excluded_leagues" style="max-height: 160px; overflow-y: auto; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;"></div>
+        </div>
+        <div class="field full">
           <div class="checkbox-row"><input type="checkbox" id="f_enabled"><label style="margin:0;">Enabled</label></div>
         </div>
       </div>
@@ -697,6 +776,13 @@ STRATEGIES_PAGE = """
 <script>
 let strategies = [];
 let editingIndex = null;
+let allLeagues = [];
+
+function fetchLeagues() {
+  fetch('/api/leagues').then(r => r.json()).then(data => {
+    allLeagues = Array.isArray(data) ? data : [];
+  });
+}
 
 function fetchStrategies() {
   fetch('/api/strategies').then(r => r.json()).then(data => {
@@ -758,6 +844,22 @@ function openModal(index) {
   document.getElementById('f_min_seconds').value = s.min_seconds_to_start ?? 300;
   document.getElementById('f_min_liquidity').value = s.minimum_liquidity ?? 2;
   document.getElementById('f_cash_out_percent').value = s.cash_out_at_percent ?? '';
+
+  const excluded = new Set(s.excluded_leagues || []);
+  const leagueBox = document.getElementById('f_excluded_leagues');
+  if (!allLeagues.length) {
+    leagueBox.innerHTML = '<span style="color:var(--muted); font-size:12px;">No leagues captured yet — run get_leagues.py first.</span>';
+  } else {
+    leagueBox.innerHTML = allLeagues.map(name => {
+      const checked = excluded.has(name) ? 'checked' : '';
+      const safeId = 'league_' + name.replace(/[^a-zA-Z0-9]/g, '_');
+      return `<div class="checkbox-row" style="margin-bottom:4px;">
+        <input type="checkbox" id="${safeId}" data-league="${name.replace(/"/g, '&quot;')}" ${checked}>
+        <label for="${safeId}" style="margin:0; font-family:'JetBrains Mono', monospace; font-size:12px; text-transform:none;">${name}</label>
+      </div>`;
+    }).join('');
+  }
+
   document.getElementById('f_enabled').checked = s.enabled !== false;
   document.getElementById('modalBg').classList.add('open');
 }
@@ -796,6 +898,9 @@ function saveStrategy() {
     return;
   }
 
+  const checkedLeagues = Array.from(document.querySelectorAll('#f_excluded_leagues input[type="checkbox"]:checked'))
+    .map(el => el.dataset.league);
+
   const updated = {
     ...existing,
     name: name,
@@ -823,6 +928,7 @@ function saveStrategy() {
     currency: existing.currency || 'EUR',
     minimum_liquidity: parseFloat(document.getElementById('f_min_liquidity').value),
     cash_out_at_percent: cashOutPercent,
+    excluded_leagues: checkedLeagues,
     keep_in_play: existing.keep_in_play ?? false,
     autoRestart: existing.autoRestart ?? false,
     total_range: market === 'Total' ? totalRange : null,
@@ -890,6 +996,7 @@ function restartBot() {
     });
 }
 
+fetchLeagues();
 fetchStrategies();
 </script>
 </body>
@@ -1049,12 +1156,21 @@ def chart_data():
         GROUP BY strategy_name
     """)
 
+    profit_per_strategy = query("""
+        SELECT strategy_name, COALESCE(SUM(profit), 0) as profit
+        FROM bets
+        WHERE result IS NOT NULL
+        GROUP BY strategy_name
+        ORDER BY profit DESC
+    """)
+
     return jsonify({
         "cumulative": cumulative,
         "odds_buckets": odds_buckets,
         "weekday": weekday,
         "stake_vs_profit": stake_vs_profit,
         "market_mix": market_mix,
+        "profit_per_strategy": profit_per_strategy,
     })
 
 
@@ -1079,6 +1195,18 @@ def recent():
         LIMIT 50
     """)
     return jsonify(rows)
+
+
+@app.route("/api/leagues")
+@require_password
+def get_leagues():
+    if not os.path.isfile(LEAGUES_FILE):
+        return jsonify([])
+    try:
+        with open(LEAGUES_FILE, encoding="utf-8") as f:
+            return jsonify(json.load(f))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/strategies", methods=["GET"])

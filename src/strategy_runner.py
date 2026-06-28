@@ -58,6 +58,8 @@ class StrategyRunner:
         else:
             self.cash_out_at_percent = requested_cash_out
 
+        self.excluded_leagues = set(strategy.get("excluded_leagues", []))
+
     def log(self, msg):
         ts = datetime.now(ZoneInfo("Europe/Athens")).strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{ts}] [{self.name}] {msg}")
@@ -65,6 +67,15 @@ class StrategyRunner:
     def stake_for_step(self):
         idx = max(0, min(self.current_step - 1, len(self.staking_plan) - 1))
         return float(self.staking_plan[idx])
+
+    @staticmethod
+    def _extract_league(event):
+        """Same logic as get_leagues.py — pulls the COMPETITION name
+        from the event's meta-tags, if present."""
+        for tag in event.get("meta-tags", []):
+            if tag.get("type") == "COMPETITION":
+                return tag.get("name")
+        return None
 
     async def run(self):
         self.log(f"Starting. Market: {self.market_name}, odds {self.cfg['min_back_odds']}-{self.cfg['max_back_odds']}")
@@ -96,6 +107,14 @@ class StrategyRunner:
         for event in data["events"]:
             if event.get("in-play") or event.get("live-execution"):
                 if not self.cfg.get("keep_in_play", False):
+                    continue
+
+            if self.cash_out_at_percent and not event.get("allow-live-betting", False):
+                continue  # can't cash out later if live betting isn't offered on this event
+
+            if self.excluded_leagues:
+                league = self._extract_league(event)
+                if league and league in self.excluded_leagues:
                     continue
 
             start_str = event.get("start")

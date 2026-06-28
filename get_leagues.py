@@ -9,7 +9,7 @@ load_dotenv()
 USERNAME = os.environ["MATCHBOOK_USERNAME"]
 PASSWORD = os.environ["MATCHBOOK_PASSWORD"]
 TARGET_SPORT_IDS = [15]  # Configured for Soccer
-OUTPUT_FILE = "leagues.json"
+OUTPUT_FILE = "config/leagues.json"
 
 # --- API Endpoints ---
 LOGIN_URL = "https://api.matchbook.com/bpapi/rest/security/session"
