@@ -223,29 +223,13 @@
       "description": "",
       "enabled": true,
       "event_lookahead_minutes": 30,
-      "excluded_leagues": [
-        "Brazil Serie C",
-        "Brazil Serie D",
-        "Chile Cup",
-        "Estonia Meistriliiga",
-        "Ethiopia Premier League",
-        "European Championship U19",
-        "Finland Ykk\u00f6nen",
-        "Finland Ykk\u00f6sliiga",
-        "Iceland First Division",
-        "Iceland Premier League",
-        "Ireland First Division",
-        "Kuwait Premier League",
-        "Latvia Virsliga",
-        "Uruguay Segunda Divisi\u00f3n"
-      ],
       "keep_in_play": false,
       "market_name": "Total",
       "market_names": [
         "Total"
       ],
       "max_back_odds": 1.8,
-      "max_open_bets": 2,
+      "max_open_bets": 4,
       "max_session_loss": 10,
       "max_total_exposure": 2,
       "min_back_odds": 1.6,
@@ -266,7 +250,8 @@
       "staking_steps": 1,
       "target_profit": 10,
       "total_direction": "Under",
-      "total_range": "2.5"
+      "total_range": "2.5",
+      "excluded_leagues": []
     }
   ]
 }
