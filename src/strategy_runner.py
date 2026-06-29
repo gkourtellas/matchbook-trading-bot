@@ -180,7 +180,7 @@ class StrategyRunner:
                 }
                 bet["record_id"] = record_bet_placed(
                     self.name, event_name, runner_name, odds, stake,
-                    self.current_step, bet["placed_at"]
+                    self.current_step, bet["placed_at"], league=self._extract_league(event)
                 )
                 self.active_bets.append(bet)
                 save_state(self.name, self.current_step, self.active_bets)

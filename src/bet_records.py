@@ -25,23 +25,26 @@ def _connect():
             settled_at TEXT,
             result TEXT,
             profit REAL,
-            result_type TEXT
+            result_type TEXT,
+            league TEXT
         )
     """)
-    # Older databases won't have result_type yet — add it if missing.
+    # Older databases won't have these columns yet — add if missing.
     cols = [r[1] for r in conn.execute("PRAGMA table_info(bets)").fetchall()]
     if "result_type" not in cols:
         conn.execute("ALTER TABLE bets ADD COLUMN result_type TEXT")
+    if "league" not in cols:
+        conn.execute("ALTER TABLE bets ADD COLUMN league TEXT")
     return conn
 
 
-def record_bet_placed(strategy_name, event_name, selection_name, odds, stake, step, placed_at):
+def record_bet_placed(strategy_name, event_name, selection_name, odds, stake, step, placed_at, league=None):
     """Call this the moment a bet is placed. Returns the row id."""
     conn = _connect()
     cur = conn.execute(
-        """INSERT INTO bets (strategy_name, event_name, selection_name, odds, stake, step, placed_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (strategy_name, event_name, selection_name, odds, stake, step, placed_at.isoformat()),
+        """INSERT INTO bets (strategy_name, event_name, selection_name, odds, stake, step, placed_at, league)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (strategy_name, event_name, selection_name, odds, stake, step, placed_at.isoformat(), league),
     )
     conn.commit()
     row_id = cur.lastrowid
