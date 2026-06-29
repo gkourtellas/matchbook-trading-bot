@@ -284,6 +284,9 @@ PAGE = """
   <h1>Step Frequency <span style="font-weight:400; text-transform:none; letter-spacing:0;">— multi-step strategies only</span></h1>
   <div class="card"><div id="steps"></div></div>
 
+  <h1>Win Rate by League <span style="font-weight:400; text-transform:none; letter-spacing:0;">— per strategy</span></h1>
+  <div class="card"><div id="leagueBreakdown"></div></div>
+
   <h1>Recent Bets <span style="font-weight:400; text-transform:none; letter-spacing:0;">— last 50</span></h1>
   <div class="card"><div id="recent"></div></div>
 
@@ -329,18 +332,43 @@ fetch('/api/steps').then(r => r.json()).then(data => {
   document.getElementById('steps').innerHTML = html;
 });
 
+fetch('/api/strategy_league_breakdown').then(r => r.json()).then(data => {
+  if (!data.length) {
+    document.getElementById('leagueBreakdown').innerHTML = '<p class="small">No settled bets with a captured league yet.</p>';
+    return;
+  }
+  let html = '<table><tr><th>Strategy</th><th>League</th><th>Bets</th><th>Won</th><th>Lost</th><th>Win %</th><th>Profit</th></tr>';
+  let lastStrategy = null;
+  data.forEach(r => {
+    const newBlock = lastStrategy !== null && lastStrategy !== r.strategy_name;
+    html += `<tr class="${newBlock ? 'strategy-block' : ''}">
+      <td>${r.strategy_name}</td>
+      <td>${r.league}</td>
+      <td>${r.total}</td>
+      <td>${r.won}</td>
+      <td>${r.lost}</td>
+      <td>${r.win_rate}%</td>
+      <td class="${cls(r.profit)}">${fmt(r.profit)}</td>
+    </tr>`;
+    lastStrategy = r.strategy_name;
+  });
+  html += '</table>';
+  document.getElementById('leagueBreakdown').innerHTML = html;
+});
+
 fetch('/api/pending').then(r => r.json()).then(data => {
   if (!data.length) {
     document.getElementById('pending').innerHTML = '<p class="small">No open positions right now.</p>';
     return;
   }
-  let html = '<table><tr><th>Placed</th><th>Strategy</th><th>Match</th><th>Selection</th><th>Odds</th><th>Stake</th><th>Step</th></tr>';
+  let html = '<table><tr><th>Placed</th><th>Strategy</th><th>League</th><th>Match</th><th>Selection</th><th>Odds</th><th>Stake</th><th>Step</th></tr>';
   let lastStrategy = null;
   data.forEach(b => {
     const newBlock = lastStrategy !== null && lastStrategy !== b.strategy_name;
     html += `<tr class="${newBlock ? 'strategy-block' : ''}">
       <td>${(b.placed_at || '').replace('T', ' ').slice(0, 16)}</td>
       <td>${b.strategy_name}</td>
+      <td>${b.league || '-'}</td>
       <td>${b.event_name}</td>
       <td>${b.selection_name}</td>
       <td>${b.odds}</td>
@@ -354,12 +382,13 @@ fetch('/api/pending').then(r => r.json()).then(data => {
 });
 
 fetch('/api/recent').then(r => r.json()).then(data => {
-  let html = '<table><tr><th>Time</th><th>Strategy</th><th>Match</th><th>Selection</th><th>Odds</th><th>Stake</th><th>Step</th><th>Result</th><th>Profit</th></tr>';
+  let html = '<table><tr><th>Time</th><th>Strategy</th><th>League</th><th>Match</th><th>Selection</th><th>Odds</th><th>Stake</th><th>Step</th><th>Result</th><th>Profit</th></tr>';
   data.forEach(b => {
     const resultClass = b.result === 'won' ? 'profit' : 'loss';
     html += `<tr>
       <td>${(b.placed_at || '').replace('T', ' ').slice(0, 16)}</td>
       <td>${b.strategy_name}</td>
+      <td>${b.league || '-'}</td>
       <td>${b.event_name}</td>
       <td>${b.selection_name}</td>
       <td>${b.odds}</td>
@@ -481,6 +510,11 @@ ANALYTICS_PAGE = """
     <div class="card full">
       <h2>Profit per Strategy</h2>
       <canvas id="profitPerStrategyChart" height="90"></canvas>
+    </div>
+
+    <div class="card full">
+      <h2>Profit per League <span style="font-weight:400; text-transform:none; letter-spacing:0;">— worst to best</span></h2>
+      <canvas id="profitPerLeagueChart" height="120"></canvas>
     </div>
   </div>
 
@@ -642,6 +676,39 @@ fetch('/api/chart_data').then(r => r.json()).then(data => {
     });
   } else if (document.getElementById('profitPerStrategyChart')) {
     document.getElementById('profitPerStrategyChart').outerHTML = '<div class="empty">No settled bets yet</div>';
+  }
+
+  // 7. Profit per league
+  if (data.profit_per_league && data.profit_per_league.length) {
+    const labels = data.profit_per_league.map(l => l.league);
+    const values = data.profit_per_league.map(l => l.profit);
+    const winRates = data.profit_per_league.map(l => l.win_rate);
+    const colors = values.map(v => v >= 0 ? win : loss);
+    new Chart(document.getElementById('profitPerLeagueChart'), {
+      type: 'bar',
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4 }] },
+      options: {
+        indexAxis: 'y',
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            color: '#e4e7ec',
+            font: { family: 'JetBrains Mono', size: 11, weight: '600' },
+            anchor: 'end',
+            align: 'right',
+            formatter: v => (v >= 0 ? '+' : '') + v.toFixed(2)
+          },
+          tooltip: {
+            callbacks: {
+              afterLabel: (ctx) => `Win rate: ${winRates[ctx.dataIndex]}%`
+            }
+          }
+        },
+        scales: { x: { grid: baseGrid, ticks: baseTicks }, y: { grid: baseGrid, ticks: baseTicks } }
+      }
+    });
+  } else if (document.getElementById('profitPerLeagueChart')) {
+    document.getElementById('profitPerLeagueChart').outerHTML = '<div class="empty">No league data yet — leagues are captured as new bets are placed</div>';
   }
 });
 </script>
@@ -1063,6 +1130,25 @@ def summary():
     return jsonify(rows)
 
 
+@app.route("/api/strategy_league_breakdown")
+@require_password
+def strategy_league_breakdown():
+    rows = query("""
+        SELECT strategy_name, league,
+               COUNT(*) as total,
+               SUM(CASE WHEN result = 'won' THEN 1 ELSE 0 END) as won,
+               SUM(CASE WHEN result = 'lost' THEN 1 ELSE 0 END) as lost,
+               COALESCE(SUM(profit), 0) as profit
+        FROM bets
+        WHERE result IS NOT NULL AND league IS NOT NULL
+        GROUP BY strategy_name, league
+        ORDER BY strategy_name, profit ASC
+    """)
+    for r in rows:
+        r["win_rate"] = round(100 * r["won"] / r["total"], 1) if r["total"] else 0
+    return jsonify(rows)
+
+
 @app.route("/api/steps")
 @require_password
 def steps():
@@ -1164,6 +1250,19 @@ def chart_data():
         ORDER BY profit DESC
     """)
 
+    profit_per_league = query("""
+        SELECT league,
+               COUNT(*) as total,
+               SUM(CASE WHEN result = 'won' THEN 1 ELSE 0 END) as won,
+               COALESCE(SUM(profit), 0) as profit
+        FROM bets
+        WHERE result IS NOT NULL AND league IS NOT NULL
+        GROUP BY league
+        ORDER BY profit ASC
+    """)
+    for r in profit_per_league:
+        r["win_rate"] = round(100 * r["won"] / r["total"], 1) if r["total"] else 0
+
     return jsonify({
         "cumulative": cumulative,
         "odds_buckets": odds_buckets,
@@ -1171,6 +1270,7 @@ def chart_data():
         "stake_vs_profit": stake_vs_profit,
         "market_mix": market_mix,
         "profit_per_strategy": profit_per_strategy,
+        "profit_per_league": profit_per_league,
     })
 
 
