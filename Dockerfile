@@ -18,4 +18,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY src/ /app/src/
 COPY config/ /app/config/
 
-CMD ["python", "-u", "src/main.py"]
+#CMD ["python", "-u", "src/main.py"]
+# Start both scripts simultaneously
+CMD python -u src/main.py & python -u src/dashboard.py & wait
