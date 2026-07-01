@@ -84,6 +84,24 @@ def validate_strategies(strategies):
                     f"single-step strategies (staking_plan with one number).")
 
         market = s.get("market_name") or (s.get("market_names") or [None])[0]
+        bet_side = s.get("bet_side", "back")
+        bet_mode = s.get("bet_mode", "normal")
+
+        if bet_mode == "double_chance":
+            if market != "Match Odds":
+                return (f"Strategy '{s['name']}': bet_mode 'double_chance' requires "
+                        f"market_name 'Match Odds' (used as the trigger).")
+            if bet_side == "lay":
+                return (f"Strategy '{s['name']}': bet_mode 'double_chance' only supports "
+                        f"backing, not laying.")
+
+        if bet_side == "lay" and market not in ("Match Odds", "Moneyline"):
+            return (f"Strategy '{s['name']}': bet_side 'lay' is only supported for "
+                    f"'Match Odds'/'Moneyline' markets right now.")
+        if bet_side == "lay" and s.get("cash_out_at_percent"):
+            return (f"Strategy '{s['name']}': cash_out_at_percent is not yet supported "
+                    f"for lay-side strategies.")
+
         if market == "Total" and not (s.get("total_range") and s.get("total_direction")):
             return f"Strategy '{s['name']}': market is 'Total' but total_range/total_direction are missing."
         if market != "Total" and (s.get("total_range") or s.get("total_direction")):
@@ -797,6 +815,20 @@ STRATEGIES_PAGE = """
         <div class="field full"><label>Name</label><input id="f_name"></div>
         <div class="field"><label>Sport</label><input id="f_sport" placeholder="e.g. Soccer"></div>
         <div class="field"><label>Market</label><input id="f_market" placeholder="e.g. Match Odds"></div>
+        <div class="field">
+          <label>Bet side</label>
+          <select id="f_bet_side">
+            <option value="back">Back the matched selection</option>
+            <option value="lay">Lay the opponent (Match Odds/Moneyline only)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Bet mode</label>
+          <select id="f_bet_mode">
+            <option value="normal">Normal — bet on the matched market</option>
+            <option value="double_chance">Double Chance — Match Odds triggers, bets on Double Chance</option>
+          </select>
+        </div>
         <div class="field"><label>Min back odds</label><input id="f_min_odds" type="number" step="0.01"></div>
         <div class="field"><label>Max back odds</label><input id="f_max_odds" type="number" step="0.01"></div>
         <div class="field">
@@ -876,7 +908,7 @@ function renderList() {
     html += `<div class="card strat-row">
       <div>
         <div class="strat-name"><span class="badge ${badgeClass}">${badgeText}</span>${s.name}</div>
-        <div class="strat-meta">${sport} · ${market}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}</div>
+        <div class="strat-meta">${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}</div>
       </div>
       <div class="row-actions">
         <button class="btn" onclick="openModal(${i})">Edit</button>
@@ -896,6 +928,8 @@ function openModal(index) {
   document.getElementById('f_name').value = s.name || '';
   document.getElementById('f_sport').value = s.sport_name || (s.sport_names || [])[0] || '';
   document.getElementById('f_market').value = s.market_name || (s.market_names || [])[0] || '';
+  document.getElementById('f_bet_side').value = s.bet_side || 'back';
+  document.getElementById('f_bet_mode').value = s.bet_mode || 'normal';
   document.getElementById('f_min_odds').value = s.min_back_odds ?? 1.45;
   document.getElementById('f_max_odds').value = s.max_back_odds ?? 1.6;
   document.getElementById('f_total_range').value = s.total_range ?? '';
@@ -953,8 +987,30 @@ function saveStrategy() {
   }
 
   const market = document.getElementById('f_market').value.trim();
+  const betSide = document.getElementById('f_bet_side').value;
+  const betMode = document.getElementById('f_bet_mode').value;
   const totalRange = document.getElementById('f_total_range').value.trim();
   const totalDirection = document.getElementById('f_total_direction').value;
+
+  if (betMode === 'double_chance') {
+    if (market !== 'Match Odds') {
+      showError('Bet mode "Double Chance" requires Market to be "Match Odds" (used as the trigger).');
+      return;
+    }
+    if (betSide === 'lay') {
+      showError('Bet mode "Double Chance" only supports backing, not laying. Set Bet side to "Back".');
+      return;
+    }
+  }
+
+  if (betSide === 'lay' && market !== 'Match Odds' && market !== 'Moneyline') {
+    showError('Lay side is only supported for Match Odds / Moneyline markets right now.');
+    return;
+  }
+  if (betSide === 'lay' && cashOutPercent) {
+    showError('Cash out is not supported yet for lay-side strategies. Clear the cash out field.');
+    return;
+  }
 
   if (market === 'Total' && (!totalRange || !totalDirection)) {
     showError('Market is "Total" — Total line and Direction are both required (e.g. 2.5 + Over).');
@@ -995,6 +1051,8 @@ function saveStrategy() {
     currency: existing.currency || 'EUR',
     minimum_liquidity: parseFloat(document.getElementById('f_min_liquidity').value),
     cash_out_at_percent: cashOutPercent,
+    bet_side: betSide,
+    bet_mode: betMode,
     excluded_leagues: checkedLeagues,
     keep_in_play: existing.keep_in_play ?? false,
     autoRestart: existing.autoRestart ?? false,

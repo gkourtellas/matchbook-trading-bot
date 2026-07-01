@@ -10,6 +10,8 @@ from zoneinfo import ZoneInfo
 
 import market_match_odds
 import market_total
+import market_lay_opponent
+import market_double_chance
 from state_store import load_state, save_state
 from bet_records import record_bet_placed, record_bet_settled, record_bet_cashed_out
 from league_tracker import record_league
@@ -32,9 +34,30 @@ class StrategyRunner:
 
         market_key = strategy.get("market_name") or (strategy.get("market_names") or [None])[0]
         self.market_name = market_key
-        self.matcher = MATCHERS.get(market_key)
-        if self.matcher is None:
-            raise ValueError(f"[{self.name}] Don't know how to handle market '{market_key}'.")
+
+        # bet_mode "double_chance": check Match Odds for the trigger, but
+        # place the actual bet on the Double Chance market of the same
+        # event. Different from the normal single-market matchers below.
+        self.bet_mode = strategy.get("bet_mode", "normal")
+
+        self.bet_side = strategy.get("bet_side", "back")
+        if self.bet_mode == "double_chance":
+            if market_key != "Match Odds":
+                raise ValueError(f"[{self.name}] bet_mode 'double_chance' requires "
+                                  f"market_name 'Match Odds' (used as the trigger).")
+            if self.bet_side == "lay":
+                raise ValueError(f"[{self.name}] bet_mode 'double_chance' only supports "
+                                  f"backing the Double Chance selection, not laying.")
+            self.matcher = market_double_chance
+        elif self.bet_side == "lay":
+            if market_key not in ("Match Odds", "Moneyline"):
+                raise ValueError(f"[{self.name}] bet_side 'lay' is only supported for "
+                                  f"'Match Odds'/'Moneyline' markets right now.")
+            self.matcher = market_lay_opponent
+        else:
+            self.matcher = MATCHERS.get(market_key)
+            if self.matcher is None:
+                raise ValueError(f"[{self.name}] Don't know how to handle market '{market_key}'.")
 
         self.current_step, self.active_bets = load_state(self.name)
         self.max_open_bets = strategy.get("max_open_bets", 1)
@@ -54,6 +77,10 @@ class StrategyRunner:
             print(f"[{self.name}] ⚠️ cash_out_at_percent is set but this strategy has "
                   f"{self.max_steps} steps. Cash-out is only supported for single-step "
                   f"strategies right now — ignoring it.")
+            self.cash_out_at_percent = None
+        elif requested_cash_out and self.bet_side == "lay":
+            print(f"[{self.name}] ⚠️ cash_out_at_percent is set but this strategy lays "
+                  f"its bets. Cash-out math currently only supports back bets — ignoring it.")
             self.cash_out_at_percent = None
         else:
             self.cash_out_at_percent = requested_cash_out
@@ -137,65 +164,76 @@ class StrategyRunner:
             if already_bet:
                 continue
 
-            for market in event.get("markets", []):
-                if market.get("name") != self.market_name:
-                    continue
-
-                found = self.matcher.find_opportunity(market, self.cfg)
+            if self.bet_mode == "double_chance":
+                found = self.matcher.find_opportunity_in_event(event, self.cfg)
                 if not found:
                     continue
-
-                runner_id, runner_name, odds = found
-                stake = self.stake_for_step()
-
-                self.log(f"🎯 Match found: {event_name} -> {runner_name} @ {odds}")
-
-                order_status = await asyncio.to_thread(
-                    self.client.submit_order,
-                    runner_id=runner_id, side="back", odds=odds, stake=stake
-                )
-
-                if not order_status:
-                    self.log("⚠️ Bet was rejected.")
+                runner_id, runner_name, odds, market_id = found
+            else:
+                runner_id = runner_name = odds = market_id = None
+                for market in event.get("markets", []):
+                    if market.get("name") != self.market_name:
+                        continue
+                    found = self.matcher.find_opportunity(market, self.cfg)
+                    if not found:
+                        continue
+                    runner_id, runner_name, odds = found
+                    market_id = market.get("id")
+                    break
+                if runner_id is None:
                     continue
 
-                sport = self.cfg.get("sport_name") or (self.cfg.get("sport_names") or ["?"])[0]
-                record_league(sport, event)
+            stake = self.stake_for_step()
 
-                offers = order_status.get("offers", [])
-                placed_offer = offers[0] if offers else {}
+            action_word = "Lay" if self.bet_side == "lay" else "Back"
+            self.log(f"🎯 Match found: {event_name} -> {action_word} {runner_name} @ {odds}")
 
-                bet = {
-                    "offer_id": placed_offer.get("id"),
-                    "event_id": placed_offer.get("event-id"),
-                    "market_id": market.get("id"),
-                    "runner_id": runner_id,
-                    "start_time": start_time,
-                    "placed_at": datetime.utcnow(),
-                    "selection_name": runner_name,
-                    "event_name": event_name,
-                    "stake": stake,
-                    "odds": odds,
-                    "step": self.current_step,
-                }
-                bet["record_id"] = record_bet_placed(
-                    self.name, event_name, runner_name, odds, stake,
-                    self.current_step, bet["placed_at"], league=self._extract_league(event)
-                )
-                self.active_bets.append(bet)
-                save_state(self.name, self.current_step, self.active_bets)
+            order_status = await asyncio.to_thread(
+                self.client.submit_order,
+                runner_id=runner_id, side=self.bet_side, odds=odds, stake=stake
+            )
 
-                msg = (
-                    f"🚀 Bet Placed [{self.name}]\n"
-                    f"Step: {self.current_step}/{self.max_steps}\n"
-                    f"Match: {event_name}\n"
-                    f"Selection: {runner_name}\n"
-                    f"Odds: {odds}\n"
-                    f"Stake: {stake}"
-                )
-                self.log(msg)
-                self.client.send_telegram(msg)
-                return  # one new bet per scan pass
+            if not order_status:
+                self.log("⚠️ Bet was rejected.")
+                continue
+
+            sport = self.cfg.get("sport_name") or (self.cfg.get("sport_names") or ["?"])[0]
+            record_league(sport, event)
+
+            offers = order_status.get("offers", [])
+            placed_offer = offers[0] if offers else {}
+
+            bet = {
+                "offer_id": placed_offer.get("id"),
+                "event_id": placed_offer.get("event-id"),
+                "market_id": market_id,
+                "runner_id": runner_id,
+                "start_time": start_time,
+                "placed_at": datetime.utcnow(),
+                "selection_name": runner_name,
+                "event_name": event_name,
+                "stake": stake,
+                "odds": odds,
+                "step": self.current_step,
+            }
+            bet["record_id"] = record_bet_placed(
+                self.name, event_name, runner_name, odds, stake,
+                self.current_step, bet["placed_at"], league=self._extract_league(event)
+            )
+            self.active_bets.append(bet)
+            save_state(self.name, self.current_step, self.active_bets)
+
+            msg = (
+                f"🚀 Bet Placed [{self.name}]\n"
+                f"Step: {self.current_step}/{self.max_steps}\n"
+                f"Match: {event_name}\n"
+                f"Selection: {runner_name}\n"
+                f"Odds: {odds}\n"
+                f"Stake: {stake}"
+            )
+            self.log(msg)
+            self.client.send_telegram(msg)
+            return  # one new bet per scan pass
 
         self.log("Scan done: nothing matched the strategy right now.")
 
@@ -296,7 +334,7 @@ class StrategyRunner:
 
             result_label = "Won" if outcome == "won" else "Lost"
             if bet.get("record_id"):
-                record_bet_settled(bet["record_id"], outcome, bet["odds"], bet["stake"])
+                record_bet_settled(bet["record_id"], outcome, bet["odds"], bet["stake"], bet_side=self.bet_side)
 
             self.current_step = 1 if outcome == "won" else (
                 self.current_step + 1 if self.current_step < self.max_steps else 1
