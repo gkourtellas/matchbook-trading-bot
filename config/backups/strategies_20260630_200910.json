@@ -51,7 +51,7 @@
       "cash_out_at_percent": null,
       "currency": "EUR",
       "description": "Secondary Soccer Over/Under 2.5 strategy running in parallel",
-      "enabled": true,
+      "enabled": false,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
       "keep_in_play": false,
@@ -268,7 +268,7 @@
         "Match Odds"
       ],
       "max_back_odds": 1.6,
-      "max_open_bets": 2,
+      "max_open_bets": 1,
       "max_session_loss": 10,
       "max_total_exposure": 10,
       "min_back_odds": 1.45,

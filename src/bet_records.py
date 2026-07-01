@@ -52,9 +52,18 @@ def record_bet_placed(strategy_name, event_name, selection_name, odds, stake, st
     return row_id
 
 
-def record_bet_settled(row_id, result, odds, stake):
-    """Call this once a bet's result (won/lost) is known."""
-    profit = round(stake * (odds - 1), 4) if result == "won" else -stake
+def record_bet_settled(row_id, result, odds, stake, bet_side="back"):
+    """Call this once a bet's result (won/lost) is known.
+
+    For a 'back' bet: win profit = stake * (odds - 1), lose = -stake.
+    For a 'lay' bet it's the mirror image: win (selection loses) profit
+    = stake, lose (selection wins) = -stake * (odds - 1) — that's your
+    liability on the lay.
+    """
+    if bet_side == "lay":
+        profit = round(stake, 4) if result == "won" else -round(stake * (odds - 1), 4)
+    else:
+        profit = round(stake * (odds - 1), 4) if result == "won" else -stake
     conn = _connect()
     conn.execute(
         "UPDATE bets SET result = ?, profit = ?, settled_at = ?, result_type = 'normal' WHERE id = ?",

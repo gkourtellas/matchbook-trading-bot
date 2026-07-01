@@ -268,7 +268,7 @@
         "Match Odds"
       ],
       "max_back_odds": 1.6,
-      "max_open_bets": 2,
+      "max_open_bets": 1,
       "max_session_loss": 10,
       "max_total_exposure": 10,
       "min_back_odds": 1.45,
