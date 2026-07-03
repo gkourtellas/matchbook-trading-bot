@@ -38,7 +38,7 @@ def get_enabled_strategy_names():
 
 REQUIRED_FIELDS = [
     "name", "enabled", "sport_name", "market_name",
-    "min_back_odds", "max_back_odds", "staking_plan",
+    "min_back_odds", "max_back_odds",
 ]
 
 
@@ -67,21 +67,28 @@ def validate_strategies(strategies):
                 return f"Strategy '{s.get('name', f'#{i+1}')}' is missing required field '{field}'."
         names.append(s["name"])
 
-        ladder = s.get("staking_plan", [])
-        if not isinstance(ladder, list) or not ladder:
-            return f"Strategy '{s['name']}': staking_plan must be a non-empty list."
+        is_compound = s.get("strategy_type") == "compound"
 
-        steps = s.get("staking_steps", len(ladder))
-        if len(ladder) != steps:
-            return (f"Strategy '{s['name']}': staking_steps ({steps}) doesn't match "
-                    f"staking_plan length ({len(ladder)}).")
+        if is_compound:
+            for f in ("compound_start", "compound_target"):
+                if not s.get(f):
+                    return f"Strategy '{s['name']}': compound strategy missing '{f}'."
+        else:
+            ladder = s.get("staking_plan", [])
+            if not isinstance(ladder, list) or not ladder:
+                return f"Strategy '{s['name']}': staking_plan must be a non-empty list."
+
+            steps = s.get("staking_steps", len(ladder))
+            if len(ladder) != steps:
+                return (f"Strategy '{s['name']}': staking_steps ({steps}) doesn't match "
+                        f"staking_plan length ({len(ladder)}).")
+
+            if s.get("cash_out_at_percent") and len(ladder) > 1:
+                return (f"Strategy '{s['name']}': cash_out_at_percent is only supported for "
+                        f"single-step strategies (staking_plan with one number).")
 
         if s.get("min_back_odds", 0) > s.get("max_back_odds", 0):
             return f"Strategy '{s['name']}': min_back_odds is greater than max_back_odds."
-
-        if s.get("cash_out_at_percent") and len(ladder) > 1:
-            return (f"Strategy '{s['name']}': cash_out_at_percent is only supported for "
-                    f"single-step strategies (staking_plan with one number).")
 
         market = s.get("market_name") or (s.get("market_names") or [None])[0]
         bet_side = s.get("bet_side", "back")
@@ -805,7 +812,8 @@ STRATEGIES_PAGE = """
     Changes are saved immediately, but the bot doesn't pick them up until you click Restart Bot above.
   </p>
   <div id="strategyList"></div>
-  <button class="add-btn" onclick="openModal(null)">+ Add new strategy</button>
+  <button class="add-btn" onclick="openModal(null)">+ Add strategy (single sport)</button>
+  <button class="add-btn" onclick="openMultiModal(null)" style="margin-top:4px;">+ Add strategy (multi-sport)</button>
 
   <div class="modal-bg" id="modalBg">
     <div class="modal">
@@ -843,7 +851,20 @@ STRATEGIES_PAGE = """
             <option value="Under">Under</option>
           </select>
         </div>
-        <div class="field full"><label>Staking plan (comma-separated)</label><input id="f_staking_plan" placeholder="0.1, 0.3, 0.9, 2.7, 8.1, 24.3"></div>
+        <div class="field full">
+          <label>Strategy type</label>
+          <select id="f_strategy_type" onchange="onStrategyTypeChange()">
+            <option value="normal">Normal (staking plan)</option>
+            <option value="compound">Compound (all-in, compounding)</option>
+          </select>
+        </div>
+        <div id="compound_fields" style="display:none;">
+          <div class="field"><label>Starting balance</label><input id="f_compound_start" type="number" step="0.01" placeholder="e.g. 10"></div>
+          <div class="field"><label>Target amount</label><input id="f_compound_target" type="number" step="0.01" placeholder="e.g. 20"></div>
+        </div>
+        <div id="normal_fields">
+          <div class="field full"><label>Staking plan (comma-separated)</label><input id="f_staking_plan" placeholder="0.1, 0.3, 0.9, 2.7, 8.1, 24.3"></div>
+        </div>
         <div class="field"><label>Max open bets</label><input id="f_max_open_bets" type="number"></div>
         <div class="field"><label>Bankroll</label><input id="f_bankroll" type="number" step="0.01"></div>
         <div class="field"><label>Max session loss</label><input id="f_max_session_loss" type="number" step="0.01"></div>
@@ -861,6 +882,14 @@ STRATEGIES_PAGE = """
           <label>Exclude leagues <span style="color:var(--muted); text-transform:none;">(this strategy will skip matches in checked leagues)</span></label>
           <div id="f_excluded_leagues" style="max-height: 160px; overflow-y: auto; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;"></div>
         </div>
+        <div class="field">
+          <label>Betting timing</label>
+          <select id="f_live_mode">
+            <option value="pre">Pre-match only</option>
+            <option value="live">Live only</option>
+            <option value="both">Both</option>
+          </select>
+        </div>
         <div class="field full">
           <div class="checkbox-row"><input type="checkbox" id="f_enabled"><label style="margin:0;">Enabled</label></div>
         </div>
@@ -868,6 +897,71 @@ STRATEGIES_PAGE = """
       <div class="modal-actions">
         <button class="btn" onclick="closeModal()">Cancel</button>
         <button class="btn" style="border-color: var(--accent); color: var(--accent);" onclick="saveStrategy()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multi-sport modal -->
+  <div class="modal-bg" id="multiModalBg">
+    <div class="modal" style="max-width:780px;">
+      <h2 id="multiModalTitle">Add Multi-Sport Strategy</h2>
+      <div class="error-box" id="multiErrorBox"></div>
+
+      <div class="field-grid">
+        <div class="field full"><label>Name</label><input id="mf_name"></div>
+
+        <!-- Sport rows -->
+        <div class="field full">
+          <label>Sports / Markets</label>
+          <div id="mf_sport_rows" style="display:flex; flex-direction:column; gap:10px; margin-top:6px;"></div>
+          <button class="btn" onclick="addSportRow()" style="margin-top:8px; font-size:12px;">+ Add sport</button>
+        </div>
+
+        <!-- Strategy type -->
+        <div class="field full">
+          <label>Strategy type</label>
+          <select id="mf_strategy_type" onchange="onMultiStrategyTypeChange()">
+            <option value="normal">Normal (staking plan)</option>
+            <option value="compound">Compound (all-in, compounding)</option>
+          </select>
+        </div>
+        <div id="mf_compound_fields" style="display:none;">
+          <div class="field"><label>Starting balance</label><input id="mf_compound_start" type="number" step="0.01" placeholder="e.g. 10"></div>
+          <div class="field"><label>Target amount</label><input id="mf_compound_target" type="number" step="0.01" placeholder="e.g. 20"></div>
+        </div>
+        <div id="mf_normal_fields">
+          <div class="field full"><label>Staking plan (comma-separated)</label><input id="mf_staking_plan" placeholder="0.1, 0.3, 0.9, 2.7, 8.1, 24.3"></div>
+        </div>
+
+        <div class="field"><label>Max open bets</label><input id="mf_max_open_bets" type="number" value="1"></div>
+        <div class="field"><label>Bankroll</label><input id="mf_bankroll" type="number" step="0.01" value="10"></div>
+        <div class="field"><label>Max session loss</label><input id="mf_max_session_loss" type="number" step="0.01" value="10"></div>
+        <div class="field"><label>Target profit</label><input id="mf_target_profit" type="number" step="0.01" value="10"></div>
+        <div class="field"><label>Poll interval (seconds)</label><input id="mf_poll_interval" type="number" value="600"></div>
+        <div class="field"><label>Cooldown after bet (seconds)</label><input id="mf_cooldown" type="number" value="600"></div>
+        <div class="field"><label>Lookahead (minutes)</label><input id="mf_lookahead" type="number" value="180"></div>
+        <div class="field"><label>Min seconds to start</label><input id="mf_min_seconds" type="number" value="300"></div>
+        <div class="field"><label>Minimum liquidity</label><input id="mf_min_liquidity" type="number" step="0.01" value="2"></div>
+        <div class="field">
+          <label>Betting timing</label>
+          <select id="mf_live_mode">
+            <option value="pre">Pre-match only</option>
+            <option value="live">Live only</option>
+            <option value="both">Both</option>
+          </select>
+        </div>
+        <div class="field full">
+          <label>Exclude leagues</label>
+          <div id="mf_excluded_leagues" style="max-height:160px; overflow-y:auto; background:var(--card2); border:1px solid var(--border); border-radius:6px; padding:8px 10px;"></div>
+        </div>
+        <div class="field full">
+          <div class="checkbox-row"><input type="checkbox" id="mf_enabled" checked><label style="margin:0;">Enabled</label></div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" onclick="closeMultiModal()">Cancel</button>
+        <button class="btn" style="border-color:var(--accent); color:var(--accent);" onclick="saveMultiStrategy()">Save</button>
       </div>
     </div>
   </div>
@@ -903,15 +997,25 @@ function renderList() {
   strategies.forEach((s, i) => {
     const badgeClass = s.enabled ? 'on' : 'off';
     const badgeText = s.enabled ? 'ACTIVE' : 'INACTIVE';
-    const sport = s.sport_name || (s.sport_names || [])[0] || '?';
-    const market = s.market_name || (s.market_names || [])[0] || '?';
+    const isMulti = s.strategy_mode === 'multi_sport';
+    const liveTag = s.live_mode === 'live' ? ' · LIVE' : s.live_mode === 'both' ? ' · pre+live' : '';
+    let metaLine;
+    if (isMulti) {
+      const sportList = (s.sport_configs || []).map(r => r.sport_name + '/' + r.market_name).join(', ');
+      metaLine = `MULTI: ${sportList}${liveTag}`;
+    } else {
+      const sport = s.sport_name || (s.sport_names || [])[0] || '?';
+      const market = s.market_name || (s.market_names || [])[0] || '?';
+      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${liveTag}`;
+    }
+    const editFn = isMulti ? `openMultiModal(${i})` : `openModal(${i})`;
     html += `<div class="card strat-row">
       <div>
         <div class="strat-name"><span class="badge ${badgeClass}">${badgeText}</span>${s.name}</div>
-        <div class="strat-meta">${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}</div>
+        <div class="strat-meta">${metaLine}</div>
       </div>
       <div class="row-actions">
-        <button class="btn" onclick="openModal(${i})">Edit</button>
+        <button class="btn" onclick="${editFn}">Edit</button>
         <button class="btn" onclick="toggleActive(${i})">${s.enabled ? 'Disable' : 'Enable'}</button>
         <button class="btn danger" onclick="removeStrategy(${i})">Remove</button>
       </div>
@@ -934,7 +1038,12 @@ function openModal(index) {
   document.getElementById('f_max_odds').value = s.max_back_odds ?? 1.6;
   document.getElementById('f_total_range').value = s.total_range ?? '';
   document.getElementById('f_total_direction').value = s.total_direction ?? '';
+  const stratType = s.strategy_type || 'normal';
+  document.getElementById('f_strategy_type').value = stratType;
   document.getElementById('f_staking_plan').value = (s.staking_plan || [0.1,0.3,0.9,2.7,8.1,24.3]).join(', ');
+  document.getElementById('f_compound_start').value = s.compound_start ?? '';
+  document.getElementById('f_compound_target').value = s.compound_target ?? '';
+  onStrategyTypeChange();
   document.getElementById('f_max_open_bets').value = s.max_open_bets ?? 1;
   document.getElementById('f_bankroll').value = s.bankroll ?? 10;
   document.getElementById('f_max_session_loss').value = s.max_session_loss ?? 10;
@@ -961,8 +1070,236 @@ function openModal(index) {
     }).join('');
   }
 
+  document.getElementById('f_live_mode').value = s.live_mode || 'pre';
   document.getElementById('f_enabled').checked = s.enabled !== false;
   document.getElementById('modalBg').classList.add('open');
+}
+
+
+// ── Multi-sport modal ──────────────────────────────────────────
+let editingMultiIndex = null;
+
+const SPORT_ROW_TEMPLATE = (idx, data={}) => `
+  <div class="sport-row" id="sport_row_${idx}" style="background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; position:relative;">
+    <button onclick="removeSportRow(${idx})" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;">✕</button>
+    <div class="field-grid" style="grid-template-columns:1fr 1fr; gap:8px;">
+      <div class="field"><label>Sport</label><input class="sr_sport" placeholder="e.g. Soccer" value="${data.sport_name||''}"></div>
+      <div class="field"><label>Market</label><input class="sr_market" placeholder="e.g. Match Odds" value="${data.market_name||''}"></div>
+      <div class="field">
+        <label>Bet side</label>
+        <select class="sr_bet_side">
+          <option value="back" ${(data.bet_side||'back')==='back'?'selected':''}>Back</option>
+          <option value="lay" ${data.bet_side==='lay'?'selected':''}>Lay</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Bet mode</label>
+        <select class="sr_bet_mode">
+          <option value="normal" ${(data.bet_mode||'normal')==='normal'?'selected':''}>Normal</option>
+          <option value="double_chance" ${data.bet_mode==='double_chance'?'selected':''}>Double Chance</option>
+        </select>
+      </div>
+      <div class="field"><label>Min odds</label><input class="sr_min_odds" type="number" step="0.01" value="${data.min_back_odds??1.45}"></div>
+      <div class="field"><label>Max odds</label><input class="sr_max_odds" type="number" step="0.01" value="${data.max_back_odds??1.6}"></div>
+      <div class="field"><label>Total line</label><input class="sr_total_range" placeholder="e.g. 2.5" value="${data.total_range||''}"></div>
+      <div class="field">
+        <label>Direction</label>
+        <select class="sr_total_direction">
+          <option value="" ${!data.total_direction?'selected':''}>— none —</option>
+          <option value="Over" ${data.total_direction==='Over'?'selected':''}>Over</option>
+          <option value="Under" ${data.total_direction==='Under'?'selected':''}>Under</option>
+        </select>
+      </div>
+    </div>
+  </div>`;
+
+let sportRowCount = 0;
+
+function addSportRow(data={}) {
+  const idx = sportRowCount++;
+  const container = document.getElementById('mf_sport_rows');
+  const div = document.createElement('div');
+  div.innerHTML = SPORT_ROW_TEMPLATE(idx, data);
+  container.appendChild(div.firstElementChild);
+}
+
+function removeSportRow(idx) {
+  const el = document.getElementById('sport_row_' + idx);
+  if (el) el.remove();
+}
+
+function openMultiModal(index) {
+  editingMultiIndex = index;
+  sportRowCount = 0;
+  document.getElementById('multiErrorBox').style.display = 'none';
+  document.getElementById('mf_sport_rows').innerHTML = '';
+  const s = index === null ? {} : strategies[index];
+  document.getElementById('multiModalTitle').textContent = index === null ? 'Add Multi-Sport Strategy' : `Edit: ${s.name}`;
+  document.getElementById('mf_name').value = s.name || '';
+  document.getElementById('mf_strategy_type').value = s.strategy_type || 'normal';
+  document.getElementById('mf_staking_plan').value = (s.staking_plan || [0.1,0.3,0.9,2.7,8.1,24.3]).join(', ');
+  document.getElementById('mf_compound_start').value = s.compound_start ?? '';
+  document.getElementById('mf_compound_target').value = s.compound_target ?? '';
+  document.getElementById('mf_max_open_bets').value = s.max_open_bets ?? 1;
+  document.getElementById('mf_bankroll').value = s.bankroll ?? 10;
+  document.getElementById('mf_max_session_loss').value = s.max_session_loss ?? 10;
+  document.getElementById('mf_target_profit').value = s.target_profit ?? 10;
+  document.getElementById('mf_poll_interval').value = s.poll_interval_seconds ?? 600;
+  document.getElementById('mf_cooldown').value = s.open_positions_cooldown_seconds ?? 600;
+  document.getElementById('mf_lookahead').value = s.event_lookahead_minutes ?? 180;
+  document.getElementById('mf_min_seconds').value = s.min_seconds_to_start ?? 300;
+  document.getElementById('mf_min_liquidity').value = s.minimum_liquidity ?? 2;
+  document.getElementById('mf_live_mode').value = s.live_mode || 'pre';
+  document.getElementById('mf_enabled').checked = s.enabled !== false;
+
+  const sports = s.sport_configs || (s.sport_name ? [{
+    sport_name: s.sport_name, market_name: s.market_name,
+    bet_side: s.bet_side, bet_mode: s.bet_mode,
+    min_back_odds: s.min_back_odds, max_back_odds: s.max_back_odds,
+    total_range: s.total_range, total_direction: s.total_direction
+  }] : [{}]);
+  sports.forEach(d => addSportRow(d));
+
+  const excluded = new Set(s.excluded_leagues || []);
+  const leagueBox = document.getElementById('mf_excluded_leagues');
+  leagueBox.innerHTML = allLeagues.length
+    ? allLeagues.map(name => {
+        const safeId = 'ml_' + name.replace(/[^a-zA-Z0-9]/g, '_');
+        return `<div class="checkbox-row" style="margin-bottom:4px;">
+          <input type="checkbox" id="${safeId}" data-league="${name.replace(/"/g,'&quot;')}" ${excluded.has(name)?'checked':''}>
+          <label for="${safeId}" style="margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;text-transform:none;">${name}</label>
+        </div>`;
+      }).join('')
+    : '<span style="color:var(--muted);font-size:12px;">No leagues captured yet.</span>';
+
+  onMultiStrategyTypeChange();
+  document.getElementById('multiModalBg').classList.add('open');
+}
+
+function closeMultiModal() {
+  document.getElementById('multiModalBg').classList.remove('open');
+}
+
+function onMultiStrategyTypeChange() {
+  const isCompound = document.getElementById('mf_strategy_type').value === 'compound';
+  document.getElementById('mf_compound_fields').style.display = isCompound ? '' : 'none';
+  document.getElementById('mf_normal_fields').style.display = isCompound ? 'none' : '';
+}
+
+function getSportRows() {
+  return Array.from(document.querySelectorAll('#mf_sport_rows .sport-row')).map(row => ({
+    sport_name: row.querySelector('.sr_sport').value.trim(),
+    market_name: row.querySelector('.sr_market').value.trim(),
+    bet_side: row.querySelector('.sr_bet_side').value,
+    bet_mode: row.querySelector('.sr_bet_mode').value,
+    min_back_odds: parseFloat(row.querySelector('.sr_min_odds').value),
+    max_back_odds: parseFloat(row.querySelector('.sr_max_odds').value),
+    total_range: row.querySelector('.sr_total_range').value.trim() || null,
+    total_direction: row.querySelector('.sr_total_direction').value || null,
+  }));
+}
+
+function showMultiError(msg) {
+  const b = document.getElementById('multiErrorBox');
+  b.textContent = msg; b.style.display = 'block';
+}
+
+function saveMultiStrategy() {
+  const name = document.getElementById('mf_name').value.trim();
+  if (!name) { showMultiError('Name is required.'); return; }
+
+  const sportRows = getSportRows();
+  if (!sportRows.length) { showMultiError('Add at least one sport.'); return; }
+  for (const r of sportRows) {
+    if (!r.sport_name || !r.market_name) { showMultiError('Each sport row needs a sport and market.'); return; }
+    if (r.min_back_odds > r.max_back_odds) { showMultiError(`Min odds > max odds in one of the sport rows.`); return; }
+    if (r.market_name === 'Total' && (!r.total_range || !r.total_direction)) {
+      showMultiError(`Total market requires line and direction (row: ${r.sport_name}).`); return;
+    }
+  }
+
+  const stratType = document.getElementById('mf_strategy_type').value;
+  let plan = null, compoundStart = null, compoundTarget = null;
+  if (stratType === 'compound') {
+    compoundStart = parseFloat(document.getElementById('mf_compound_start').value);
+    compoundTarget = parseFloat(document.getElementById('mf_compound_target').value);
+    if (!compoundStart || !compoundTarget) { showMultiError('Compound strategy needs starting balance and target.'); return; }
+    if (compoundTarget <= compoundStart) { showMultiError('Target must be greater than starting balance.'); return; }
+  } else {
+    plan = document.getElementById('mf_staking_plan').value
+      .split(',').map(x => parseFloat(x.trim())).filter(x => !isNaN(x));
+    if (!plan.length) { showMultiError('Staking plan must have at least one number.'); return; }
+  }
+
+  const existing = editingMultiIndex === null ? {} : strategies[editingMultiIndex];
+  const checkedLeagues = Array.from(document.querySelectorAll('#mf_excluded_leagues input[type="checkbox"]:checked'))
+    .map(el => el.dataset.league);
+
+  const updated = {
+    ...existing,
+    name,
+    strategy_mode: 'multi_sport',
+    strategy_type: stratType,
+    sport_configs: sportRows,
+    // keep first row's values at top level for backward compat
+    sport_name: sportRows[0].sport_name,
+    sport_names: sportRows.map(r => r.sport_name),
+    market_name: sportRows[0].market_name,
+    market_names: sportRows.map(r => r.market_name),
+    min_back_odds: sportRows[0].min_back_odds,
+    max_back_odds: sportRows[0].max_back_odds,
+    staking_plan: plan,
+    staking_steps: plan ? plan.length : null,
+    base_stake: plan ? plan[0] : null,
+    compound_start: compoundStart,
+    compound_target: compoundTarget,
+    max_open_bets: parseInt(document.getElementById('mf_max_open_bets').value) || 1,
+    bankroll: parseFloat(document.getElementById('mf_bankroll').value),
+    max_total_exposure: existing.max_total_exposure ?? parseFloat(document.getElementById('mf_bankroll').value),
+    max_session_loss: parseFloat(document.getElementById('mf_max_session_loss').value),
+    target_profit: parseFloat(document.getElementById('mf_target_profit').value),
+    poll_interval_seconds: parseInt(document.getElementById('mf_poll_interval').value) || 600,
+    open_positions_cooldown_seconds: parseInt(document.getElementById('mf_cooldown').value) || 600,
+    pause_scanning_with_open_positions: existing.pause_scanning_with_open_positions ?? true,
+    event_lookahead_minutes: parseInt(document.getElementById('mf_lookahead').value) || 180,
+    min_seconds_to_start: parseInt(document.getElementById('mf_min_seconds').value) || 300,
+    odds_type: existing.odds_type || 'DECIMAL',
+    currency: existing.currency || 'EUR',
+    minimum_liquidity: parseFloat(document.getElementById('mf_min_liquidity').value),
+    live_mode: document.getElementById('mf_live_mode').value,
+    enabled: document.getElementById('mf_enabled').checked,
+    excluded_leagues: checkedLeagues,
+    keep_in_play: existing.keep_in_play ?? false,
+    autoRestart: existing.autoRestart ?? false,
+    bet_side: sportRows[0].bet_side,
+    bet_mode: sportRows[0].bet_mode,
+    cash_out_at_percent: existing.cash_out_at_percent ?? null,
+    total_range: null,
+    total_direction: null,
+  };
+
+  if (editingMultiIndex === null) {
+    strategies.push(updated);
+  } else {
+    strategies[editingMultiIndex] = updated;
+  }
+
+  fetch('/api/strategies', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(strategies)
+  }).then(r => r.json()).then(data => {
+    if (data.error) { showMultiError(data.error); strategies = data.strategies || strategies; return; }
+    closeMultiModal();
+    fetchStrategies();
+  });
+}
+// ── end multi-sport ────────────────────────────────────────────
+
+function onStrategyTypeChange() {
+  const isCompound = document.getElementById('f_strategy_type').value === 'compound';
+  document.getElementById('compound_fields').style.display = isCompound ? '' : 'none';
+  document.getElementById('normal_fields').style.display = isCompound ? 'none' : '';
 }
 
 function closeModal() {
@@ -970,12 +1307,21 @@ function closeModal() {
 }
 
 function saveStrategy() {
+  const stratType = document.getElementById('f_strategy_type').value;
   const plan = document.getElementById('f_staking_plan').value
     .split(',').map(x => parseFloat(x.trim())).filter(x => !isNaN(x));
 
   const name = document.getElementById('f_name').value.trim();
   if (!name) { showError('Name is required.'); return; }
-  if (!plan.length) { showError('Staking plan must have at least one number.'); return; }
+
+  if (stratType === 'compound') {
+    const cs = parseFloat(document.getElementById('f_compound_start').value);
+    const ct = parseFloat(document.getElementById('f_compound_target').value);
+    if (!cs || !ct) { showError('Compound strategy requires Starting balance and Target amount.'); return; }
+    if (ct <= cs) { showError('Target amount must be greater than Starting balance.'); return; }
+  } else {
+    if (!plan.length) { showError('Staking plan must have at least one number.'); return; }
+  }
 
   const existing = editingIndex === null ? {} : strategies[editingIndex];
   const cashOutValue = document.getElementById('f_cash_out_percent').value;
@@ -1027,6 +1373,7 @@ function saveStrategy() {
   const updated = {
     ...existing,
     name: name,
+    live_mode: document.getElementById('f_live_mode').value,
     enabled: document.getElementById('f_enabled').checked,
     sport_name: document.getElementById('f_sport').value.trim(),
     sport_names: [document.getElementById('f_sport').value.trim()],
@@ -1034,9 +1381,12 @@ function saveStrategy() {
     market_names: [document.getElementById('f_market').value.trim()],
     min_back_odds: parseFloat(document.getElementById('f_min_odds').value),
     max_back_odds: parseFloat(document.getElementById('f_max_odds').value),
-    staking_plan: plan,
-    staking_steps: plan.length,
-    base_stake: plan[0],
+    strategy_type: stratType,
+    staking_plan: stratType === 'compound' ? null : plan,
+    staking_steps: stratType === 'compound' ? null : plan.length,
+    base_stake: stratType === 'compound' ? null : plan[0],
+    compound_start: stratType === 'compound' ? parseFloat(document.getElementById('f_compound_start').value) : null,
+    compound_target: stratType === 'compound' ? parseFloat(document.getElementById('f_compound_target').value) : null,
     max_open_bets: parseInt(document.getElementById('f_max_open_bets').value) || 1,
     bankroll: parseFloat(document.getElementById('f_bankroll').value),
     max_total_exposure: existing.max_total_exposure ?? parseFloat(document.getElementById('f_bankroll').value),
