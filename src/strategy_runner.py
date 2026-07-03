@@ -15,6 +15,7 @@ import market_double_chance
 from state_store import load_state, save_state
 from bet_records import record_bet_placed, record_bet_settled, record_bet_cashed_out
 from league_tracker import record_league
+from strategy_loader import disable_strategy
 
 MATCHERS = {
     "Match Odds": market_match_odds,
@@ -29,8 +30,16 @@ class StrategyRunner:
         self.name = strategy["name"]
         self.client = client
 
-        self.staking_plan = strategy["staking_plan"]
-        self.max_steps = len(self.staking_plan)
+        self.strategy_type = strategy.get("strategy_type", "normal")
+
+        if self.strategy_type == "compound":
+            self.compound_start = float(strategy["compound_start"])
+            self.compound_target = float(strategy["compound_target"])
+            self.staking_plan = None
+            self.max_steps = 1
+        else:
+            self.staking_plan = strategy["staking_plan"]
+            self.max_steps = len(self.staking_plan)
 
         market_key = strategy.get("market_name") or (strategy.get("market_names") or [None])[0]
         self.market_name = market_key
@@ -59,7 +68,9 @@ class StrategyRunner:
             if self.matcher is None:
                 raise ValueError(f"[{self.name}] Don't know how to handle market '{market_key}'.")
 
-        self.current_step, self.active_bets = load_state(self.name)
+        self.current_step, self.active_bets, saved_balance = load_state(self.name)
+        if self.strategy_type == "compound":
+            self.balance = saved_balance if saved_balance is not None else self.compound_start
         self.max_open_bets = strategy.get("max_open_bets", 1)
         self.poll_interval = strategy.get("poll_interval_seconds", 600)
         self.cooldown_after_bet = strategy.get("open_positions_cooldown_seconds", 600)
@@ -86,12 +97,20 @@ class StrategyRunner:
             self.cash_out_at_percent = requested_cash_out
 
         self.excluded_leagues = set(strategy.get("excluded_leagues", []))
+        self.live_mode = strategy.get("live_mode", "pre")  # pre / live / both
+        self.sport_configs = strategy.get("sport_configs")  # None for single-sport
 
     def log(self, msg):
         ts = datetime.now(ZoneInfo("Europe/Athens")).strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{ts}] [{self.name}] {msg}")
 
+    def _save(self):
+        balance = self.balance if self.strategy_type == "compound" else None
+        save_state(self.name, self.current_step, self.active_bets, balance)
+
     def stake_for_step(self):
+        if self.strategy_type == "compound":
+            return round(self.balance, 2)
         idx = max(0, min(self.current_step - 1, len(self.staking_plan) - 1))
         return float(self.staking_plan[idx])
 
@@ -121,6 +140,26 @@ class StrategyRunner:
 
             await asyncio.sleep(self.poll_interval if not self.active_bets else 30)
 
+    def _event_passes_live_filter(self, event):
+        """Return True if event matches the strategy's live_mode setting."""
+        is_live = bool(event.get("in-play") or event.get("live-execution"))
+        if self.live_mode == "pre":
+            return not is_live
+        if self.live_mode == "live":
+            return is_live
+        return True  # both
+
+    def _get_matcher_for_config(self, cfg):
+        """Return the right matcher module for a sport config dict."""
+        bet_mode = cfg.get("bet_mode", "normal")
+        bet_side = cfg.get("bet_side", "back")
+        market = cfg.get("market_name", "")
+        if bet_mode == "double_chance":
+            return market_double_chance
+        if bet_side == "lay":
+            return market_lay_opponent
+        return MATCHERS.get(market)
+
     async def scan_and_bet(self):
         data = await asyncio.to_thread(self.client.get_live_events, sport_ids=self.cfg["_sport_id"], per_page=30)
         if not data or "events" not in data:
@@ -131,13 +170,15 @@ class StrategyRunner:
         horizon = now + timedelta(minutes=self.lookahead_minutes)
         self.log(f"Scanning {len(data['events'])} upcoming match(es)...")
 
+        # Build list of sport configs to scan — multi-sport or single
+        configs = self.sport_configs if self.sport_configs else [self.cfg]
+
         for event in data["events"]:
-            if event.get("in-play") or event.get("live-execution"):
-                if not self.cfg.get("keep_in_play", False):
-                    continue
+            if not self._event_passes_live_filter(event):
+                continue
 
             if self.cash_out_at_percent and not event.get("allow-live-betting", False):
-                continue  # can't cash out later if live betting isn't offered on this event
+                continue
 
             if self.excluded_leagues:
                 league = self._extract_league(event)
@@ -152,10 +193,12 @@ class StrategyRunner:
             except Exception:
                 continue
 
-            if start_time <= now or start_time > horizon:
-                continue
-            if (start_time - now).total_seconds() < self.min_seconds_to_start:
-                continue
+            is_live = bool(event.get("in-play") or event.get("live-execution"))
+            if not is_live:
+                if start_time <= now or start_time > horizon:
+                    continue
+                if (start_time - now).total_seconds() < self.min_seconds_to_start:
+                    continue
 
             event_name = event.get("name", "Unknown Match")
             event_id = event.get("id")
@@ -164,33 +207,49 @@ class StrategyRunner:
             if already_bet:
                 continue
 
-            if self.bet_mode == "double_chance":
-                found = self.matcher.find_opportunity_in_event(event, self.cfg)
-                if not found:
+            # Try each sport config until one matches
+            runner_id = runner_name = odds = market_id = None
+            matched_cfg = None
+
+            for scfg in configs:
+                bet_mode = scfg.get("bet_mode", "normal")
+                matcher = self._get_matcher_for_config(scfg)
+                if matcher is None:
                     continue
-                runner_id, runner_name, odds, market_id = found
-            else:
-                runner_id = runner_name = odds = market_id = None
-                for market in event.get("markets", []):
-                    if market.get("name") != self.market_name:
-                        continue
-                    found = self.matcher.find_opportunity(market, self.cfg)
+
+                if bet_mode == "double_chance":
+                    found = matcher.find_opportunity_in_event(event, scfg)
                     if not found:
                         continue
-                    runner_id, runner_name, odds = found
-                    market_id = market.get("id")
+                    runner_id, runner_name, odds, market_id = found
+                    matched_cfg = scfg
                     break
-                if runner_id is None:
-                    continue
+                else:
+                    for market in event.get("markets", []):
+                        if market.get("name") != scfg.get("market_name"):
+                            continue
+                        found = matcher.find_opportunity(market, scfg)
+                        if not found:
+                            continue
+                        runner_id, runner_name, odds = found
+                        market_id = market.get("id")
+                        matched_cfg = scfg
+                        break
+                if matched_cfg:
+                    break
 
+            if runner_id is None:
+                continue
+
+            bet_side = matched_cfg.get("bet_side", self.bet_side)
             stake = self.stake_for_step()
 
-            action_word = "Lay" if self.bet_side == "lay" else "Back"
+            action_word = "Lay" if bet_side == "lay" else "Back"
             self.log(f"🎯 Match found: {event_name} -> {action_word} {runner_name} @ {odds}")
 
             order_status = await asyncio.to_thread(
                 self.client.submit_order,
-                runner_id=runner_id, side=self.bet_side, odds=odds, stake=stake
+                runner_id=runner_id, side=bet_side, odds=odds, stake=stake
             )
 
             if not order_status:
@@ -221,7 +280,7 @@ class StrategyRunner:
                 self.current_step, bet["placed_at"], league=self._extract_league(event)
             )
             self.active_bets.append(bet)
-            save_state(self.name, self.current_step, self.active_bets)
+            self._save()
 
             msg = (
                 f"🚀 Bet Placed [{self.name}]\n"
@@ -300,7 +359,7 @@ class StrategyRunner:
                 self.client.send_telegram(msg)
 
         self.active_bets = [b for b in self.active_bets if not b.get("cashed_out")]
-        save_state(self.name, self.current_step, self.active_bets)
+        self._save()
 
     async def check_settlements(self):
         if not self.active_bets:
@@ -336,18 +395,40 @@ class StrategyRunner:
             if bet.get("record_id"):
                 record_bet_settled(bet["record_id"], outcome, bet["odds"], bet["stake"], bet_side=self.bet_side)
 
-            self.current_step = 1 if outcome == "won" else (
-                self.current_step + 1 if self.current_step < self.max_steps else 1
-            )
+            if self.strategy_type == "compound":
+                if outcome == "won":
+                    self.balance = round(self.balance * bet["odds"], 2)
+                else:
+                    self.balance = 0.0
 
-            settle_msg = (
-                f"Settled [{self.name}]\n"
-                f"Match: {bet['event_name']}\n"
-                f"Result: {result_label}\n"
-                f"Next step: {self.current_step}/{self.max_steps}"
-            )
-            self.log(settle_msg)
-            self.client.send_telegram(settle_msg)
+                settle_msg = (
+                    f"Settled [{self.name}]\n"
+                    f"Match: {bet['event_name']}\n"
+                    f"Result: {result_label}\n"
+                    f"Balance: {self.balance} (target {self.compound_target})"
+                )
+                self.log(settle_msg)
+                self.client.send_telegram(settle_msg)
+
+                if self.balance <= 0:
+                    self.log("💥 Balance hit 0. Disabling.")
+                    await disable_strategy(self.name, "balance hit 0")
+                elif self.balance >= self.compound_target:
+                    self.log(f"🏁 Target {self.compound_target} reached. Disabling.")
+                    await disable_strategy(self.name, "target reached")
+            else:
+                self.current_step = 1 if outcome == "won" else (
+                    self.current_step + 1 if self.current_step < self.max_steps else 1
+                )
+
+                settle_msg = (
+                    f"Settled [{self.name}]\n"
+                    f"Match: {bet['event_name']}\n"
+                    f"Result: {result_label}\n"
+                    f"Next step: {self.current_step}/{self.max_steps}"
+                )
+                self.log(settle_msg)
+                self.client.send_telegram(settle_msg)
 
         self.active_bets = still_open
-        save_state(self.name, self.current_step, self.active_bets)
+        self._save()

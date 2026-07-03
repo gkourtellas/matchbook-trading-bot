@@ -24,25 +24,31 @@ def _path_for(name):
 
 
 def load_state(name):
-    """Returns (current_step, active_bets list) for one strategy."""
+    """Returns (current_step, active_bets list, balance) for one strategy.
+
+    balance is None for strategies that don't use it (normal ladder
+    strategies). Compound strategies use it to carry their running
+    balance across restarts.
+    """
     path = _path_for(name)
     if not os.path.isfile(path):
-        return 1, []
+        return 1, [], None
     try:
         with open(path, "r", encoding="utf-8") as f:
             state = json.load(f)
         current_step = state.get("current_step", 1)
         active_bets = state.get("active_bets", [])
+        balance = state.get("balance")
         for bet in active_bets:
             bet["start_time"] = datetime.fromisoformat(bet["start_time"])
             bet["placed_at"] = datetime.fromisoformat(bet["placed_at"])
-        return current_step, active_bets
+        return current_step, active_bets, balance
     except Exception as e:
         print(f"[{name}] ⚠️ Could not read saved progress ({e}). Starting fresh.")
-        return 1, []
+        return 1, [], None
 
 
-def save_state(name, current_step, active_bets):
+def save_state(name, current_step, active_bets, balance=None):
     """Writes progress for one strategy to its own file."""
     path = _path_for(name)
     try:
@@ -52,6 +58,7 @@ def save_state(name, current_step, active_bets):
                 {**bet, "start_time": bet["start_time"].isoformat(), "placed_at": bet["placed_at"].isoformat()}
                 for bet in active_bets
             ],
+            "balance": balance,
         }
         with open(path, "w", encoding="utf-8") as f:
             json.dump(to_save, f, indent=2)

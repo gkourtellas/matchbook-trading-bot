@@ -4,12 +4,46 @@ Nothing in this file or the rest of the bot needs to change when you add
 a new strategy. Just edit config/strategies.json.
 """
 
+import asyncio
 import json
 import os
 
 STRATEGIES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "strategies.json")
 
 _sport_id_cache = None
+
+# One lock, shared by every strategy runner in this process, so two
+# strategies hitting balance 0 / target at the same moment can't both
+# write strategies.json at once and corrupt it.
+strategies_file_lock = asyncio.Lock()
+
+
+async def disable_strategy(name, reason):
+    """Sets enabled: false for one strategy in strategies.json, and
+    leaves everything else in the file untouched. Safe to call from
+    multiple strategies at once (uses strategies_file_lock).
+    """
+    async with strategies_file_lock:
+        with open(STRATEGIES_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+
+        found = False
+        for s in data.get("strategies", []):
+            if s.get("name") == name:
+                s["enabled"] = False
+                found = True
+                break
+
+        if not found:
+            print(f"[{name}] ⚠️ Could not find this strategy in strategies.json to disable it.")
+            return
+
+        tmp_path = STRATEGIES_FILE + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        os.replace(tmp_path, STRATEGIES_FILE)
+
+        print(f"[{name}] 🛑 Disabled in strategies.json ({reason}).")
 
 
 def _get_sport_ids(client):
@@ -61,11 +95,18 @@ def load_strategies(client):
             continue
         s["_sport_id"] = sport_ids[sport]
 
-        ladder = s.get("staking_plan", [])
-        steps = s.get("staking_steps", len(ladder))
-        if len(ladder) != steps:
-            print(f"[{s['name']}] ⚠️ staking_steps ({steps}) doesn't match "
-                  f"staking_plan length ({len(ladder)}). Using staking_plan length.")
+        if s.get("strategy_type") == "compound":
+            missing = [k for k in ("compound_start", "compound_target", "min_back_odds", "max_back_odds")
+                       if s.get(k) is None]
+            if missing:
+                print(f"[{s['name']}] ⚠️ SKIPPED — compound strategy missing: {', '.join(missing)}.")
+                continue
+        else:
+            ladder = s.get("staking_plan", [])
+            steps = s.get("staking_steps", len(ladder))
+            if len(ladder) != steps:
+                print(f"[{s['name']}] ⚠️ staking_steps ({steps}) doesn't match "
+                      f"staking_plan length ({len(ladder)}). Using staking_plan length.")
 
         valid.append(s)
 
