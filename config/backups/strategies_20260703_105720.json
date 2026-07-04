@@ -303,10 +303,10 @@
       "bet_side": "back",
       "cash_out_at_percent": null,
       "compound_start": 1,
-      "compound_target": 2,
+      "compound_target": 1.5,
       "currency": "EUR",
       "description": "",
-      "enabled": true,
+      "enabled": false,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
       "keep_in_play": false,
@@ -314,7 +314,7 @@
       "market_names": [
         "Moneyline"
       ],
-      "max_back_odds": 1.1,
+      "max_back_odds": 1.16,
       "max_open_bets": 1,
       "max_session_loss": 1,
       "max_total_exposure": 1,
@@ -335,8 +335,7 @@
       "strategy_type": "compound",
       "target_profit": 1.5,
       "total_direction": null,
-      "total_range": null,
-      "live_mode": "pre"
+      "total_range": null
     },
     {
       "autoRestart": false,
@@ -382,57 +381,29 @@
       "total_range": null
     },
     {
-      "autoRestart": false,
-      "bankroll": 1,
-      "base_stake": 0.1,
-      "bet_mode": "normal",
-      "bet_side": "back",
-      "cash_out_at_percent": null,
-      "compound_start": null,
-      "compound_target": null,
-      "currency": "EUR",
-      "enabled": true,
-      "event_lookahead_minutes": 180,
-      "excluded_leagues": [],
-      "keep_in_play": false,
-      "live_mode": "both",
-      "market_name": "Match Odds",
-      "market_names": [
-        "Match Odds",
-        "Money Line"
-      ],
-      "max_back_odds": 1.05,
-      "max_open_bets": 2,
-      "max_session_loss": 1,
-      "max_total_exposure": 1,
-      "min_back_odds": 1.01,
-      "min_seconds_to_start": 300,
-      "minimum_liquidity": 2,
       "name": "Multi",
-      "odds_type": "DECIMAL",
-      "open_positions_cooldown_seconds": 600,
-      "pause_scanning_with_open_positions": true,
-      "poll_interval_seconds": 600,
+      "strategy_mode": "multi_sport",
+      "strategy_type": "normal",
       "sport_configs": [
         {
-          "bet_mode": "normal",
-          "bet_side": "back",
-          "market_name": "Match Odds",
-          "max_back_odds": 1.05,
-          "min_back_odds": 1.01,
           "sport_name": "Soccer",
-          "total_direction": null,
-          "total_range": null
+          "market_name": "Match Odds",
+          "bet_side": "back",
+          "bet_mode": "normal",
+          "min_back_odds": 1.01,
+          "max_back_odds": 1.05,
+          "total_range": null,
+          "total_direction": null
         },
         {
-          "bet_mode": "normal",
-          "bet_side": "back",
-          "market_name": "Money Line",
-          "max_back_odds": 1.05,
-          "min_back_odds": 1.01,
           "sport_name": "Tennis",
-          "total_direction": null,
-          "total_range": null
+          "market_name": "Money Line",
+          "bet_side": "back",
+          "bet_mode": "normal",
+          "min_back_odds": 1.01,
+          "max_back_odds": 1.05,
+          "total_range": null,
+          "total_direction": null
         }
       ],
       "sport_name": "Soccer",
@@ -440,15 +411,43 @@
         "Soccer",
         "Tennis"
       ],
+      "market_name": "Match Odds",
+      "market_names": [
+        "Match Odds",
+        "Money Line"
+      ],
+      "min_back_odds": 1.01,
+      "max_back_odds": 1.05,
       "staking_plan": [
         0.1
       ],
       "staking_steps": 1,
-      "strategy_mode": "multi_sport",
-      "strategy_type": "normal",
+      "base_stake": 0.1,
+      "compound_start": null,
+      "compound_target": null,
+      "max_open_bets": 2,
+      "bankroll": 1,
+      "max_total_exposure": 1,
+      "max_session_loss": 1,
       "target_profit": 2,
-      "total_direction": null,
-      "total_range": null
+      "poll_interval_seconds": 600,
+      "open_positions_cooldown_seconds": 600,
+      "pause_scanning_with_open_positions": true,
+      "event_lookahead_minutes": 180,
+      "min_seconds_to_start": 300,
+      "odds_type": "DECIMAL",
+      "currency": "EUR",
+      "minimum_liquidity": 2,
+      "live_mode": "both",
+      "enabled": true,
+      "excluded_leagues": [],
+      "keep_in_play": false,
+      "autoRestart": false,
+      "bet_side": "back",
+      "bet_mode": "normal",
+      "cash_out_at_percent": null,
+      "total_range": null,
+      "total_direction": null
     }
   ]
 }
