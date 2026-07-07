@@ -2,6 +2,7 @@
     "Argentina Liga Profesional de Fútbol Reserves",
     "Argentina Primera B Metropolitana",
     "Argentina Primera Nacional",
+    "Bolivia Primera Division",
     "Brazil Serie A",
     "Brazil Serie B",
     "Brazil Serie C",
@@ -37,5 +38,9 @@
     "Paraguay Cup",
     "Sweden Allsvenskan",
     "Sweden Superettan",
+    "UEFA Champions League Qualification",
+    "UEFA Europa Conference League Qualification",
+    "US USL Championship",
+    "Uruguay Primera División",
     "Uruguay Segunda División"
 ]
