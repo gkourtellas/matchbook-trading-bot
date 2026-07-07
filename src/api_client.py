@@ -15,6 +15,7 @@ class MatchbookClient:
         self.password = os.getenv("MATCHBOOK_PASSWORD")
         self.tg_token = os.getenv("TELEGRAM_BOT_TOKEN")
         self.tg_chat_id = os.getenv("TELEGRAM_CHAT_ID")
+        self.tg_chat_id_login = os.getenv("TELEGRAM_CHAT_ID_LOGIN", self.tg_chat_id)
 
         self.auth_url = "https://api.matchbook.com/bpapi/rest/security/session"
         self.base_url = "https://api.matchbook.com/edge/rest"
@@ -44,7 +45,7 @@ class MatchbookClient:
                     self.session_token = data.get("session-token")
                     self.headers["session-token"] = self.session_token
                     self.last_login_time = datetime.utcnow()
-                    self.send_telegram("✅ Matchbook login successful. Session token acquired.")
+                    self.send_telegram("✅ Matchbook login successful. Session token acquired.", login=True)
                     return True
                 
                 elif response.status_code == 429:
@@ -55,11 +56,11 @@ class MatchbookClient:
                     continue
                     
                 else:
-                    self.send_telegram(f"❌ Login failed. Status: {response.status_code}")
+                    self.send_telegram(f"❌ Login failed. Status: {response.status_code}", login=True)
                     return False
                     
             except Exception as e:
-                self.send_telegram(f"❌ Login exception encountered: {str(e)}")
+                self.send_telegram(f"❌ Login exception encountered: {str(e)}", login=True)
                 return False
 
     def ensure_valid_session(self):
@@ -314,13 +315,21 @@ class MatchbookClient:
 
         return None, status_label
 
-    def send_telegram(self, message):
-        """Helper service to push instant alerts to your Telegram chat."""
-        if not self.tg_token or not self.tg_chat_id:
+    def send_telegram(self, message, login=False):
+        """Helper service to push instant alerts to your Telegram chat.
+
+        login=True routes to TELEGRAM_CHAT_ID_LOGIN (falls back to
+        TELEGRAM_CHAT_ID if that's not set). Bet notifications keep
+        using login=False (default), unchanged.
+        """
+        if not self.tg_token:
+            return
+        chat_id = self.tg_chat_id_login if login else self.tg_chat_id
+        if not chat_id:
             return
         url = f"https://api.telegram.org/bot{self.tg_token}/sendMessage"
         payload = {
-            "chat_id": self.tg_chat_id,
+            "chat_id": chat_id,
             "text": message
         }
         try:

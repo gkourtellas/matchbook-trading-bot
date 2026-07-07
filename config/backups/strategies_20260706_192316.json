@@ -53,20 +53,17 @@
       "bet_mode": "normal",
       "bet_side": "back",
       "cash_out_at_percent": null,
-      "compound_start": null,
-      "compound_target": null,
       "currency": "EUR",
       "description": "Secondary Soccer Over/Under 2.5 strategy running in parallel",
       "enabled": true,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
       "keep_in_play": false,
-      "live_mode": "pre",
       "market_name": "Total",
       "market_names": [
         "Total"
       ],
-      "max_back_odds": 1.55,
+      "max_back_odds": 1.6,
       "max_open_bets": 1,
       "max_session_loss": 10,
       "max_total_exposure": 10,
@@ -90,10 +87,13 @@
         16.2
       ],
       "staking_steps": 5,
-      "strategy_type": "normal",
       "target_profit": 10,
       "total_direction": "Over",
-      "total_range": "2.5"
+      "total_range": "2.5",
+      "live_mode": "pre",
+      "strategy_type": "normal",
+      "compound_start": null,
+      "compound_target": null
     },
     {
       "autoRestart": false,

@@ -10,6 +10,7 @@ from outside (e.g. through the Cloudflare tunnel).
 """
 
 import os
+import re
 import json
 import sqlite3
 import subprocess
@@ -21,19 +22,19 @@ from flask import Flask, jsonify, render_template_string, request, Response
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "bets.db")
 STRATEGIES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "strategies.json")
 LEAGUES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "leagues.json")
+STATE_DIR = os.path.join(os.path.dirname(__file__), "..", "config", "state")
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD")
 
 app = Flask(__name__)
 
 
 def get_enabled_strategy_names():
-    """Returns the set of strategy names currently enabled in strategies.json."""
     try:
         with open(STRATEGIES_FILE, encoding="utf-8") as f:
             data = json.load(f)
         return {s["name"] for s in data.get("strategies", []) if s.get("enabled", True)}
     except Exception:
-        return None  # unknown — don't mark anything inactive if file can't be read
+        return None
 
 
 REQUIRED_FIELDS = [
@@ -43,7 +44,6 @@ REQUIRED_FIELDS = [
 
 
 def load_strategies_file():
-    """Returns the full strategies.json content (the list, not wrapped)."""
     if not os.path.isfile(STRATEGIES_FILE):
         return []
     with open(STRATEGIES_FILE, encoding="utf-8") as f:
@@ -52,9 +52,6 @@ def load_strategies_file():
 
 
 def validate_strategies(strategies):
-    """Checks the same rules the bot itself enforces. Returns an error
-    string if something's wrong, or None if it's all good.
-    """
     if not isinstance(strategies, list):
         return "strategies must be a list."
 
@@ -121,9 +118,6 @@ def validate_strategies(strategies):
 
 
 def save_strategies_file(strategies):
-    """Validates, backs up the current file, then writes the new one.
-    Raises ValueError if validation fails — nothing is written in that case.
-    """
     error = validate_strategies(strategies)
     if error:
         raise ValueError(error)
@@ -139,9 +133,6 @@ def save_strategies_file(strategies):
 
 
 def restart_bot_container():
-    """Restarts the trading bot container so it picks up the new config.
-    Returns (success, message).
-    """
     try:
         result = subprocess.run(
             ["docker", "restart", "matchbook_trading_bot"],
@@ -559,7 +550,6 @@ const baseGrid = { color: gridColor };
 
 fetch('/api/chart_data').then(r => r.json()).then(data => {
 
-  // 1. Cumulative profit line
   if (data.cumulative.length) {
     let running = 0;
     const labels = [];
@@ -587,7 +577,6 @@ fetch('/api/chart_data').then(r => r.json()).then(data => {
     document.getElementById('cumulativeChart').outerHTML = '<div class="empty">No settled bets yet</div>';
   }
 
-  // 2. Win rate by odds bucket
   if (data.odds_buckets.length) {
     const labels = data.odds_buckets.map(b => b.bucket);
     const rates = data.odds_buckets.map(b => b.total ? Math.round(100 * b.won / b.total) : 0);
@@ -612,7 +601,6 @@ fetch('/api/chart_data').then(r => r.json()).then(data => {
     document.getElementById('oddsChart').outerHTML = '<div class="empty">No settled bets yet</div>';
   }
 
-  // 3. Market mix donut
   if (data.market_mix.length) {
     new Chart(document.getElementById('mixChart'), {
       type: 'doughnut',
@@ -635,7 +623,6 @@ fetch('/api/chart_data').then(r => r.json()).then(data => {
     document.getElementById('mixChart').outerHTML = '<div class="empty">No bets yet</div>';
   }
 
-  // 4. Weekday activity
   if (data.weekday.length) {
     new Chart(document.getElementById('weekdayChart'), {
       type: 'bar',
@@ -657,7 +644,6 @@ fetch('/api/chart_data').then(r => r.json()).then(data => {
     document.getElementById('weekdayChart').outerHTML = '<div class="empty">No bets yet</div>';
   }
 
-  // 5. Stake vs profit scatter
   if (data.stake_vs_profit.length) {
     const points = data.stake_vs_profit.map(b => ({ x: b.stake, y: b.profit }));
     const colors = data.stake_vs_profit.map(b => b.result === 'won' ? win : loss);
@@ -676,7 +662,6 @@ fetch('/api/chart_data').then(r => r.json()).then(data => {
     document.getElementById('scatterChart').outerHTML = '<div class="empty">No settled bets yet</div>';
   }
 
-  // 6. Profit per strategy
   if (data.profit_per_strategy && data.profit_per_strategy.length) {
     const labels = data.profit_per_strategy.map(s => s.strategy_name);
     const values = data.profit_per_strategy.map(s => s.profit);
@@ -703,7 +688,6 @@ fetch('/api/chart_data').then(r => r.json()).then(data => {
     document.getElementById('profitPerStrategyChart').outerHTML = '<div class="empty">No settled bets yet</div>';
   }
 
-  // 7. Profit per league
   if (data.profit_per_league && data.profit_per_league.length) {
     const labels = data.profit_per_league.map(l => l.league);
     const values = data.profit_per_league.map(l => l.profit);
@@ -776,6 +760,7 @@ STRATEGIES_PAGE = """
   .btn { font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--card2); color: var(--text); cursor: pointer; }
   .btn:hover { border-color: var(--accent); }
   .btn.danger:hover { border-color: var(--loss); color: var(--loss); }
+  .btn.reset:hover { border-color: var(--pending); color: var(--pending); }
   .add-btn { font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 10px 16px; border-radius: 8px; border: 1px dashed var(--border); background: transparent; color: var(--muted); cursor: pointer; width: 100%; margin-top: 6px; }
   .add-btn:hover { border-color: var(--accent); color: var(--accent); }
 
@@ -910,14 +895,12 @@ STRATEGIES_PAGE = """
       <div class="field-grid">
         <div class="field full"><label>Name</label><input id="mf_name"></div>
 
-        <!-- Sport rows -->
         <div class="field full">
           <label>Sports / Markets</label>
           <div id="mf_sport_rows" style="display:flex; flex-direction:column; gap:10px; margin-top:6px;"></div>
           <button class="btn" onclick="addSportRow()" style="margin-top:8px; font-size:12px;">+ Add sport</button>
         </div>
 
-        <!-- Strategy type -->
         <div class="field full">
           <label>Strategy type</label>
           <select id="mf_strategy_type" onchange="onMultiStrategyTypeChange()">
@@ -1017,11 +1000,20 @@ function renderList() {
       <div class="row-actions">
         <button class="btn" onclick="${editFn}">Edit</button>
         <button class="btn" onclick="toggleActive(${i})">${s.enabled ? 'Disable' : 'Enable'}</button>
+        <button class="btn reset" onclick="resetState('${s.name.replace(/'/g, "\\'")}')">Reset State</button>
         <button class="btn danger" onclick="removeStrategy(${i})">Remove</button>
       </div>
     </div>`;
   });
   document.getElementById('strategyList').innerHTML = html || '<p style="color:var(--muted); font-family:JetBrains Mono, monospace; font-size:13px;">No strategies yet.</p>';
+}
+
+function resetState(name) {
+  if (!confirm('Reset state for "' + name + '"?\\nSteps and balance will restart from scratch on next bot start.')) return;
+  fetch('/api/reset_state/' + encodeURIComponent(name), { method: 'DELETE' })
+    .then(r => r.json())
+    .then(() => alert('Done. Restart the bot to take effect.'))
+    .catch(err => alert('Failed: ' + err));
 }
 
 function openModal(index) {
@@ -1241,7 +1233,6 @@ function saveMultiStrategy() {
     strategy_mode: 'multi_sport',
     strategy_type: stratType,
     sport_configs: sportRows,
-    // keep first row's values at top level for backward compat
     sport_name: sportRows[0].sport_name,
     sport_names: sportRows.map(r => r.sport_name),
     market_name: sportRows[0].market_name,
@@ -1729,8 +1720,6 @@ def get_strategies():
 @app.route("/api/strategies", methods=["POST"])
 @require_password
 def save_strategies():
-    """Saves the full strategy list. Does NOT restart the bot —
-    use /api/restart_bot separately once you're done editing."""
     strategies = request.get_json(force=True)
     try:
         save_strategies_file(strategies)
@@ -1747,6 +1736,16 @@ def save_strategies():
 def restart_bot():
     ok, msg = restart_bot_container()
     return jsonify({"restarted": ok, "message": msg})
+
+
+@app.route("/api/reset_state/<strategy_name>", methods=["DELETE"])
+@require_password
+def reset_state(strategy_name):
+    cleaned = re.sub(r"[^A-Za-z0-9_.-]+", "_", strategy_name.strip())
+    path = os.path.join(STATE_DIR, f"{cleaned}.json")
+    if os.path.isfile(path):
+        os.remove(path)
+    return jsonify({"reset": True})
 
 
 @app.route("/strategies")
