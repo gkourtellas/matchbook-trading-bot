@@ -221,7 +221,7 @@
     {
       "autoRestart": false,
       "bankroll": 2,
-      "base_stake": 1.5,
+      "base_stake": 0.75,
       "bet_mode": "normal",
       "bet_side": "back",
       "cash_out_at_percent": 2,
@@ -255,7 +255,7 @@
         "Soccer"
       ],
       "staking_plan": [
-        1.5
+        0.75
       ],
       "staking_steps": 1,
       "strategy_type": "normal",
