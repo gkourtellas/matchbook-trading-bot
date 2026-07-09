@@ -2,6 +2,11 @@
 
 Each strategy gets one of these, running on its own, side by side with
 every other strategy. They don't affect each other.
+
+Live detection fix: Matchbook's real field for "is this match live now"
+is "in-running-flag" (confirmed from raw event data). The old code
+checked "in-play" and "live-execution", which don't exist on Matchbook
+events — so live_mode "live"/"both" strategies never triggered.
 """
 
 import asyncio
@@ -12,7 +17,6 @@ import market_match_odds
 import market_total
 import market_lay_opponent
 import market_double_chance
-import flashscore_client
 from state_store import load_state, save_state
 from bet_records import record_bet_placed, record_bet_settled, record_bet_cashed_out
 from league_tracker import record_league
@@ -82,9 +86,6 @@ class StrategyRunner:
 
         # If set, automatically locks in this % of the stake as guaranteed
         # profit (win or lose) as soon as live odds make it possible.
-        # e.g. cash_out_at_percent: 5 on a 10 EUR stake locks in 0.50 EUR.
-        # Only applies to single-step strategies — multi-step (martingale
-        # ladder) strategies don't support cash-out yet.
         requested_cash_out = strategy.get("cash_out_at_percent")
         if requested_cash_out and self.max_steps > 1:
             print(f"[{self.name}] ⚠️ cash_out_at_percent is set but this strategy has "
@@ -118,12 +119,15 @@ class StrategyRunner:
 
     @staticmethod
     def _extract_league(event):
-        """Same logic as get_leagues.py — pulls the COMPETITION name
-        from the event's meta-tags, if present."""
         for tag in event.get("meta-tags", []):
             if tag.get("type") == "COMPETITION":
                 return tag.get("name")
         return None
+
+    @staticmethod
+    def _is_live(event):
+        """Real Matchbook field for "match is live right now"."""
+        return bool(event.get("in-running-flag"))
 
     async def run(self):
         self.log(f"Starting. Market: {self.market_name}, odds {self.cfg['min_back_odds']}-{self.cfg['max_back_odds']}")
@@ -144,7 +148,7 @@ class StrategyRunner:
 
     def _event_passes_live_filter(self, event):
         """Return True if event matches the strategy's live_mode setting."""
-        is_live = bool(event.get("in-play") or event.get("live-execution"))
+        is_live = self._is_live(event)
         if self.live_mode == "pre":
             return not is_live
         if self.live_mode == "live":
@@ -152,7 +156,6 @@ class StrategyRunner:
         return True  # both
 
     def _get_matcher_for_config(self, cfg):
-        """Return the right matcher module for a sport config dict."""
         bet_mode = cfg.get("bet_mode", "normal")
         bet_side = cfg.get("bet_side", "back")
         market = cfg.get("market_name", "")
@@ -172,7 +175,6 @@ class StrategyRunner:
         horizon = now + timedelta(minutes=self.lookahead_minutes)
         self.log(f"Scanning {len(data['events'])} upcoming match(es)...")
 
-        # Build list of sport configs to scan — multi-sport or single
         configs = self.sport_configs if self.sport_configs else [self.cfg]
 
         for event in data["events"]:
@@ -195,7 +197,7 @@ class StrategyRunner:
             except Exception:
                 continue
 
-            is_live = bool(event.get("in-play") or event.get("live-execution"))
+            is_live = self._is_live(event)
             if not is_live:
                 if start_time <= now or start_time > horizon:
                     continue
@@ -209,7 +211,6 @@ class StrategyRunner:
             if already_bet:
                 continue
 
-            # Try each sport config until one matches
             runner_id = runner_name = odds = market_id = None
             matched_cfg = None
 
@@ -261,11 +262,6 @@ class StrategyRunner:
             sport = self.cfg.get("sport_name") or (self.cfg.get("sport_names") or ["?"])[0]
             record_league(sport, event)
 
-            # Best-effort: add the match to FlashScore favorites so score
-            # push notifications reach your phone. Never blocks or breaks
-            # bet placement if this fails.
-            await asyncio.to_thread(flashscore_client.favorite_event, event_name)
-
             offers = order_status.get("offers", [])
             placed_offer = offers[0] if offers else {}
 
@@ -304,15 +300,11 @@ class StrategyRunner:
         self.log("Scan done: nothing matched the strategy right now.")
 
     async def check_cash_out(self):
-        """For each open bet, checks if current lay odds let us lock in
-        the target % of stake as guaranteed profit. If so, places the
-        lay bet and marks this bet as closed (cashed out).
-        """
         for bet in self.active_bets:
             if bet.get("cashed_out") or bet.get("settled_via_cashout"):
                 continue
             if not all(bet.get(k) for k in ("event_id", "market_id", "runner_id")):
-                continue  # older bet placed before these fields existed
+                continue
 
             response = await asyncio.to_thread(
                 self.client.get_runner_prices, bet["event_id"], bet["market_id"], bet["runner_id"]
@@ -338,7 +330,7 @@ class StrategyRunner:
             lay_stake = round(target_profit + stake, 2)
 
             if available is not None and available < lay_stake:
-                continue  # not enough liquidity to fully hedge yet
+                continue
 
             win_case_profit = round(stake * (bet["odds"] - 1) - lay_stake * (lay_odds - 1), 4)
             lose_case_profit = round(lay_stake - stake, 4)
