@@ -6,6 +6,7 @@ breaks bet placement.
 """
 
 import os
+import re
 import requests
 
 EMAIL = os.getenv("FLASHSCORE_EMAIL")
@@ -49,7 +50,11 @@ def _login():
         return False
 
 
-def _search_team(name):
+def _search_entity(name):
+    """Searches FlashScore for a team OR player, any sport. Picks the
+    best word-overlap match among candidates (not just the first hit).
+    Returns (entity_id, country_id, sport_id) or (None, None, None).
+    """
     resp = requests.get(
         "https://s.livesport.services/api/v2/search/",
         params={"q": name, "lang-id": 1, "type-ids": "1,2,3,4", "project-id": 2, "project-type-id": 1},
@@ -58,10 +63,21 @@ def _search_team(name):
     )
     resp.raise_for_status()
     results = resp.json()
-    for r in results:
-        if r.get("sport", {}).get("id") == 1 and r.get("type", {}).get("id") == 2:
-            return r["id"], r["defaultCountry"]["id"]
-    return None, None
+
+    candidates = [r for r in results if r.get("type", {}).get("id") in (2, 3)]  # Team or Player
+    if not candidates:
+        return None, None, None
+
+    query_words = _tokenize(name)
+    best = None
+    best_score = -1
+    for r in candidates:
+        score = len(query_words & _tokenize(r.get("name", "")))
+        if score > best_score:
+            best_score = score
+            best = r
+
+    return best["id"], best["defaultCountry"]["id"], best["sport"]["id"]
 
 
 def _parse_feed(text):
@@ -85,27 +101,53 @@ def _parse_feed(text):
     return matches
 
 
-def _find_upcoming_match(team_id, country_id, opponent_name):
-    url = f"https://2.flashscore.ninja/2/x/feed/p_1_{country_id}_{team_id}_3_en_1"
+_STOPWORDS = {
+    "fc", "cf", "cd", "sc", "ac", "de", "del", "la", "el", "los", "las",
+    "united", "city", "club", "real", "atletico", "athletic", "sporting",
+}
+
+
+def _tokenize(name):
+    """Turns a team name into a set of significant words, so 'Dep.
+    Santo Domingo' and 'Deportivo Santo Domingo' still share 'santo'
+    and 'domingo' even though FlashScore abbreviates names.
+    """
+    name = name.lower()
+    name = re.sub(r"[^a-z0-9\s]", " ", name)
+    return {w for w in name.split() if len(w) >= 3 and w not in _STOPWORDS}
+
+
+def _find_upcoming_match(sport_id, entity_id, country_id, opponent_name):
+    url = f"https://2.flashscore.ninja/2/x/feed/p_{sport_id}_{country_id}_{entity_id}_3_en_1"
     resp = requests.get(url, headers=FEED_HEADERS, timeout=15)
     resp.raise_for_status()
     matches = _parse_feed(resp.text)
 
-    opponent_lower = opponent_name.lower()
+    opponent_words = _tokenize(opponent_name)
+    if not opponent_words:
+        return None, None
+
+    best_match = None
+    best_score = 0
     for m in matches:
-        home = m.get("CX", "")
-        away = m.get("AF", "")
-        if opponent_lower in home.lower() or opponent_lower in away.lower():
-            return m.get("AA"), m.get("AD")
+        home_words = _tokenize(m.get("CX", ""))
+        away_words = _tokenize(m.get("AF", ""))
+        score = max(len(opponent_words & home_words), len(opponent_words & away_words))
+        if score > best_score:
+            best_score = score
+            best_match = m
+
+    if best_match and best_score >= 1:
+        return best_match.get("AA"), best_match.get("AD")
     return None, None
 
 
-def _add_favorite(match_id, timestamp):
+def _add_favorite(sport_id, match_id, timestamp):
     resp = requests.post(
         "https://lsid.eu/v3/storemergeddata",
         json={
             "loggedIn": {"id": _session_id, "hash": _session_hash},
-            "key": f"mygames.data.g_1_{match_id}",
+            "key": f"mygames.data.g_{sport_id}_{match_id}",
             "dataDiff": {"merge": {"AD": int(timestamp), "MG": "0", "is_duel": 1}, "unmerge": []},
             "project": 2,
         },
@@ -130,8 +172,8 @@ def _split_event_name(event_name):
 
 def favorite_event(event_name):
     """Call this right after placing a bet. Tries to find the match on
-    FlashScore by team names and add it to favorites. Never raises —
-    logs a warning and returns False on any failure.
+    FlashScore by team/player names and add it to favorites. Never
+    raises — logs a warning and returns False on any failure.
     """
     global _session_id, _session_hash
     try:
@@ -144,17 +186,17 @@ def favorite_event(event_name):
             if not _login():
                 return False
 
-        team_id, country_id = _search_team(home)
-        if not team_id:
-            print(f"⚠️ FlashScore: team '{home}' not found — skipping favorite.")
+        entity_id, country_id, sport_id = _search_entity(home)
+        if not entity_id:
+            print(f"⚠️ FlashScore: '{home}' not found — skipping favorite.")
             return False
 
-        match_id, timestamp = _find_upcoming_match(team_id, country_id, away)
+        match_id, timestamp = _find_upcoming_match(sport_id, entity_id, country_id, away)
         if not match_id:
             print(f"⚠️ FlashScore: match '{event_name}' not found in fixtures — skipping favorite.")
             return False
 
-        _add_favorite(match_id, timestamp)
+        _add_favorite(sport_id, match_id, timestamp)
         print(f"⭐ FlashScore: favorited '{event_name}'.")
         return True
 

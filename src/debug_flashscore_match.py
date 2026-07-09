@@ -53,28 +53,43 @@ def parse_feed(text):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print('Usage: python3 debug_flashscore_match.py "team name"')
+        print('Usage: python3 debug_flashscore_match.py "team or player name"')
         sys.exit(1)
 
     query = sys.argv[1]
     print(f"Searching for: {query}\n")
     results = search_team_all(query)
 
-    soccer_teams = [r for r in results if r.get("sport", {}).get("id") == 1 and r.get("type", {}).get("id") == 2]
+    candidates = [r for r in results if r.get("type", {}).get("id") in (2, 3)]  # Team or Player
 
-    if not soccer_teams:
-        print("No soccer teams found at all in search results.")
+    if not candidates:
+        print("No team/player found at all in search results.")
         sys.exit(0)
 
-    print(f"Found {len(soccer_teams)} soccer team(s) matching:\n")
-    for t in soccer_teams:
-        print(f"  - {t['name']}  (id={t['id']}, country={t['defaultCountry']['name']})")
+    print(f"Found {len(candidates)} candidate(s):\n")
+    for t in candidates:
+        print(f"  - {t['name']}  (id={t['id']}, type={t['type']['name']}, "
+              f"sport={t['sport']['name']}(id={t['sport']['id']}), country={t['defaultCountry']['name']}(id={t['defaultCountry']['id']}))")
 
-    picked = soccer_teams[0]
-    print(f"\nScript would pick FIRST result: {picked['name']} (id={picked['id']})")
-    print(f"Fetching fixture feed for this team...\n")
+    import re as _re
+    stop = {"fc", "cf", "cd", "sc", "ac", "de", "del", "la", "el", "los", "las",
+            "united", "city", "club", "real", "atletico", "athletic", "sporting"}
 
-    url = f"https://2.flashscore.ninja/2/x/feed/p_1_{picked['defaultCountry']['id']}_{picked['id']}_3_en_1"
+    def tokenize(n):
+        n = n.lower()
+        n = _re.sub(r"[^a-z0-9\s]", " ", n)
+        return {w for w in n.split() if len(w) >= 3 and w not in stop}
+
+    query_words = tokenize(query)
+    picked = max(candidates, key=lambda r: len(query_words & tokenize(r["name"])))
+    print(f"\nBest word-overlap match: {picked['name']} (id={picked['id']}, sport_id={picked['sport']['id']})")
+    print(f"Fetching fixture feed for this entity...\n")
+
+    sport_id = picked["sport"]["id"]
+    country_id = picked["defaultCountry"]["id"]
+    entity_id = picked["id"]
+    url = f"https://2.flashscore.ninja/2/x/feed/p_{sport_id}_{country_id}_{entity_id}_3_en_1"
+    print("URL:", url)
     resp = requests.get(url, headers=FEED_HEADERS, timeout=15)
     print("Feed status:", resp.status_code)
 
