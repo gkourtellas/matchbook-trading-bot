@@ -16,7 +16,9 @@ def get_soccer_markets():
     
     events_url = "https://api.matchbook.com/edge/rest/events"
     params = {
-        "sport-ids": "15",
+        "sport-ids":"241798357140019",  #greyhounds
+        #"sport-ids": "24735152712200", #horses
+        #"sport-ids": "15",    #soccer
         "per-page": "50"
     }
     
