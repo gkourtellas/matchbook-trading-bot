@@ -371,7 +371,7 @@
       "market_names": [
         "Match Odds"
       ],
-      "max_back_odds": 1.04,
+      "max_back_odds": 1.03,
       "max_open_bets": 1,
       "max_session_loss": 2,
       "max_total_exposure": 1,
@@ -428,24 +428,24 @@
       "poll_interval_seconds": 30,
       "sport_configs": [
         {
-          "bet_mode": "normal",
-          "bet_side": "back",
-          "market_name": "Match Odds",
-          "max_back_odds": 1.05,
-          "min_back_odds": 1.01,
           "sport_name": "Soccer",
-          "total_direction": null,
-          "total_range": null
+          "market_name": "Match Odds",
+          "bet_side": "back",
+          "bet_mode": "normal",
+          "min_back_odds": 1.01,
+          "max_back_odds": 1.05,
+          "total_range": null,
+          "total_direction": null
         },
         {
-          "bet_mode": "normal",
-          "bet_side": "back",
-          "market_name": "Money Line",
-          "max_back_odds": 1.05,
-          "min_back_odds": 1.01,
           "sport_name": "Tennis",
-          "total_direction": null,
-          "total_range": null
+          "market_name": "Money Line",
+          "bet_side": "back",
+          "bet_mode": "normal",
+          "min_back_odds": 1.01,
+          "max_back_odds": 1.05,
+          "total_range": null,
+          "total_direction": null
         }
       ],
       "sport_name": "Soccer",

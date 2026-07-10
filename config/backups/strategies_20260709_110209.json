@@ -371,7 +371,7 @@
       "market_names": [
         "Match Odds"
       ],
-      "max_back_odds": 1.04,
+      "max_back_odds": 1.03,
       "max_open_bets": 1,
       "max_session_loss": 2,
       "max_total_exposure": 1,
@@ -404,7 +404,7 @@
       "compound_start": null,
       "compound_target": null,
       "currency": "EUR",
-      "enabled": true,
+      "enabled": false,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
       "keep_in_play": false,

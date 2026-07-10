@@ -358,11 +358,11 @@
       "bet_mode": "normal",
       "bet_side": "back",
       "cash_out_at_percent": null,
-      "compound_start": 0.2,
-      "compound_target": 1,
+      "compound_start": 1,
+      "compound_target": 2,
       "currency": "EUR",
       "description": "",
-      "enabled": true,
+      "enabled": false,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
       "keep_in_play": false,
@@ -371,7 +371,7 @@
       "market_names": [
         "Match Odds"
       ],
-      "max_back_odds": 1.04,
+      "max_back_odds": 1.03,
       "max_open_bets": 1,
       "max_session_loss": 2,
       "max_total_exposure": 1,
@@ -392,7 +392,8 @@
       "strategy_type": "compound",
       "target_profit": 1,
       "total_direction": null,
-      "total_range": null
+      "total_range": null,
+      "live_confirm_seconds": 20
     },
     {
       "autoRestart": false,
@@ -404,7 +405,7 @@
       "compound_start": null,
       "compound_target": null,
       "currency": "EUR",
-      "enabled": true,
+      "enabled": false,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
       "keep_in_play": false,
@@ -461,7 +462,8 @@
       "strategy_type": "normal",
       "target_profit": 2,
       "total_direction": null,
-      "total_range": null
+      "total_range": null,
+      "live_confirm_seconds": 20
     },
     {
       "autoRestart": false,
@@ -477,7 +479,7 @@
       "enabled": true,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [
-        "Argentina Liga Profesional de F\u00fatbol Reserves",
+        "Argentina Liga Profesional de Fútbol Reserves",
         "Argentina Primera B Metropolitana",
         "Brazil Serie C",
         "Brazil Serie D",
@@ -487,15 +489,15 @@
         "Elite Club Friendlies",
         "Estonia Meistriliiga",
         "European Championship U19",
-        "Finland Ykk\u00f6nen",
-        "Finland Ykk\u00f6sliiga",
+        "Finland Ykkönen",
+        "Finland Ykkösliiga",
         "Iceland Cup",
         "Iceland First Division",
         "Ireland First Division",
         "Korea Republic K-League 2",
         "Paraguay Cup",
         "US USL Championship",
-        "Uruguay Segunda Divisi\u00f3n"
+        "Uruguay Segunda División"
       ],
       "keep_in_play": false,
       "live_mode": "pre",
