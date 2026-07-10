@@ -33,3 +33,19 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  liquidity-logger:
+    build: .
+    container_name: matchbook_liquidity_logger
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: ["python", "-u", "src/log_liquidity.py"]
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

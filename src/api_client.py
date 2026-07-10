@@ -173,23 +173,49 @@ class MatchbookClient:
             return None
 
     def get_order_status(self, offer_id):
-        """Fetch one offer by ID (Matchbook: GET /v2/offers?offer-ids=...)."""
+        """Fetch one offer by ID.
+
+        IMPORTANT: the Matchbook 'offer-ids' query param does NOT
+        reliably filter server-side (confirmed 2026-07-10 — a request
+        for one offer_id returned a completely different offer). So
+        this now pages through open offers and matches the id
+        client-side instead of trusting the server-side filter.
+        Returns a dict shaped like {"offers": [<matching offer>]} to
+        stay compatible with existing callers (unwrap_offer, etc), or
+        None if the offer isn't found in open offers (e.g. because
+        it's already settled/closed and dropped off this endpoint).
+        """
         self.ensure_valid_session()
         url = f"{self.base_url}/v2/offers"
-        params = {"offer-ids": str(offer_id), "per-page": 1}
-        try:
-            response = requests.get(url, params=params, headers=self.headers)
-            if response.status_code == 401:
-                print("⚠️ Received 401 Unauthorized on get_order_status. Attempting reactive session refresh...")
-                if self.login():
-                    response = requests.get(url, params=params, headers=self.headers)
+        target = str(offer_id)
+        offset = 0
+        per_page = 100
 
-            if response.status_code == 200:
-                return response.json()
-            return None
-        except Exception as e:
-            print(f"Error checking offer status: {str(e)}")
-            return None
+        while True:
+            params = {"per-page": per_page, "offset": offset}
+            try:
+                response = requests.get(url, params=params, headers=self.headers)
+                if response.status_code == 401:
+                    print("⚠️ Received 401 Unauthorized on get_order_status. Attempting reactive session refresh...")
+                    if self.login():
+                        response = requests.get(url, params=params, headers=self.headers)
+
+                if response.status_code != 200:
+                    return None
+
+                data = response.json()
+                offers = data.get("offers", [])
+                for offer in offers:
+                    if str(offer.get("id")) == target:
+                        return {**data, "offers": [offer]}
+
+                total = data.get("total", 0)
+                offset += per_page
+                if offset >= total or not offers:
+                    return None
+            except Exception as e:
+                print(f"Error checking offer status: {str(e)}")
+                return None
 
     @staticmethod
     def unwrap_offer(data):
