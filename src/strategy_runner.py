@@ -102,6 +102,18 @@ class StrategyRunner:
         self.live_mode = strategy.get("live_mode", "pre")  # pre / live / both
         self.sport_configs = strategy.get("sport_configs")  # None for single-sport
 
+        # NEW: live-odds confirmation window. A live market can show a
+        # flash price (e.g. 1.02) for a few seconds that isn't a real
+        # reflection of the game — a clearance off the line, a fast
+        # break that gets stopped, etc. If set, a live opportunity has
+        # to keep matching on the SAME runner for this many seconds
+        # before we actually bet on it, instead of betting the instant
+        # it's first seen. Ignored for pre-match bets (odds don't flash
+        # like that pre-match, no need to slow those down).
+        self.live_confirm_seconds = strategy.get("live_confirm_seconds", 0)
+        # event_id -> {"runner_id": ..., "first_seen": datetime}
+        self._live_candidates = {}
+
     def log(self, msg):
         ts = datetime.now(ZoneInfo("Europe/Athens")).strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{ts}] [{self.name}] {msg}")
@@ -162,6 +174,42 @@ class StrategyRunner:
             return market_lay_opponent
         return MATCHERS.get(market)
 
+    def _confirm_live_candidate(self, event_id, runner_id, event_name, runner_name, odds):
+        """Returns True if this live opportunity has been seen on the
+        SAME runner for at least live_confirm_seconds and can be bet
+        on now. Returns False (and starts/keeps a timer) otherwise.
+
+        If a different runner triggers for the same event, or this is
+        the first time we've seen it, the timer (re)starts and we wait.
+        """
+        now = datetime.utcnow()
+        cand = self._live_candidates.get(event_id)
+
+        if cand and cand["runner_id"] == runner_id:
+            elapsed = (now - cand["first_seen"]).total_seconds()
+            if elapsed < self.live_confirm_seconds:
+                self.log(f"👀 '{event_name}' -> {runner_name} @ {odds} still confirming "
+                         f"({elapsed:.0f}s/{self.live_confirm_seconds}s)")
+                return False
+            # Confirmed for long enough — clear it and allow the bet.
+            del self._live_candidates[event_id]
+            return True
+
+        # First sighting, or the odds moved to a different runner — restart the clock.
+        self._live_candidates[event_id] = {"runner_id": runner_id, "first_seen": now}
+        self.log(f"👀 New live candidate: '{event_name}' -> {runner_name} @ {odds}. Confirming...")
+        return False
+
+    def _prune_live_candidates(self, seen_event_ids, still_matching_event_ids):
+        """Drop any tracked candidate whose event disappeared from this
+        scan, or whose odds no longer match the strategy (the flash
+        move reversed) — so a reversal resets the clock instead of
+        leaving a stale timer running.
+        """
+        for event_id in list(self._live_candidates.keys()):
+            if event_id not in seen_event_ids or event_id not in still_matching_event_ids:
+                self._live_candidates.pop(event_id, None)
+
     async def scan_and_bet(self):
         data = await asyncio.to_thread(self.client.get_live_events, sport_ids=self.cfg["_sport_id"], per_page=30)
         if not data or "events" not in data:
@@ -175,7 +223,14 @@ class StrategyRunner:
         # Build list of sport configs to scan — multi-sport or single
         configs = self.sport_configs if self.sport_configs else [self.cfg]
 
+        seen_event_ids = set()
+        still_matching_event_ids = set()
+
         for event in data["events"]:
+            event_id_for_tracking = event.get("id")
+            if event_id_for_tracking is not None:
+                seen_event_ids.add(event_id_for_tracking)
+
             if not self._event_passes_live_filter(event):
                 continue
 
@@ -243,6 +298,18 @@ class StrategyRunner:
             if runner_id is None:
                 continue
 
+            # This event currently has a matching opportunity — keep it
+            # marked so the candidate isn't pruned as "no longer matching".
+            if event_id is not None:
+                still_matching_event_ids.add(event_id)
+
+            # Live confirmation window: don't bet on a live opportunity
+            # the instant it's seen — require it to hold for a bit first.
+            if is_live and self.live_confirm_seconds > 0:
+                confirmed = self._confirm_live_candidate(event_id, runner_id, event_name, runner_name, odds)
+                if not confirmed:
+                    continue
+
             bet_side = matched_cfg.get("bet_side", self.bet_side)
             stake = self.stake_for_step()
 
@@ -299,8 +366,10 @@ class StrategyRunner:
             )
             self.log(msg)
             self.client.send_telegram(msg)
+            self._prune_live_candidates(seen_event_ids, still_matching_event_ids)
             return  # one new bet per scan pass
 
+        self._prune_live_candidates(seen_event_ids, still_matching_event_ids)
         self.log("Scan done: nothing matched the strategy right now.")
 
     async def check_cash_out(self):
