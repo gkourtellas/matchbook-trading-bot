@@ -2,17 +2,112 @@
   "strategies": [
     {
       "autoRestart": false,
-      "bankroll": 10,
+      "bankroll": 5,
+      "bankroll_stop_loss_percent": 20,
       "base_stake": 0.1,
       "bet_mode": "normal",
       "bet_side": "back",
       "cash_out_at_percent": null,
       "currency": "EUR",
+      "description": "Backs the favorite only, flat stake, min 6-runner field",
+      "enabled": false,
+      "event_lookahead_minutes": 120,
+      "excluded_leagues": [],
+      "keep_in_play": false,
+      "live_mode": "pre",
+      "market_name": "WIN",
+      "market_names": [
+        "WIN"
+      ],
+      "max_back_odds": 3,
+      "max_open_bets": 1,
+      "max_session_loss": 5,
+      "max_total_exposure": 5,
+      "min_back_odds": 1.5,
+      "min_field_size": 6,
+      "min_seconds_to_start": 300,
+      "minimum_liquidity": 2,
+      "name": "Fav_Backing_Dogs",
+      "odds_type": "DECIMAL",
+      "open_positions_cooldown_seconds": 600,
+      "pause_scanning_with_open_positions": true,
+      "poll_interval_seconds": 30,
+      "sport_name": "Greyhound Racing",
+      "sport_names": [
+        "Greyhound Racing"
+      ],
+      "staking_plan": [
+        0.1
+      ],
+      "staking_steps": 1,
+      "strategy_type": "normal",
+      "target_profit": 1000000,
+      "total_direction": null,
+      "total_range": null
+    },
+    {
+      "autoRestart": false,
+      "bankroll": 5,
+      "bankroll_stop_loss_percent": 20,
+      "base_stake": 0.1,
+      "bet_mode": "normal",
+      "bet_side": "back",
+      "cash_out_at_percent": null,
+      "currency": "EUR",
+      "description": "Backs the favorite only, flat stake, min 6-runner field",
+      "enabled": false,
+      "event_lookahead_minutes": 120,
+      "excluded_leagues": [],
+      "keep_in_play": false,
+      "live_mode": "pre",
+      "market_name": "WIN",
+      "market_names": [
+        "WIN"
+      ],
+      "max_back_odds": 3,
+      "max_open_bets": 1,
+      "max_session_loss": 100,
+      "max_total_exposure": 100,
+      "min_back_odds": 1.5,
+      "min_field_size": 6,
+      "min_seconds_to_start": 300,
+      "minimum_liquidity": 2,
+      "name": "Fav_Backing_Horses",
+      "odds_type": "DECIMAL",
+      "open_positions_cooldown_seconds": 600,
+      "pause_scanning_with_open_positions": true,
+      "poll_interval_seconds": 30,
+      "sport_name": "Horse Racing",
+      "sport_names": [
+        "Horse Racing"
+      ],
+      "staking_plan": [
+        0.1
+      ],
+      "staking_steps": 1,
+      "strategy_type": "normal",
+      "target_profit": 1000000,
+      "total_direction": null,
+      "total_range": null
+    },
+    {
+      "autoRestart": false,
+      "bankroll": 10,
+      "base_stake": 0.1,
+      "bet_mode": "normal",
+      "bet_side": "back",
+      "cash_out_at_percent": null,
+      "compound_start": null,
+      "compound_target": null,
+      "currency": "EUR",
       "description": "Primary Soccer Match Odds strategy with martingale staking",
       "enabled": true,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
+      "favorite_min_step": 4,
+      "favorite_on_flashscore": true,
       "keep_in_play": false,
+      "live_mode": "pre",
       "market_name": "Match Odds",
       "market_names": [
         "Match Odds"
@@ -42,6 +137,7 @@
         24.3
       ],
       "staking_steps": 6,
+      "strategy_type": "normal",
       "target_profit": 10,
       "total_direction": null,
       "total_range": null
@@ -60,6 +156,8 @@
       "enabled": true,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
+      "favorite_min_step": 3,
+      "favorite_on_flashscore": true,
       "keep_in_play": false,
       "live_mode": "pre",
       "market_name": "Total",
@@ -232,6 +330,8 @@
       "enabled": true,
       "event_lookahead_minutes": 30,
       "excluded_leagues": [],
+      "favorite_min_step": 1,
+      "favorite_on_flashscore": false,
       "keep_in_play": false,
       "live_mode": "pre",
       "market_name": "Total",
@@ -349,7 +449,9 @@
       "strategy_type": "compound",
       "target_profit": 1.5,
       "total_direction": null,
-      "total_range": null
+      "total_range": null,
+      "favorite_on_flashscore": true,
+      "favorite_min_step": 1
     },
     {
       "autoRestart": false,
@@ -366,6 +468,7 @@
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
       "keep_in_play": false,
+      "live_confirm_seconds": 20,
       "live_mode": "live",
       "market_name": "Match Odds",
       "market_names": [
@@ -392,8 +495,7 @@
       "strategy_type": "compound",
       "target_profit": 1,
       "total_direction": null,
-      "total_range": null,
-      "live_confirm_seconds": 20
+      "total_range": null
     },
     {
       "autoRestart": false,
@@ -409,6 +511,7 @@
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
       "keep_in_play": false,
+      "live_confirm_seconds": 20,
       "live_mode": "both",
       "market_name": "Match Odds",
       "market_names": [
@@ -462,8 +565,7 @@
       "strategy_type": "normal",
       "target_profit": 2,
       "total_direction": null,
-      "total_range": null,
-      "live_confirm_seconds": 20
+      "total_range": null
     },
     {
       "autoRestart": false,
@@ -479,7 +581,7 @@
       "enabled": true,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [
-        "Argentina Liga Profesional de Fútbol Reserves",
+        "Argentina Liga Profesional de F\u00fatbol Reserves",
         "Argentina Primera B Metropolitana",
         "Brazil Serie C",
         "Brazil Serie D",
@@ -489,15 +591,15 @@
         "Elite Club Friendlies",
         "Estonia Meistriliiga",
         "European Championship U19",
-        "Finland Ykkönen",
-        "Finland Ykkösliiga",
+        "Finland Ykk\u00f6nen",
+        "Finland Ykk\u00f6sliiga",
         "Iceland Cup",
         "Iceland First Division",
         "Ireland First Division",
         "Korea Republic K-League 2",
         "Paraguay Cup",
         "US USL Championship",
-        "Uruguay Segunda División"
+        "Uruguay Segunda Divisi\u00f3n"
       ],
       "keep_in_play": false,
       "live_mode": "pre",
