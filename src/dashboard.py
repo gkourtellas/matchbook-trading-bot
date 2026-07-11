@@ -25,6 +25,10 @@ LEAGUES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "leagues.
 STATE_DIR = os.path.join(os.path.dirname(__file__), "..", "config", "state")
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD")
 
+# How many strategies.json backups to keep. Older ones get deleted
+# automatically every time a save happens.
+MAX_STRATEGY_BACKUPS = 10
+
 app = Flask(__name__)
 
 
@@ -117,6 +121,19 @@ def validate_strategies(strategies):
     return None
 
 
+def cleanup_old_backups(backup_dir):
+    """Keeps only the newest MAX_STRATEGY_BACKUPS backup files, deletes the rest."""
+    backups = sorted(
+        f for f in os.listdir(backup_dir)
+        if f.startswith("strategies_") and f.endswith(".json")
+    )
+    for old_file in backups[:-MAX_STRATEGY_BACKUPS]:
+        try:
+            os.remove(os.path.join(backup_dir, old_file))
+        except Exception:
+            pass
+
+
 def save_strategies_file(strategies):
     error = validate_strategies(strategies)
     if error:
@@ -127,6 +144,7 @@ def save_strategies_file(strategies):
         os.makedirs(backup_dir, exist_ok=True)
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         shutil.copy(STRATEGIES_FILE, os.path.join(backup_dir, f"strategies_{stamp}.json"))
+        cleanup_old_backups(backup_dir)
 
     with open(STRATEGIES_FILE, "w", encoding="utf-8") as f:
         json.dump({"strategies": strategies}, f, indent=2)
@@ -1746,6 +1764,21 @@ def reset_state(strategy_name):
     if os.path.isfile(path):
         os.remove(path)
     return jsonify({"reset": True})
+
+
+@app.route("/api/cleanup_backups", methods=["POST"])
+@require_password
+def cleanup_backups_now():
+    """Manual trigger: prune old strategies.json backups right now,
+    without needing to save a strategy first."""
+    backup_dir = os.path.join(os.path.dirname(STRATEGIES_FILE), "backups")
+    if not os.path.isdir(backup_dir):
+        return jsonify({"deleted": 0, "kept": 0})
+
+    before = len([f for f in os.listdir(backup_dir) if f.startswith("strategies_") and f.endswith(".json")])
+    cleanup_old_backups(backup_dir)
+    after = len([f for f in os.listdir(backup_dir) if f.startswith("strategies_") and f.endswith(".json")])
+    return jsonify({"deleted": before - after, "kept": after})
 
 
 @app.route("/strategies")
