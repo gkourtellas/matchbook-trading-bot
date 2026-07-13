@@ -463,7 +463,10 @@
       "strategy_type": "compound",
       "target_profit": 10,
       "total_direction": null,
-      "total_range": null
+      "total_range": null,
+      "spread_cap_percent": null,
+      "favorite_on_flashscore": true,
+      "favorite_min_step": 1
     },
     {
       "autoRestart": false,
@@ -613,6 +616,8 @@
         "US USL Championship",
         "Uruguay Segunda Divisi\u00f3n"
       ],
+      "favorite_min_step": 1,
+      "favorite_on_flashscore": true,
       "keep_in_play": false,
       "live_mode": "pre",
       "market_name": "Double Chance",
@@ -643,9 +648,7 @@
       "strategy_type": "compound",
       "target_profit": 1,
       "total_direction": null,
-      "total_range": null,
-      "favorite_on_flashscore": true,
-      "favorite_min_step": 1
+      "total_range": null
     }
   ]
 }
