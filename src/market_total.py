@@ -2,6 +2,9 @@
 
 Needs the strategy to say which line and direction to look for,
 e.g. total_range "2.5" and total_direction "Over".
+
+Filters added:
+- spread_cap_percent: skip runner if (lay-back)/back * 100 > cap (thin market)
 """
 
 
@@ -11,6 +14,7 @@ def find_opportunity(market, strategy):
     """
     wanted_range = str(strategy.get("total_range", "")).strip()
     wanted_direction = str(strategy.get("total_direction", "")).strip().lower()
+    spread_cap = strategy.get("spread_cap_percent")
 
     for runner in market.get("runners", []):
         runner_name = (runner.get("name") or "")
@@ -26,7 +30,6 @@ def find_opportunity(market, strategy):
         if not backs:
             continue
 
-        # Best back price = lowest odds available to back (not necessarily first in the list).
         best = min(backs, key=lambda p: p.get("odds", float("inf")))
         odds = best.get("odds")
         size_available = best.get("available-amount", best.get("available_amount"))
@@ -39,6 +42,18 @@ def find_opportunity(market, strategy):
         min_liquidity = strategy.get("minimum_liquidity")
         if min_liquidity and size_available is not None and size_available < min_liquidity:
             continue
+
+        if spread_cap:
+            lays = [p for p in prices if p.get("side") == "lay"]
+            if not lays:
+                continue
+            best_lay = min(lays, key=lambda p: p.get("odds", float("inf")))
+            lay_odds = best_lay.get("odds")
+            if lay_odds is None:
+                continue
+            spread_pct = (lay_odds - odds) / odds * 100
+            if spread_pct > spread_cap:
+                continue
 
         return runner.get("id"), runner.get("name"), odds
 
