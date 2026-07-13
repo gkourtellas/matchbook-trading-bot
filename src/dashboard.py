@@ -119,6 +119,10 @@ def validate_strategies(strategies):
         if min_field_size is not None and min_field_size < 1:
             return f"Strategy '{s['name']}': min_field_size must be at least 1."
 
+        favorite_min_step = s.get("favorite_min_step")
+        if favorite_min_step is not None and favorite_min_step < 1:
+            return f"Strategy '{s['name']}': favorite_min_step must be at least 1."
+
     if len(names) != len(set(names)):
         return "Two strategies have the same name. Names must be unique."
 
@@ -880,6 +884,13 @@ STRATEGIES_PAGE = """
           <input id="f_min_field_size" type="number" placeholder="e.g. 4 — leave blank to disable">
         </div>
         <div class="field full">
+          <div class="checkbox-row"><input type="checkbox" id="f_favorite_on_flashscore" onchange="onFlashscoreToggle()"><label style="margin:0;">Favorite matches on FlashScore</label></div>
+        </div>
+        <div class="field" id="f_favorite_min_step_wrap" style="display:none;">
+          <label>FlashScore starts from step <span style="color:var(--muted); text-transform:none;">(compound strategies ignore this)</span></label>
+          <input id="f_favorite_min_step" type="number" min="1" placeholder="e.g. 1 = every bet">
+        </div>
+        <div class="field full">
           <label>Exclude leagues <span style="color:var(--muted); text-transform:none;">(this strategy will skip matches in checked leagues)</span></label>
           <div id="f_excluded_leagues" style="max-height: 160px; overflow-y: auto; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;"></div>
         </div>
@@ -949,6 +960,13 @@ STRATEGIES_PAGE = """
           <label>Min field size <span style="color:var(--muted); text-transform:none;">(racing mainly)</span></label>
           <input id="mf_min_field_size" type="number" placeholder="e.g. 4 — leave blank to disable">
         </div>
+        <div class="field full">
+          <div class="checkbox-row"><input type="checkbox" id="mf_favorite_on_flashscore" onchange="onMultiFlashscoreToggle()"><label style="margin:0;">Favorite matches on FlashScore</label></div>
+        </div>
+        <div class="field" id="mf_favorite_min_step_wrap" style="display:none;">
+          <label>FlashScore starts from step <span style="color:var(--muted); text-transform:none;">(compound ignores this)</span></label>
+          <input id="mf_favorite_min_step" type="number" min="1" placeholder="e.g. 1 = every bet">
+        </div>
         <div class="field">
           <label>Betting timing</label>
           <select id="mf_live_mode">
@@ -1006,14 +1024,15 @@ function renderList() {
     const badgeText = s.enabled ? 'ACTIVE' : 'INACTIVE';
     const isMulti = s.strategy_mode === 'multi_sport';
     const liveTag = s.live_mode === 'live' ? ' · LIVE' : s.live_mode === 'both' ? ' · pre+live' : '';
+    const fsTag = s.favorite_on_flashscore ? ` · FlashScore from step ${s.favorite_min_step || 1}` : '';
     let metaLine;
     if (isMulti) {
       const sportList = (s.sport_configs || []).map(r => r.sport_name + '/' + r.market_name).join(', ');
-      metaLine = `MULTI: ${sportList}${liveTag}`;
+      metaLine = `MULTI: ${sportList}${liveTag}${fsTag}`;
     } else {
       const sport = s.sport_name || (s.sport_names || [])[0] || '?';
       const market = s.market_name || (s.market_names || [])[0] || '?';
-      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${s.spread_cap_percent ? ' · spread cap ' + s.spread_cap_percent + '%' : ''}${s.min_field_size ? ' · min field ' + s.min_field_size : ''}${liveTag}`;
+      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${s.spread_cap_percent ? ' · spread cap ' + s.spread_cap_percent + '%' : ''}${s.min_field_size ? ' · min field ' + s.min_field_size : ''}${liveTag}${fsTag}`;
     }
     const editFn = isMulti ? `openMultiModal(${i})` : `openModal(${i})`;
     html += `<div class="card strat-row">
@@ -1038,6 +1057,16 @@ function resetState(name) {
     .then(r => r.json())
     .then(() => alert('Done. Restart the bot to take effect.'))
     .catch(err => alert('Failed: ' + err));
+}
+
+function onFlashscoreToggle() {
+  document.getElementById('f_favorite_min_step_wrap').style.display =
+    document.getElementById('f_favorite_on_flashscore').checked ? '' : 'none';
+}
+
+function onMultiFlashscoreToggle() {
+  document.getElementById('mf_favorite_min_step_wrap').style.display =
+    document.getElementById('mf_favorite_on_flashscore').checked ? '' : 'none';
 }
 
 function openModal(index) {
@@ -1072,6 +1101,9 @@ function openModal(index) {
   document.getElementById('f_cash_out_percent').value = s.cash_out_at_percent ?? '';
   document.getElementById('f_spread_cap_percent').value = s.spread_cap_percent ?? '';
   document.getElementById('f_min_field_size').value = s.min_field_size ?? '';
+  document.getElementById('f_favorite_on_flashscore').checked = !!s.favorite_on_flashscore;
+  document.getElementById('f_favorite_min_step').value = s.favorite_min_step ?? 1;
+  onFlashscoreToggle();
 
   const excluded = new Set(s.excluded_leagues || []);
   const leagueBox = document.getElementById('f_excluded_leagues');
@@ -1169,6 +1201,9 @@ function openMultiModal(index) {
   document.getElementById('mf_min_liquidity').value = s.minimum_liquidity ?? 2;
   document.getElementById('mf_spread_cap_percent').value = s.spread_cap_percent ?? '';
   document.getElementById('mf_min_field_size').value = s.min_field_size ?? '';
+  document.getElementById('mf_favorite_on_flashscore').checked = !!s.favorite_on_flashscore;
+  document.getElementById('mf_favorite_min_step').value = s.favorite_min_step ?? 1;
+  onMultiFlashscoreToggle();
   document.getElementById('mf_live_mode').value = s.live_mode || 'pre';
   document.getElementById('mf_enabled').checked = s.enabled !== false;
 
@@ -1256,6 +1291,11 @@ function saveMultiStrategy() {
   const minFieldValue = document.getElementById('mf_min_field_size').value;
   const minField = minFieldValue === '' ? null : parseInt(minFieldValue);
 
+  const favoriteOnFlashscore = document.getElementById('mf_favorite_on_flashscore').checked;
+  const favoriteMinStepRaw = document.getElementById('mf_favorite_min_step').value;
+  const favoriteMinStep = favoriteMinStepRaw === '' ? 1 : parseInt(favoriteMinStepRaw);
+  if (favoriteOnFlashscore && favoriteMinStep < 1) { showMultiError('FlashScore starts-from-step must be at least 1.'); return; }
+
   const existing = editingMultiIndex === null ? {} : strategies[editingMultiIndex];
   const checkedLeagues = Array.from(document.querySelectorAll('#mf_excluded_leagues input[type="checkbox"]:checked'))
     .map(el => el.dataset.league);
@@ -1292,6 +1332,8 @@ function saveMultiStrategy() {
     minimum_liquidity: parseFloat(document.getElementById('mf_min_liquidity').value),
     spread_cap_percent: spreadCap,
     min_field_size: minField,
+    favorite_on_flashscore: favoriteOnFlashscore,
+    favorite_min_step: favoriteMinStep,
     live_mode: document.getElementById('mf_live_mode').value,
     enabled: document.getElementById('mf_enabled').checked,
     excluded_leagues: checkedLeagues,
@@ -1372,6 +1414,14 @@ function saveStrategy() {
     return;
   }
 
+  const favoriteOnFlashscore = document.getElementById('f_favorite_on_flashscore').checked;
+  const favoriteMinStepRaw = document.getElementById('f_favorite_min_step').value;
+  const favoriteMinStep = favoriteMinStepRaw === '' ? 1 : parseInt(favoriteMinStepRaw);
+  if (favoriteOnFlashscore && favoriteMinStep < 1) {
+    showError('FlashScore starts-from-step must be at least 1.');
+    return;
+  }
+
   const market = document.getElementById('f_market').value.trim();
   const betSide = document.getElementById('f_bet_side').value;
   const betMode = document.getElementById('f_bet_mode').value;
@@ -1443,6 +1493,8 @@ function saveStrategy() {
     cash_out_at_percent: cashOutPercent,
     spread_cap_percent: spreadCapPercent,
     min_field_size: minFieldSize,
+    favorite_on_flashscore: favoriteOnFlashscore,
+    favorite_min_step: favoriteMinStep,
     bet_side: betSide,
     bet_mode: betMode,
     excluded_leagues: checkedLeagues,

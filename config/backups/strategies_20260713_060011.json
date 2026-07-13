@@ -110,8 +110,6 @@
       "enabled": true,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
-      "favorite_min_step": 5,
-      "favorite_on_flashscore": true,
       "keep_in_play": false,
       "live_mode": "pre",
       "market_name": "Match Odds",
@@ -136,7 +134,6 @@
       "sport_names": [
         "Soccer"
       ],
-      "spread_cap_percent": null,
       "staking_plan": [
         0.15,
         0.45,
@@ -165,8 +162,6 @@
       "enabled": true,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
-      "favorite_min_step": 4,
-      "favorite_on_flashscore": true,
       "keep_in_play": false,
       "live_mode": "pre",
       "market_name": "Total",
@@ -191,7 +186,6 @@
       "sport_names": [
         "Soccer"
       ],
-      "spread_cap_percent": null,
       "staking_plan": [
         0.2,
         0.6,
@@ -637,15 +631,13 @@
       "sport_names": [
         "Soccer"
       ],
-      "spread_cap_percent": null,
       "staking_plan": null,
       "staking_steps": null,
       "strategy_type": "compound",
       "target_profit": 1,
       "total_direction": null,
       "total_range": null,
-      "favorite_on_flashscore": true,
-      "favorite_min_step": 1
+      "spread_cap_percent": null
     }
   ]
 }
