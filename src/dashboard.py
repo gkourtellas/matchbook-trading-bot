@@ -25,10 +25,6 @@ LEAGUES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "leagues.
 STATE_DIR = os.path.join(os.path.dirname(__file__), "..", "config", "state")
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD")
 
-# How many strategies.json backups to keep. Older ones get deleted
-# automatically every time a save happens.
-MAX_STRATEGY_BACKUPS = 10
-
 app = Flask(__name__)
 
 
@@ -115,23 +111,18 @@ def validate_strategies(strategies):
         if market != "Total" and (s.get("total_range") or s.get("total_direction")):
             return f"Strategy '{s['name']}': total_range/total_direction are set but market isn't 'Total'."
 
+        spread_cap = s.get("spread_cap_percent")
+        if spread_cap is not None and spread_cap <= 0:
+            return f"Strategy '{s['name']}': spread_cap_percent must be greater than 0."
+
+        min_field_size = s.get("min_field_size")
+        if min_field_size is not None and min_field_size < 1:
+            return f"Strategy '{s['name']}': min_field_size must be at least 1."
+
     if len(names) != len(set(names)):
         return "Two strategies have the same name. Names must be unique."
 
     return None
-
-
-def cleanup_old_backups(backup_dir):
-    """Keeps only the newest MAX_STRATEGY_BACKUPS backup files, deletes the rest."""
-    backups = sorted(
-        f for f in os.listdir(backup_dir)
-        if f.startswith("strategies_") and f.endswith(".json")
-    )
-    for old_file in backups[:-MAX_STRATEGY_BACKUPS]:
-        try:
-            os.remove(os.path.join(backup_dir, old_file))
-        except Exception:
-            pass
 
 
 def save_strategies_file(strategies):
@@ -144,7 +135,6 @@ def save_strategies_file(strategies):
         os.makedirs(backup_dir, exist_ok=True)
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         shutil.copy(STRATEGIES_FILE, os.path.join(backup_dir, f"strategies_{stamp}.json"))
-        cleanup_old_backups(backup_dir)
 
     with open(STRATEGIES_FILE, "w", encoding="utf-8") as f:
         json.dump({"strategies": strategies}, f, indent=2)
@@ -881,6 +871,14 @@ STRATEGIES_PAGE = """
           <label>Cash out at % of stake <span style="color:var(--muted); text-transform:none;">(single-step only)</span></label>
           <input id="f_cash_out_percent" type="number" step="0.1" placeholder="e.g. 5 — leave blank to disable">
         </div>
+        <div class="field">
+          <label>Spread cap % <span style="color:var(--muted); text-transform:none;">(skip if back/lay gap too wide)</span></label>
+          <input id="f_spread_cap_percent" type="number" step="0.1" placeholder="e.g. 5 — leave blank to disable">
+        </div>
+        <div class="field">
+          <label>Min field size <span style="color:var(--muted); text-transform:none;">(racing mainly — blank for soccer/tennis)</span></label>
+          <input id="f_min_field_size" type="number" placeholder="e.g. 4 — leave blank to disable">
+        </div>
         <div class="field full">
           <label>Exclude leagues <span style="color:var(--muted); text-transform:none;">(this strategy will skip matches in checked leagues)</span></label>
           <div id="f_excluded_leagues" style="max-height: 160px; overflow-y: auto; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;"></div>
@@ -943,6 +941,14 @@ STRATEGIES_PAGE = """
         <div class="field"><label>Lookahead (minutes)</label><input id="mf_lookahead" type="number" value="180"></div>
         <div class="field"><label>Min seconds to start</label><input id="mf_min_seconds" type="number" value="300"></div>
         <div class="field"><label>Minimum liquidity</label><input id="mf_min_liquidity" type="number" step="0.01" value="2"></div>
+        <div class="field">
+          <label>Spread cap % <span style="color:var(--muted); text-transform:none;">(skip if back/lay gap too wide)</span></label>
+          <input id="mf_spread_cap_percent" type="number" step="0.1" placeholder="e.g. 5 — leave blank to disable">
+        </div>
+        <div class="field">
+          <label>Min field size <span style="color:var(--muted); text-transform:none;">(racing mainly)</span></label>
+          <input id="mf_min_field_size" type="number" placeholder="e.g. 4 — leave blank to disable">
+        </div>
         <div class="field">
           <label>Betting timing</label>
           <select id="mf_live_mode">
@@ -1007,7 +1013,7 @@ function renderList() {
     } else {
       const sport = s.sport_name || (s.sport_names || [])[0] || '?';
       const market = s.market_name || (s.market_names || [])[0] || '?';
-      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${liveTag}`;
+      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${s.spread_cap_percent ? ' · spread cap ' + s.spread_cap_percent + '%' : ''}${s.min_field_size ? ' · min field ' + s.min_field_size : ''}${liveTag}`;
     }
     const editFn = isMulti ? `openMultiModal(${i})` : `openModal(${i})`;
     html += `<div class="card strat-row">
@@ -1064,6 +1070,8 @@ function openModal(index) {
   document.getElementById('f_min_seconds').value = s.min_seconds_to_start ?? 300;
   document.getElementById('f_min_liquidity').value = s.minimum_liquidity ?? 2;
   document.getElementById('f_cash_out_percent').value = s.cash_out_at_percent ?? '';
+  document.getElementById('f_spread_cap_percent').value = s.spread_cap_percent ?? '';
+  document.getElementById('f_min_field_size').value = s.min_field_size ?? '';
 
   const excluded = new Set(s.excluded_leagues || []);
   const leagueBox = document.getElementById('f_excluded_leagues');
@@ -1159,6 +1167,8 @@ function openMultiModal(index) {
   document.getElementById('mf_lookahead').value = s.event_lookahead_minutes ?? 180;
   document.getElementById('mf_min_seconds').value = s.min_seconds_to_start ?? 300;
   document.getElementById('mf_min_liquidity').value = s.minimum_liquidity ?? 2;
+  document.getElementById('mf_spread_cap_percent').value = s.spread_cap_percent ?? '';
+  document.getElementById('mf_min_field_size').value = s.min_field_size ?? '';
   document.getElementById('mf_live_mode').value = s.live_mode || 'pre';
   document.getElementById('mf_enabled').checked = s.enabled !== false;
 
@@ -1241,6 +1251,11 @@ function saveMultiStrategy() {
     if (!plan.length) { showMultiError('Staking plan must have at least one number.'); return; }
   }
 
+  const spreadCapValue = document.getElementById('mf_spread_cap_percent').value;
+  const spreadCap = spreadCapValue === '' ? null : parseFloat(spreadCapValue);
+  const minFieldValue = document.getElementById('mf_min_field_size').value;
+  const minField = minFieldValue === '' ? null : parseInt(minFieldValue);
+
   const existing = editingMultiIndex === null ? {} : strategies[editingMultiIndex];
   const checkedLeagues = Array.from(document.querySelectorAll('#mf_excluded_leagues input[type="checkbox"]:checked'))
     .map(el => el.dataset.league);
@@ -1275,6 +1290,8 @@ function saveMultiStrategy() {
     odds_type: existing.odds_type || 'DECIMAL',
     currency: existing.currency || 'EUR',
     minimum_liquidity: parseFloat(document.getElementById('mf_min_liquidity').value),
+    spread_cap_percent: spreadCap,
+    min_field_size: minField,
     live_mode: document.getElementById('mf_live_mode').value,
     enabled: document.getElementById('mf_enabled').checked,
     excluded_leagues: checkedLeagues,
@@ -1335,9 +1352,23 @@ function saveStrategy() {
   const existing = editingIndex === null ? {} : strategies[editingIndex];
   const cashOutValue = document.getElementById('f_cash_out_percent').value;
   const cashOutPercent = cashOutValue === '' ? null : parseFloat(cashOutValue);
+  const spreadCapValue = document.getElementById('f_spread_cap_percent').value;
+  const spreadCapPercent = spreadCapValue === '' ? null : parseFloat(spreadCapValue);
+  const minFieldValue = document.getElementById('f_min_field_size').value;
+  const minFieldSize = minFieldValue === '' ? null : parseInt(minFieldValue);
 
   if (cashOutPercent && plan.length > 1) {
     showError('Cash out is only supported for single-step strategies (staking plan with one number). Remove the extra steps or clear the cash out field.');
+    return;
+  }
+
+  if (spreadCapPercent !== null && spreadCapPercent <= 0) {
+    showError('Spread cap % must be greater than 0.');
+    return;
+  }
+
+  if (minFieldSize !== null && minFieldSize < 1) {
+    showError('Min field size must be at least 1.');
     return;
   }
 
@@ -1410,6 +1441,8 @@ function saveStrategy() {
     currency: existing.currency || 'EUR',
     minimum_liquidity: parseFloat(document.getElementById('f_min_liquidity').value),
     cash_out_at_percent: cashOutPercent,
+    spread_cap_percent: spreadCapPercent,
+    min_field_size: minFieldSize,
     bet_side: betSide,
     bet_mode: betMode,
     excluded_leagues: checkedLeagues,
@@ -1764,21 +1797,6 @@ def reset_state(strategy_name):
     if os.path.isfile(path):
         os.remove(path)
     return jsonify({"reset": True})
-
-
-@app.route("/api/cleanup_backups", methods=["POST"])
-@require_password
-def cleanup_backups_now():
-    """Manual trigger: prune old strategies.json backups right now,
-    without needing to save a strategy first."""
-    backup_dir = os.path.join(os.path.dirname(STRATEGIES_FILE), "backups")
-    if not os.path.isdir(backup_dir):
-        return jsonify({"deleted": 0, "kept": 0})
-
-    before = len([f for f in os.listdir(backup_dir) if f.startswith("strategies_") and f.endswith(".json")])
-    cleanup_old_backups(backup_dir)
-    after = len([f for f in os.listdir(backup_dir) if f.startswith("strategies_") and f.endswith(".json")])
-    return jsonify({"deleted": before - after, "kept": after})
 
 
 @app.route("/strategies")

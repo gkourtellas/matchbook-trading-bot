@@ -416,16 +416,16 @@
     },
     {
       "autoRestart": false,
-      "bankroll": 5,
+      "bankroll": 1,
       "base_stake": null,
       "bet_mode": "normal",
       "bet_side": "back",
       "cash_out_at_percent": null,
-      "compound_start": 5,
-      "compound_target": 10,
+      "compound_start": 1,
+      "compound_target": 2,
       "currency": "EUR",
       "description": "",
-      "enabled": true,
+      "enabled": false,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
       "keep_in_play": false,
@@ -434,7 +434,7 @@
       "market_names": [
         "Moneyline"
       ],
-      "max_back_odds": 1.06,
+      "max_back_odds": 1.1,
       "max_open_bets": 1,
       "max_session_loss": 1,
       "max_spread_percent": 5,
@@ -455,7 +455,7 @@
       "staking_plan": null,
       "staking_steps": null,
       "strategy_type": "compound",
-      "target_profit": 10,
+      "target_profit": 1.5,
       "total_direction": null,
       "total_range": null
     },
@@ -636,8 +636,7 @@
       "strategy_type": "compound",
       "target_profit": 1,
       "total_direction": null,
-      "total_range": null,
-      "spread_cap_percent": null
+      "total_range": null
     }
   ]
 }

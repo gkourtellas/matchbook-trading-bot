@@ -584,7 +584,7 @@
       "compound_target": 2,
       "currency": "EUR",
       "description": "",
-      "enabled": true,
+      "enabled": false,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [
         "Argentina Liga Profesional de F\u00fatbol Reserves",
@@ -636,8 +636,7 @@
       "strategy_type": "compound",
       "target_profit": 1,
       "total_direction": null,
-      "total_range": null,
-      "spread_cap_percent": null
+      "total_range": null
     }
   ]
 }

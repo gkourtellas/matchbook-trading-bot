@@ -99,7 +99,7 @@
     {
       "autoRestart": false,
       "bankroll": 10,
-      "base_stake": 0.15,
+      "base_stake": 0.1,
       "bet_mode": "normal",
       "bet_side": "back",
       "cash_out_at_percent": null,
@@ -135,12 +135,12 @@
         "Soccer"
       ],
       "staking_plan": [
-        0.15,
-        0.45,
-        1.35,
-        4.05,
-        12.15,
-        36.45
+        0.1,
+        0.3,
+        0.9,
+        2.7,
+        8.1,
+        24.3
       ],
       "staking_steps": 6,
       "strategy_type": "normal",
@@ -416,13 +416,13 @@
     },
     {
       "autoRestart": false,
-      "bankroll": 5,
+      "bankroll": 1,
       "base_stake": null,
       "bet_mode": "normal",
       "bet_side": "back",
       "cash_out_at_percent": null,
-      "compound_start": 5,
-      "compound_target": 10,
+      "compound_start": 1,
+      "compound_target": 2,
       "currency": "EUR",
       "description": "",
       "enabled": true,
@@ -434,7 +434,7 @@
       "market_names": [
         "Moneyline"
       ],
-      "max_back_odds": 1.06,
+      "max_back_odds": 1.1,
       "max_open_bets": 1,
       "max_session_loss": 1,
       "max_spread_percent": 5,
@@ -455,7 +455,7 @@
       "staking_plan": null,
       "staking_steps": null,
       "strategy_type": "compound",
-      "target_profit": 10,
+      "target_profit": 1.5,
       "total_direction": null,
       "total_range": null
     },
@@ -616,10 +616,8 @@
       "max_back_odds": 1.1,
       "max_open_bets": 1,
       "max_session_loss": 10,
-      "max_spread_percent": 5,
       "max_total_exposure": 1,
       "min_back_odds": 1.01,
-      "min_field_size": null,
       "min_seconds_to_start": 300,
       "minimum_liquidity": 50,
       "name": "All In - DC",
@@ -637,7 +635,8 @@
       "target_profit": 1,
       "total_direction": null,
       "total_range": null,
-      "spread_cap_percent": null
+      "max_spread_percent": 5,
+      "min_field_size": null
     }
   ]
 }
