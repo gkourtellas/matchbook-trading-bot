@@ -392,8 +392,6 @@
       "enabled": true,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
-      "favorite_min_step": 1,
-      "favorite_on_flashscore": false,
       "keep_in_play": false,
       "live_mode": "pre",
       "market_name": "Double Chance",
@@ -405,7 +403,6 @@
       "max_session_loss": 10,
       "max_total_exposure": 10,
       "min_back_odds": 1.01,
-      "min_field_size": null,
       "min_seconds_to_start": 300,
       "minimum_liquidity": 50,
       "name": "Double Chance",
@@ -417,7 +414,6 @@
       "sport_names": [
         "Soccer"
       ],
-      "spread_cap_percent": null,
       "staking_plan": [
         0.5
       ],
@@ -425,7 +421,11 @@
       "strategy_type": "normal",
       "target_profit": 10,
       "total_direction": null,
-      "total_range": null
+      "total_range": null,
+      "spread_cap_percent": null,
+      "min_field_size": null,
+      "favorite_on_flashscore": false,
+      "favorite_min_step": 1
     },
     {
       "autoRestart": false,
@@ -438,7 +438,7 @@
       "compound_target": 10,
       "currency": "EUR",
       "description": "",
-      "enabled": true,
+      "enabled": false,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
       "favorite_min_step": 1,
@@ -467,7 +467,7 @@
       "sport_names": [
         "Tennis"
       ],
-      "spread_cap_percent": 5,
+      "spread_cap_percent": null,
       "staking_plan": null,
       "staking_steps": null,
       "strategy_type": "compound",

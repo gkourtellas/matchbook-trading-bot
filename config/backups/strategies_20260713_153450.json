@@ -342,8 +342,6 @@
       "enabled": true,
       "event_lookahead_minutes": 30,
       "excluded_leagues": [],
-      "favorite_min_step": 1,
-      "favorite_on_flashscore": false,
       "keep_in_play": false,
       "live_mode": "pre",
       "market_name": "Total",
@@ -368,7 +366,6 @@
       "sport_names": [
         "Soccer"
       ],
-      "spread_cap_percent": null,
       "staking_plan": [
         2
       ],
@@ -376,13 +373,16 @@
       "strategy_type": "normal",
       "target_profit": 10,
       "total_direction": "Under",
-      "total_range": "2.5"
+      "total_range": "2.5",
+      "spread_cap_percent": null,
+      "favorite_on_flashscore": false,
+      "favorite_min_step": 1
     },
     {
       "autoRestart": false,
       "bankroll": 10,
       "base_stake": 0.5,
-      "bet_mode": "normal",
+      "bet_mode": "double_chance",
       "bet_side": "back",
       "cash_out_at_percent": 2,
       "compound_start": null,
@@ -392,20 +392,17 @@
       "enabled": true,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
-      "favorite_min_step": 1,
-      "favorite_on_flashscore": false,
       "keep_in_play": false,
       "live_mode": "pre",
-      "market_name": "Double Chance",
+      "market_name": "Match Odds",
       "market_names": [
-        "Double Chance"
+        "Match Odds"
       ],
-      "max_back_odds": 1.2,
+      "max_back_odds": 1.6,
       "max_open_bets": 3,
       "max_session_loss": 10,
       "max_total_exposure": 10,
-      "min_back_odds": 1.01,
-      "min_field_size": null,
+      "min_back_odds": 1.45,
       "min_seconds_to_start": 300,
       "minimum_liquidity": 50,
       "name": "Double Chance",
@@ -417,7 +414,6 @@
       "sport_names": [
         "Soccer"
       ],
-      "spread_cap_percent": null,
       "staking_plan": [
         0.5
       ],
@@ -467,7 +463,7 @@
       "sport_names": [
         "Tennis"
       ],
-      "spread_cap_percent": 5,
+      "spread_cap_percent": null,
       "staking_plan": null,
       "staking_steps": null,
       "strategy_type": "compound",
