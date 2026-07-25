@@ -2,13 +2,6 @@
 
 Each strategy gets one of these, running on its own, side by side with
 every other strategy. They don't affect each other.
-
-FIX (2026-07-13): Odds shown in Telegram/logs/bets.db were the REQUESTED
-price, not the price actually matched on the exchange. Now, right after
-a bet is placed, the bot fetches the real matched odds from Matchbook
-and uses that everywhere (message, state, DB record) instead of the
-ask price. Small differences between requested and matched odds are
-normal exchange behavior.
 """
 
 import asyncio
@@ -92,6 +85,9 @@ class StrategyRunner:
         self.lookahead_minutes = strategy.get("event_lookahead_minutes", 180)
         self.min_seconds_to_start = strategy.get("min_seconds_to_start", 300)
 
+        # If set, automatically closes out the bet with an EQUAL profit
+        # on both outcomes (win or lose), once the current lay price
+        # allows a hedge worth at least this % of the original stake.
         requested_cash_out = strategy.get("cash_out_at_percent")
         if requested_cash_out and self.max_steps > 1:
             print(f"[{self.name}] ⚠️ cash_out_at_percent is set but this strategy has "
@@ -138,43 +134,6 @@ class StrategyRunner:
             if tag.get("type") == "COMPETITION":
                 return tag.get("name")
         return None
-
-    @staticmethod
-    def _weighted_matched_odds(order_status):
-        """Given a get_order_status() response, returns the true
-        stake-weighted average odds actually matched on the exchange —
-        NOT the price we requested. Returns None if no matched-bets yet.
-        """
-        if not order_status:
-            return None
-        offers = order_status.get("offers") or []
-        if not offers:
-            return None
-        matched = offers[0].get("matched-bets") or []
-        if not matched:
-            return None
-
-        total_stake = sum(mb.get("stake", 0) for mb in matched)
-        if not total_stake:
-            return None
-
-        weighted = sum(mb.get("stake", 0) * mb.get("odds", 0) for mb in matched)
-        return round(weighted / total_stake, 4)
-
-    async def _get_real_matched_odds(self, offer_id, requested_odds, retries=5, delay=2):
-        """Right after placing a bet, poll briefly for the REAL matched
-        price. Falls back to the requested price if nothing matched yet
-        after a few tries (rare — will still get corrected at settlement).
-        """
-        if not offer_id:
-            return requested_odds
-        for attempt in range(retries):
-            order_status = await asyncio.to_thread(self.client.get_order_status, offer_id)
-            real_odds = self._weighted_matched_odds(order_status)
-            if real_odds is not None:
-                return real_odds
-            await asyncio.sleep(delay)
-        return requested_odds
 
     async def run(self):
         self.log(f"Starting. Market: {self.market_name}, odds {self.cfg['min_back_odds']}-{self.cfg['max_back_odds']}")
@@ -224,30 +183,43 @@ class StrategyRunner:
         configs = self.sport_configs if self.sport_configs else [self.cfg]
 
         for event in data["events"]:
+            event_name_early = event.get("name", "Unknown Event")
+
             if not self._event_passes_live_filter(event):
+                is_live_flag = bool(event.get("in-play") or event.get("live-execution"))
+                self.log(f"Skipped {event_name_early} — live_mode='{self.live_mode}' but event in-play={is_live_flag}")
                 continue
 
             if self.cash_out_at_percent and not event.get("allow-live-betting", False):
+                self.log(f"Skipped {event_name_early} — live betting not allowed on this event (needed for cash-out)")
                 continue
 
             if self.excluded_leagues:
                 league = self._extract_league(event)
                 if league and league in self.excluded_leagues:
+                    self.log(f"Skipped {event_name_early} — league '{league}' is excluded")
                     continue
 
             start_str = event.get("start")
             if not start_str:
+                self.log(f"Skipped {event_name_early} — no start time on event")
                 continue
             try:
                 start_time = datetime.strptime(start_str.replace("Z", ""), "%Y-%m-%dT%H:%M:%S.%f")
             except Exception:
+                self.log(f"Skipped {event_name_early} — could not parse start time '{start_str}'")
                 continue
 
             is_live = bool(event.get("in-play") or event.get("live-execution"))
             if not is_live:
-                if start_time <= now or start_time > horizon:
+                if start_time <= now:
+                    self.log(f"Skipped {event_name_early} — already started ({start_time})")
+                    continue
+                if start_time > horizon:
                     continue
                 if (start_time - now).total_seconds() < self.min_seconds_to_start:
+                    secs_left = int((start_time - now).total_seconds())
+                    self.log(f"Skipped {event_name_early} — starts in {secs_left}s, under min_seconds_to_start ({self.min_seconds_to_start}s)")
                     continue
 
             event_name = event.get("name", "Unknown Event")
@@ -255,10 +227,12 @@ class StrategyRunner:
 
             already_bet = any(b.get("event_id") == event_id for b in self.active_bets)
             if already_bet:
+                self.log(f"Skipped {event_name} — already have an active bet on this event")
                 continue
 
             runner_id = runner_name = odds = market_id = None
             matched_cfg = None
+            tried_markets = []
 
             for scfg in configs:
                 bet_mode = scfg.get("bet_mode", "normal")
@@ -267,6 +241,7 @@ class StrategyRunner:
                     continue
 
                 if bet_mode == "double_chance":
+                    tried_markets.append("Match Odds (double_chance trigger)")
                     found = matcher.find_opportunity_in_event(event, scfg)
                     if not found:
                         continue
@@ -274,9 +249,11 @@ class StrategyRunner:
                     matched_cfg = scfg
                     break
                 else:
+                    market_found_on_event = False
                     for market in event.get("markets", []):
                         if market.get("name") != scfg.get("market_name"):
                             continue
+                        market_found_on_event = True
                         found = matcher.find_opportunity(market, scfg)
                         if not found:
                             continue
@@ -284,54 +261,44 @@ class StrategyRunner:
                         market_id = market.get("id")
                         matched_cfg = scfg
                         break
+                    if not market_found_on_event:
+                        tried_markets.append(f"{scfg.get('market_name')} (not offered on this event)")
+                    else:
+                        tried_markets.append(f"{scfg.get('market_name')} (odds/liquidity/field-size didn't match)")
                 if matched_cfg:
                     break
 
             if runner_id is None:
+                reason = "; ".join(tried_markets) if tried_markets else "no matcher configured"
+                self.log(f"Skipped {event_name} — no bet matched ({reason})")
                 continue
 
             bet_side = matched_cfg.get("bet_side", self.bet_side)
             stake = self.stake_for_step()
-            requested_odds = odds
 
             action_word = "Lay" if bet_side == "lay" else "Back"
-            self.log(f"🎯 Match found: {event_name} -> {action_word} {runner_name} @ {requested_odds} (requested)")
+            self.log(f"🎯 Match found: {event_name} -> {action_word} {runner_name} @ {odds}")
 
             order_status = await asyncio.to_thread(
                 self.client.submit_order,
-                runner_id=runner_id, side=bet_side, odds=requested_odds, stake=stake
+                runner_id=runner_id, side=bet_side, odds=odds, stake=stake
             )
 
             if not order_status:
                 self.log("⚠️ Bet was rejected.")
                 continue
 
-            offers = order_status.get("offers", [])
-            placed_offer = offers[0] if offers else {}
-            offer_id = placed_offer.get("id")
-
-            # Get the REAL matched price, not the ask price. This is
-            # what gets logged, recorded, and sent to Telegram.
-            real_odds = await self._get_real_matched_odds(offer_id, requested_odds)
-            if real_odds != requested_odds:
-                self.log(f"Requested {requested_odds}, actually matched at {real_odds} — using real price.")
-            odds = real_odds
-
             sport = self.cfg.get("sport_name") or (self.cfg.get("sport_names") or ["?"])[0]
             record_league(sport, event)
 
-            favorite_on_flashscore = self.cfg.get("favorite_on_flashscore", False)
-            favorite_min_step = self.cfg.get("favorite_min_step", 1)
-            # Compound strategies don't use step ladders, so the step
-            # gate doesn't apply to them.
-            step_ok = self.strategy_type == "compound" or self.current_step >= favorite_min_step
-
-            if (favorite_on_flashscore and step_ok
-                    and sport not in ("Horse Racing", "Greyhound Racing", "Horse Racing (Ante Post)")):
+            if sport not in ("Horse Racing", "Greyhound Racing", "Horse Racing (Ante Post)"):
                 await asyncio.to_thread(flashscore_client.favorite_event, event_name)
 
+            offers = order_status.get("offers", [])
+            placed_offer = offers[0] if offers else {}
+
             bet = {
-                "offer_id": offer_id,
+                "offer_id": placed_offer.get("id"),
                 "event_id": placed_offer.get("event-id"),
                 "market_id": market_id,
                 "runner_id": runner_id,
@@ -341,7 +308,6 @@ class StrategyRunner:
                 "event_name": event_name,
                 "stake": stake,
                 "odds": odds,
-                "requested_odds": requested_odds,
                 "step": self.current_step,
             }
             bet["record_id"] = record_bet_placed(
@@ -366,6 +332,11 @@ class StrategyRunner:
         self.log("Scan done: nothing matched the strategy right now.")
 
     async def check_cash_out(self):
+        """For each open bet, checks if current lay odds let us lock in
+        an EQUAL profit on both outcomes (win or lose), worth at least
+        cash_out_at_percent of the original stake. If so, places the
+        lay bet sized so both sides pay out the same amount.
+        """
         for bet in self.active_bets:
             if bet.get("cashed_out") or bet.get("settled_via_cashout"):
                 continue
@@ -388,22 +359,23 @@ class StrategyRunner:
             best_lay = min(lays, key=lambda p: p.get("odds", float("inf")))
             lay_odds = best_lay.get("odds")
             available = best_lay.get("available-amount", best_lay.get("available_amount"))
-            if lay_odds is None:
+            if lay_odds is None or lay_odds <= 0:
                 continue
 
             stake = bet["stake"]
+            back_odds = bet["odds"]
+
+            lay_stake = round((stake * back_odds) / lay_odds, 2)
+            equal_profit = round(stake * (back_odds - lay_odds) / lay_odds, 4)
+
             target_profit = round(stake * (self.cash_out_at_percent / 100), 4)
-            lay_stake = round(target_profit + stake, 2)
 
             if available is not None and available < lay_stake:
                 continue
 
-            win_case_profit = round(stake * (bet["odds"] - 1) - lay_stake * (lay_odds - 1), 4)
-            lose_case_profit = round(lay_stake - stake, 4)
-
-            if win_case_profit >= target_profit - 0.01 and lose_case_profit >= target_profit - 0.01:
-                self.log(f"💰 Cashing out '{bet['event_name']}' — locking in ~{lose_case_profit} "
-                         f"({self.cash_out_at_percent}% of stake) via lay @ {lay_odds}")
+            if equal_profit >= target_profit - 0.01:
+                self.log(f"💰 Cashing out '{bet['event_name']}' — locking in ~{equal_profit} "
+                         f"equally on both outcomes via lay @ {lay_odds}, lay stake {lay_stake}")
 
                 order_status = await asyncio.to_thread(
                     self.client.submit_order,
@@ -415,16 +387,34 @@ class StrategyRunner:
                     continue
 
                 bet["cashed_out"] = True
-                bet["cash_out_profit"] = lose_case_profit
+                bet["cash_out_profit"] = equal_profit
                 if bet.get("record_id"):
-                    record_bet_cashed_out(bet["record_id"], lose_case_profit)
+                    record_bet_cashed_out(bet["record_id"], equal_profit)
 
                 msg = (f"💰 Cashed Out [{self.name}]\nEvent: {bet['event_name']}\n"
-                       f"Locked in profit: {lose_case_profit}")
+                       f"Locked in profit (equal both ways): {equal_profit}")
                 self.client.send_telegram(msg)
 
         self.active_bets = [b for b in self.active_bets if not b.get("cashed_out")]
         self._save()
+
+    @staticmethod
+    def _weighted_matched_odds(order_status):
+        if not order_status:
+            return None
+        offers = order_status.get("offers") or []
+        if not offers:
+            return None
+        matched = offers[0].get("matched-bets") or []
+        if not matched:
+            return None
+
+        total_stake = sum(mb.get("stake", 0) for mb in matched)
+        if not total_stake:
+            return None
+
+        weighted = sum(mb.get("stake", 0) * mb.get("odds", 0) for mb in matched)
+        return round(weighted / total_stake, 4)
 
     async def check_settlements(self):
         if not self.active_bets:
@@ -458,12 +448,11 @@ class StrategyRunner:
 
             result_label = "Won" if outcome == "won" else "Lost"
 
-            # Double-check real matched price at settlement too, in case
-            # it changed or wasn't caught right after placement.
             order_status = await asyncio.to_thread(self.client.get_order_status, bet["offer_id"])
             real_odds = self._weighted_matched_odds(order_status)
             if real_odds is not None and real_odds != bet["odds"]:
-                self.log(f"'{bet['event_name']}': updating odds {bet['odds']} -> {real_odds} (real matched price).")
+                self.log(f"'{bet['event_name']}': requested odds {bet['odds']}, "
+                         f"actually matched at {real_odds} — using the real price.")
                 bet["odds"] = real_odds
 
             if bet.get("record_id"):
