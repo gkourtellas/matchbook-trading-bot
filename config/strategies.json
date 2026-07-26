@@ -435,7 +435,7 @@
       "bet_side": "back",
       "cash_out_at_percent": null,
       "compound_start": 5,
-      "compound_target": 10,
+      "compound_target": 7.5,
       "currency": "EUR",
       "description": "",
       "enabled": true,
@@ -471,7 +471,7 @@
       "staking_plan": null,
       "staking_steps": null,
       "strategy_type": "compound",
-      "target_profit": 10,
+      "target_profit": 7.5,
       "total_direction": null,
       "total_range": null
     },

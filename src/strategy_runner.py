@@ -2,6 +2,12 @@
 
 Each strategy gets one of these, running on its own, side by side with
 every other strategy. They don't affect each other.
+
+League filter: strategies now pick which leagues to bet using
+categories (config/league_categories.json), resolved to a flat allow-list
+in strategy_loader.py as strategy["_allowed_leagues"]. If that's None,
+the strategy bets any league (no filter, old behavior). If it's a set,
+only events in one of those leagues are considered.
 """
 
 import asyncio
@@ -101,7 +107,9 @@ class StrategyRunner:
         else:
             self.cash_out_at_percent = requested_cash_out
 
-        self.excluded_leagues = set(strategy.get("excluded_leagues", []))
+        # None = no league filter (bet any league). A set = only bet
+        # leagues in that set. Resolved from categories in strategy_loader.py.
+        self.allowed_leagues = strategy.get("_allowed_leagues")
         self.live_mode = strategy.get("live_mode", "pre")
         self.sport_configs = strategy.get("sport_configs")
 
@@ -194,10 +202,10 @@ class StrategyRunner:
                 self.log(f"Skipped {event_name_early} — live betting not allowed on this event (needed for cash-out)")
                 continue
 
-            if self.excluded_leagues:
+            if self.allowed_leagues is not None:
                 league = self._extract_league(event)
-                if league and league in self.excluded_leagues:
-                    self.log(f"Skipped {event_name_early} — league '{league}' is excluded")
+                if not league or league not in self.allowed_leagues:
+                    self.log(f"Skipped {event_name_early} — league '{league}' is not in this strategy's allowed leagues")
                     continue
 
             start_str = event.get("start")

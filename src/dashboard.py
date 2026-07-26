@@ -22,6 +22,7 @@ from flask import Flask, jsonify, render_template_string, request, Response
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "bets.db")
 STRATEGIES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "strategies.json")
 LEAGUES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "leagues.json")
+CATEGORIES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "league_categories.json")
 STATE_DIR = os.path.join(os.path.dirname(__file__), "..", "config", "state")
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD")
 
@@ -35,6 +36,21 @@ def get_enabled_strategy_names():
         return {s["name"] for s in data.get("strategies", []) if s.get("enabled", True)}
     except Exception:
         return None
+
+
+def load_categories():
+    """Returns the category -> [league names] dict. Empty dict if the
+    file doesn't exist yet.
+    """
+    if not os.path.isfile(CATEGORIES_FILE):
+        return {}
+    with open(CATEGORIES_FILE, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_categories(data):
+    with open(CATEGORIES_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
 
 
 REQUIRED_FIELDS = [
@@ -223,6 +239,7 @@ PAGE = """
     text-decoration: none;
     cursor: pointer;
   }
+  .nav-btn.secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
   .nav-btn:hover { opacity: 0.85; }
   h1 {
     font-size: 14px;
@@ -288,7 +305,8 @@ PAGE = """
   <div class="topbar">
     <h0>matchbook // live dashboard</h0>
     <div style="display:flex; gap:10px;">
-      <a class="nav-btn" style="background: var(--card2); color: var(--text); border: 1px solid var(--border);" href="/strategies">⚙ Manage Strategies</a>
+      <a class="nav-btn secondary" href="/strategies">⚙ Manage Strategies</a>
+      <a class="nav-btn secondary" href="/categories">Leagues</a>
       <a class="nav-btn" href="/analytics">Analytics →</a>
     </div>
   </div>
@@ -738,6 +756,153 @@ fetch('/api/chart_data').then(r => r.json()).then(data => {
 """
 
 
+CATEGORIES_PAGE = """
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>League Categories</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e14; --card: #11161f; --card2: #141a25;
+    --border: #1c2330; --text: #e4e7ec; --muted: #7a8699; --accent: #5b8def; --loss: #ff6b5e;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 28px 32px 60px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+  .topbar h0 { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+  .nav-btn { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--bg); background: var(--accent); border: none; border-radius: 8px; padding: 9px 16px; text-decoration: none; cursor: pointer; }
+  .layout { display: grid; grid-template-columns: 1fr 1.3fr; gap: 18px; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .card h2 { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; }
+  .league-item { display: flex; align-items: center; gap: 8px; padding: 6px 4px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; border-bottom: 1px solid var(--border); }
+  .cat-block { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: var(--card2); }
+  .cat-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .cat-title { font-weight: 600; font-size: 14px; }
+  .cat-leagues { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); line-height: 1.9; }
+  .cat-leagues a { color: var(--loss); text-decoration: none; margin-left: 4px; }
+  .btn { font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--card2); color: var(--text); cursor: pointer; }
+  .btn.danger:hover { border-color: var(--loss); color: var(--loss); }
+  input[type=text] { background: var(--card2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 8px 10px; font-family: 'JetBrains Mono', monospace; font-size: 13px; width: 100%; }
+  .add-cat-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  select { background: var(--card2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 6px 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <h0>matchbook // league categories</h0>
+    <a class="nav-btn" href="/strategies">← Strategies</a>
+  </div>
+
+  <div class="add-cat-row">
+    <input type="text" id="newCatName" placeholder="New category name (e.g. Top Leagues)">
+    <button class="btn" onclick="addCategory()">+ Add category</button>
+  </div>
+
+  <div class="layout">
+    <div class="card">
+      <h2>All Leagues</h2>
+      <div id="leagueList"></div>
+    </div>
+    <div class="card">
+      <h2>Categories</h2>
+      <div id="catList"></div>
+    </div>
+  </div>
+
+<script>
+let leagues = [];
+let categories = {};
+
+function load() {
+  Promise.all([
+    fetch('/api/leagues').then(r => r.json()),
+    fetch('/api/league_categories').then(r => r.json())
+  ]).then(([l, c]) => {
+    leagues = l || [];
+    categories = c || {};
+    render();
+  });
+}
+
+function render() {
+  const catNames = Object.keys(categories).sort();
+
+  let leagueHtml = '';
+  leagues.forEach(name => {
+    const opts = catNames.map(c => `<option value="${c}">${c}</option>`).join('');
+    leagueHtml += `<div class="league-item">
+      <span style="flex:1;">${name}</span>
+      <select id="sel_${safeId(name)}">${opts || '<option value="">-- add a category first --</option>'}</select>
+      <button class="btn" onclick="assign('${escName(name)}')">Add</button>
+    </div>`;
+  });
+  document.getElementById('leagueList').innerHTML = leagueHtml || '<p style="color:var(--muted);">No leagues captured yet.</p>';
+
+  let catHtml = '';
+  catNames.forEach(cat => {
+    const inCat = categories[cat] || [];
+    catHtml += `<div class="cat-block">
+      <div class="cat-title-row">
+        <div class="cat-title">${cat} (${inCat.length})</div>
+        <button class="btn danger" onclick="deleteCategory('${escName(cat)}')">Delete category</button>
+      </div>
+      <div class="cat-leagues">${inCat.map(l => `${l} <a href="#" onclick="removeFromCat('${escName(cat)}','${escName(l)}');return false;">✕</a>`).join('<br>') || '(empty)'}</div>
+    </div>`;
+  });
+  document.getElementById('catList').innerHTML = catHtml || '<p style="color:var(--muted);">No categories yet — add one above.</p>';
+}
+
+function safeId(name) { return name.replace(/[^a-zA-Z0-9]/g, '_'); }
+function escName(name) { return name.replace(/'/g, "\\\\'"); }
+
+function addCategory() {
+  const name = document.getElementById('newCatName').value.trim();
+  if (!name) return;
+  if (!categories[name]) categories[name] = [];
+  document.getElementById('newCatName').value = '';
+  persist();
+}
+
+function deleteCategory(name) {
+  if (!confirm('Delete category "' + name + '"? Strategies using it will stop filtering by it.')) return;
+  delete categories[name];
+  persist();
+}
+
+function assign(leagueName) {
+  const sel = document.getElementById('sel_' + safeId(leagueName));
+  const cat = sel.value;
+  if (!cat) return;
+  if (!categories[cat]) categories[cat] = [];
+  if (!categories[cat].includes(leagueName)) categories[cat].push(leagueName);
+  persist();
+}
+
+function removeFromCat(cat, leagueName) {
+  categories[cat] = (categories[cat] || []).filter(l => l !== leagueName);
+  persist();
+}
+
+function persist() {
+  fetch('/api/league_categories', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(categories)
+  }).then(r => r.json()).then(() => load());
+}
+
+load();
+</script>
+</body>
+</html>
+"""
+
+
 STRATEGIES_PAGE = """
 <!DOCTYPE html>
 <html>
@@ -790,12 +955,18 @@ STRATEGIES_PAGE = """
   .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
   .error-box { background: rgba(255,107,94,0.12); border: 1px solid var(--loss); color: var(--loss); padding: 10px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 14px; display: none; }
   .saving-banner { display: none; background: rgba(245,185,66,0.12); border: 1px solid var(--pending); color: var(--pending); padding: 10px 14px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-bottom: 16px; }
+  .subtabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .subtab-btn { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--muted); background: var(--card2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+  .subtab-btn.active { color: var(--text); border-color: var(--accent); }
+  .subtab-pane { display: none; max-height: 180px; overflow-y: auto; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
+  .subtab-pane.active { display: block; }
 </style>
 </head>
 <body>
   <div class="topbar">
     <h0>matchbook // manage strategies</h0>
     <div style="display:flex; gap:10px;">
+      <a class="nav-btn secondary" href="/categories">Leagues</a>
       <button class="nav-btn" style="background: var(--pending); color: #1a1300;" onclick="restartBot()">⟲ Restart Bot</button>
       <a class="nav-btn secondary" href="/">← Dashboard</a>
     </div>
@@ -891,8 +1062,13 @@ STRATEGIES_PAGE = """
           <input id="f_favorite_min_step" type="number" min="1" placeholder="e.g. 1 = every bet">
         </div>
         <div class="field full">
-          <label>Exclude leagues <span style="color:var(--muted); text-transform:none;">(this strategy will skip matches in checked leagues)</span></label>
-          <div id="f_excluded_leagues" style="max-height: 160px; overflow-y: auto; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;"></div>
+          <label>Which leagues can this strategy bet? <span style="color:var(--muted); text-transform:none;">— pick categories, or fall back to individual leagues if a league isn't in a category yet. Leave everything unchecked to allow any league.</span></label>
+          <div class="subtabs">
+            <div class="subtab-btn active" data-tab="f_tab_categories" onclick="switchTab('f', 'f_tab_categories')">Categories</div>
+            <div class="subtab-btn" data-tab="f_tab_leagues" onclick="switchTab('f', 'f_tab_leagues')">Individual leagues (fallback)</div>
+          </div>
+          <div id="f_tab_categories" class="subtab-pane active"></div>
+          <div id="f_tab_leagues" class="subtab-pane"></div>
         </div>
         <div class="field">
           <label>Betting timing</label>
@@ -976,8 +1152,13 @@ STRATEGIES_PAGE = """
           </select>
         </div>
         <div class="field full">
-          <label>Exclude leagues</label>
-          <div id="mf_excluded_leagues" style="max-height:160px; overflow-y:auto; background:var(--card2); border:1px solid var(--border); border-radius:6px; padding:8px 10px;"></div>
+          <label>Which leagues can this strategy bet?</label>
+          <div class="subtabs">
+            <div class="subtab-btn active" data-tab="mf_tab_categories" onclick="switchTab('mf', 'mf_tab_categories')">Categories</div>
+            <div class="subtab-btn" data-tab="mf_tab_leagues" onclick="switchTab('mf', 'mf_tab_leagues')">Individual leagues (fallback)</div>
+          </div>
+          <div id="mf_tab_categories" class="subtab-pane active"></div>
+          <div id="mf_tab_leagues" class="subtab-pane"></div>
         </div>
         <div class="field full">
           <div class="checkbox-row"><input type="checkbox" id="mf_enabled" checked><label style="margin:0;">Enabled</label></div>
@@ -995,11 +1176,64 @@ STRATEGIES_PAGE = """
 let strategies = [];
 let editingIndex = null;
 let allLeagues = [];
+let allCategories = {};
 
 function fetchLeagues() {
-  fetch('/api/leagues').then(r => r.json()).then(data => {
-    allLeagues = Array.isArray(data) ? data : [];
+  Promise.all([
+    fetch('/api/leagues').then(r => r.json()),
+    fetch('/api/league_categories').then(r => r.json())
+  ]).then(([l, c]) => {
+    allLeagues = Array.isArray(l) ? l : [];
+    allCategories = c || {};
   });
+}
+
+function switchTab(prefix, tabId) {
+  document.querySelectorAll(`.subtab-btn[data-tab^="${prefix}_tab_"]`).forEach(b => b.classList.remove('active'));
+  document.querySelector(`.subtab-btn[data-tab="${tabId}"]`).classList.add('active');
+  document.querySelectorAll(`#${prefix}_tab_categories, #${prefix}_tab_leagues`).forEach(p => p.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+}
+
+function renderCategoryCheckboxes(containerId, selectedCategories) {
+  const box = document.getElementById(containerId);
+  const catNames = Object.keys(allCategories).sort();
+  if (!catNames.length) {
+    box.innerHTML = '<span style="color:var(--muted); font-size:12px;">No categories yet — go to Leagues page to make some.</span>';
+    return;
+  }
+  box.innerHTML = catNames.map(cat => {
+    const checked = selectedCategories.includes(cat) ? 'checked' : '';
+    const safeId = containerId + '_' + cat.replace(/[^a-zA-Z0-9]/g, '_');
+    return `<div class="checkbox-row" style="margin-bottom:4px;">
+      <input type="checkbox" id="${safeId}" data-category="${cat.replace(/"/g, '&quot;')}" ${checked}>
+      <label for="${safeId}" style="margin:0; font-family:'JetBrains Mono', monospace; font-size:12px; text-transform:none;">${cat} (${(allCategories[cat]||[]).length})</label>
+    </div>`;
+  }).join('');
+}
+
+function renderLeagueCheckboxes(containerId, selectedLeagues) {
+  const box = document.getElementById(containerId);
+  if (!allLeagues.length) {
+    box.innerHTML = '<span style="color:var(--muted); font-size:12px;">No leagues captured yet — run get_leagues.py first.</span>';
+    return;
+  }
+  box.innerHTML = allLeagues.map(name => {
+    const checked = selectedLeagues.includes(name) ? 'checked' : '';
+    const safeId = containerId + '_' + name.replace(/[^a-zA-Z0-9]/g, '_');
+    return `<div class="checkbox-row" style="margin-bottom:4px;">
+      <input type="checkbox" id="${safeId}" data-league="${name.replace(/"/g, '&quot;')}" ${checked}>
+      <label for="${safeId}" style="margin:0; font-family:'JetBrains Mono', monospace; font-size:12px; text-transform:none;">${name}</label>
+    </div>`;
+  }).join('');
+}
+
+function getCheckedCategories(containerId) {
+  return Array.from(document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`)).map(el => el.dataset.category);
+}
+
+function getCheckedLeagues(containerId) {
+  return Array.from(document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`)).map(el => el.dataset.league);
 }
 
 function fetchStrategies() {
@@ -1025,14 +1259,23 @@ function renderList() {
     const isMulti = s.strategy_mode === 'multi_sport';
     const liveTag = s.live_mode === 'live' ? ' · LIVE' : s.live_mode === 'both' ? ' · pre+live' : '';
     const fsTag = s.favorite_on_flashscore ? ` · FlashScore from step ${s.favorite_min_step || 1}` : '';
+    const cats = s.included_categories || [];
+    const leaguesFallback = s.included_leagues || [];
+    let leagueTag = '';
+    if (cats.length || leaguesFallback.length) {
+      const parts = [];
+      if (cats.length) parts.push(cats.join(', '));
+      if (leaguesFallback.length) parts.push(leaguesFallback.length + ' individual league(s)');
+      leagueTag = ' · leagues: ' + parts.join(' + ');
+    }
     let metaLine;
     if (isMulti) {
       const sportList = (s.sport_configs || []).map(r => r.sport_name + '/' + r.market_name).join(', ');
-      metaLine = `MULTI: ${sportList}${liveTag}${fsTag}`;
+      metaLine = `MULTI: ${sportList}${liveTag}${fsTag}${leagueTag}`;
     } else {
       const sport = s.sport_name || (s.sport_names || [])[0] || '?';
       const market = s.market_name || (s.market_names || [])[0] || '?';
-      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${s.spread_cap_percent ? ' · spread cap ' + s.spread_cap_percent + '%' : ''}${s.min_field_size ? ' · min field ' + s.min_field_size : ''}${liveTag}${fsTag}`;
+      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${s.spread_cap_percent ? ' · spread cap ' + s.spread_cap_percent + '%' : ''}${s.min_field_size ? ' · min field ' + s.min_field_size : ''}${liveTag}${fsTag}${leagueTag}`;
     }
     const editFn = isMulti ? `openMultiModal(${i})` : `openModal(${i})`;
     html += `<div class="card strat-row">
@@ -1105,20 +1348,9 @@ function openModal(index) {
   document.getElementById('f_favorite_min_step').value = s.favorite_min_step ?? 1;
   onFlashscoreToggle();
 
-  const excluded = new Set(s.excluded_leagues || []);
-  const leagueBox = document.getElementById('f_excluded_leagues');
-  if (!allLeagues.length) {
-    leagueBox.innerHTML = '<span style="color:var(--muted); font-size:12px;">No leagues captured yet — run get_leagues.py first.</span>';
-  } else {
-    leagueBox.innerHTML = allLeagues.map(name => {
-      const checked = excluded.has(name) ? 'checked' : '';
-      const safeId = 'league_' + name.replace(/[^a-zA-Z0-9]/g, '_');
-      return `<div class="checkbox-row" style="margin-bottom:4px;">
-        <input type="checkbox" id="${safeId}" data-league="${name.replace(/"/g, '&quot;')}" ${checked}>
-        <label for="${safeId}" style="margin:0; font-family:'JetBrains Mono', monospace; font-size:12px; text-transform:none;">${name}</label>
-      </div>`;
-    }).join('');
-  }
+  renderCategoryCheckboxes('f_tab_categories', s.included_categories || []);
+  renderLeagueCheckboxes('f_tab_leagues', s.included_leagues || []);
+  switchTab('f', 'f_tab_categories');
 
   document.getElementById('f_live_mode').value = s.live_mode || 'pre';
   document.getElementById('f_enabled').checked = s.enabled !== false;
@@ -1215,17 +1447,9 @@ function openMultiModal(index) {
   }] : [{}]);
   sports.forEach(d => addSportRow(d));
 
-  const excluded = new Set(s.excluded_leagues || []);
-  const leagueBox = document.getElementById('mf_excluded_leagues');
-  leagueBox.innerHTML = allLeagues.length
-    ? allLeagues.map(name => {
-        const safeId = 'ml_' + name.replace(/[^a-zA-Z0-9]/g, '_');
-        return `<div class="checkbox-row" style="margin-bottom:4px;">
-          <input type="checkbox" id="${safeId}" data-league="${name.replace(/"/g,'&quot;')}" ${excluded.has(name)?'checked':''}>
-          <label for="${safeId}" style="margin:0;font-family:'JetBrains Mono',monospace;font-size:12px;text-transform:none;">${name}</label>
-        </div>`;
-      }).join('')
-    : '<span style="color:var(--muted);font-size:12px;">No leagues captured yet.</span>';
+  renderCategoryCheckboxes('mf_tab_categories', s.included_categories || []);
+  renderLeagueCheckboxes('mf_tab_leagues', s.included_leagues || []);
+  switchTab('mf', 'mf_tab_categories');
 
   onMultiStrategyTypeChange();
   document.getElementById('multiModalBg').classList.add('open');
@@ -1297,8 +1521,8 @@ function saveMultiStrategy() {
   if (favoriteOnFlashscore && favoriteMinStep < 1) { showMultiError('FlashScore starts-from-step must be at least 1.'); return; }
 
   const existing = editingMultiIndex === null ? {} : strategies[editingMultiIndex];
-  const checkedLeagues = Array.from(document.querySelectorAll('#mf_excluded_leagues input[type="checkbox"]:checked'))
-    .map(el => el.dataset.league);
+  const checkedCategories = getCheckedCategories('mf_tab_categories');
+  const checkedLeagues = getCheckedLeagues('mf_tab_leagues');
 
   const updated = {
     ...existing,
@@ -1336,7 +1560,8 @@ function saveMultiStrategy() {
     favorite_min_step: favoriteMinStep,
     live_mode: document.getElementById('mf_live_mode').value,
     enabled: document.getElementById('mf_enabled').checked,
-    excluded_leagues: checkedLeagues,
+    included_categories: checkedCategories,
+    included_leagues: checkedLeagues,
     keep_in_play: existing.keep_in_play ?? false,
     autoRestart: existing.autoRestart ?? false,
     bet_side: sportRows[0].bet_side,
@@ -1457,8 +1682,8 @@ function saveStrategy() {
     return;
   }
 
-  const checkedLeagues = Array.from(document.querySelectorAll('#f_excluded_leagues input[type="checkbox"]:checked'))
-    .map(el => el.dataset.league);
+  const checkedCategories = getCheckedCategories('f_tab_categories');
+  const checkedLeagues = getCheckedLeagues('f_tab_leagues');
 
   const updated = {
     ...existing,
@@ -1497,7 +1722,8 @@ function saveStrategy() {
     favorite_min_step: favoriteMinStep,
     bet_side: betSide,
     bet_mode: betMode,
-    excluded_leagues: checkedLeagues,
+    included_categories: checkedCategories,
+    included_leagues: checkedLeagues,
     keep_in_play: existing.keep_in_play ?? false,
     autoRestart: existing.autoRestart ?? false,
     total_range: market === 'Total' ? totalRange : null,
@@ -1606,6 +1832,12 @@ def home():
 @require_password
 def analytics_page():
     return render_template_string(ANALYTICS_PAGE)
+
+
+@app.route("/categories")
+@require_password
+def categories_page():
+    return render_template_string(CATEGORIES_PAGE)
 
 
 @app.route("/api/summary")
@@ -1809,6 +2041,25 @@ def get_leagues():
             return jsonify(json.load(f))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/league_categories", methods=["GET"])
+@require_password
+def get_league_categories():
+    return jsonify(load_categories())
+
+
+@app.route("/api/league_categories", methods=["POST"])
+@require_password
+def save_league_categories():
+    data = request.get_json(force=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "Categories must be an object of category name -> list of leagues."}), 400
+    for cat, leagues in data.items():
+        if not isinstance(leagues, list):
+            return jsonify({"error": f"Category '{cat}' must contain a list of league names."}), 400
+    save_categories(data)
+    return jsonify({"saved": True})
 
 
 @app.route("/api/strategies", methods=["GET"])
