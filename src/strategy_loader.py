@@ -2,6 +2,11 @@
 
 Nothing in this file or the rest of the bot needs to change when you add
 a new strategy. Just edit config/strategies.json.
+
+Also loads config/league_categories.json, which lets strategies say
+"only bet these league categories" instead of listing leagues one by one.
+Categories are live-linked: edit the category on the dashboard and every
+strategy using it picks up the change on next restart.
 """
 
 import asyncio
@@ -9,6 +14,7 @@ import json
 import os
 
 STRATEGIES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "strategies.json")
+CATEGORIES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "league_categories.json")
 
 _sport_id_cache = None
 
@@ -16,6 +22,38 @@ _sport_id_cache = None
 # strategies hitting balance 0 / target at the same moment can't both
 # write strategies.json at once and corrupt it.
 strategies_file_lock = asyncio.Lock()
+
+
+def load_categories():
+    """Returns the category -> [league names] dict from league_categories.json.
+    Empty dict if the file doesn't exist yet.
+    """
+    if not os.path.isfile(CATEGORIES_FILE):
+        return {}
+    with open(CATEGORIES_FILE, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def resolve_included_leagues(strategy):
+    """Turns a strategy's included_categories (plus included_leagues as a
+    fallback for one-off leagues not in any category) into one flat set
+    of league names this strategy is allowed to bet on.
+
+    Returns None if the strategy has no categories and no individual
+    leagues set — meaning "no filter, bet any league" (old behavior).
+    """
+    included_categories = strategy.get("included_categories") or []
+    included_leagues = strategy.get("included_leagues") or []
+
+    if not included_categories and not included_leagues:
+        return None
+
+    categories = load_categories()
+    allowed = set(included_leagues)
+    for cat_name in included_categories:
+        allowed.update(categories.get(cat_name, []))
+
+    return allowed
 
 
 async def disable_strategy(name, reason):
@@ -94,6 +132,11 @@ def load_strategies(client):
                   f"right now. Available: {sorted(sport_ids.keys())}")
             continue
         s["_sport_id"] = sport_ids[sport]
+
+        # Live-linked league filter: resolved fresh every load, so
+        # editing a category on the dashboard applies on next restart
+        # without touching strategies.json.
+        s["_allowed_leagues"] = resolve_included_leagues(s)
 
         if s.get("strategy_type") == "compound":
             missing = [k for k in ("compound_start", "compound_target", "min_back_odds", "max_back_odds")
