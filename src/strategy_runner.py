@@ -8,6 +8,12 @@ categories (config/league_categories.json), resolved to a flat allow-list
 in strategy_loader.py as strategy["_allowed_leagues"]. If that's None,
 the strategy bets any league (no filter, old behavior). If it's a set,
 only events in one of those leagues are considered.
+
+Odds stability check (2026-07-26): before placing ANY bet, we re-check
+the same runner's price 2 more times, 5 seconds apart (3 checks total).
+If the odds move more than 5% across those checks, we skip the bet and
+log why. This catches bad/stale/thin prices (e.g. a runner briefly
+showing 1.01 with no real reason) instead of betting on them blind.
 """
 
 import asyncio
@@ -32,6 +38,10 @@ MATCHERS = {
     "Double Chance": market_match_odds,
     "WIN": market_racing_favorite,
 }
+
+ODDS_CHECK_COUNT = 3
+ODDS_CHECK_GAP_SECONDS = 5
+ODDS_CHECK_MAX_SPREAD_PERCENT = 5
 
 
 class StrategyRunner:
@@ -91,9 +101,6 @@ class StrategyRunner:
         self.lookahead_minutes = strategy.get("event_lookahead_minutes", 180)
         self.min_seconds_to_start = strategy.get("min_seconds_to_start", 300)
 
-        # If set, automatically closes out the bet with an EQUAL profit
-        # on both outcomes (win or lose), once the current lay price
-        # allows a hedge worth at least this % of the original stake.
         requested_cash_out = strategy.get("cash_out_at_percent")
         if requested_cash_out and self.max_steps > 1:
             print(f"[{self.name}] ⚠️ cash_out_at_percent is set but this strategy has "
@@ -107,8 +114,6 @@ class StrategyRunner:
         else:
             self.cash_out_at_percent = requested_cash_out
 
-        # None = no league filter (bet any league). A set = only bet
-        # leagues in that set. Resolved from categories in strategy_loader.py.
         self.allowed_leagues = strategy.get("_allowed_leagues")
         self.live_mode = strategy.get("live_mode", "pre")
         self.sport_configs = strategy.get("sport_configs")
@@ -142,6 +147,63 @@ class StrategyRunner:
             if tag.get("type") == "COMPETITION":
                 return tag.get("name")
         return None
+
+    async def _confirm_odds_stable(self, event_id, market_id, runner_id, first_odds, bet_side, event_name):
+        """Re-checks the same runner's price ODDS_CHECK_COUNT times total
+        (first_odds counts as check #1), ODDS_CHECK_GAP_SECONDS apart.
+        Returns True only if every check stayed within
+        ODDS_CHECK_MAX_SPREAD_PERCENT of each other. Used to catch a
+        bad/stale/thin price instead of betting on it blind.
+        """
+        if not event_id or not market_id or not runner_id:
+            self.log(f"Skipped {event_name} — missing event/market/runner id, can't confirm odds")
+            return False
+
+        checks = [first_odds]
+        side = "lay" if bet_side == "lay" else "back"
+
+        for i in range(ODDS_CHECK_COUNT - 1):
+            await asyncio.sleep(ODDS_CHECK_GAP_SECONDS)
+
+            response = await asyncio.to_thread(
+                self.client.get_runner_prices, event_id, market_id, runner_id
+            )
+            if not response:
+                self.log(f"Skipped {event_name} — odds re-check {i + 2}/{ODDS_CHECK_COUNT} "
+                          f"got no response from Matchbook")
+                return False
+
+            prices = response.get("prices", []) if isinstance(response, dict) else response
+            matching = [p for p in prices if p.get("side") == side]
+            if not matching:
+                self.log(f"Skipped {event_name} — odds re-check {i + 2}/{ODDS_CHECK_COUNT} "
+                          f"found no {side} price for this runner")
+                return False
+
+            best = min(matching, key=lambda p: p.get("odds", float("inf")))
+            odds_now = best.get("odds")
+            if odds_now is None:
+                self.log(f"Skipped {event_name} — odds re-check {i + 2}/{ODDS_CHECK_COUNT} "
+                          f"returned no odds value")
+                return False
+
+            checks.append(odds_now)
+
+        lowest, highest = min(checks), max(checks)
+        if lowest <= 0:
+            self.log(f"Skipped {event_name} — bad odds value in re-check: {checks}")
+            return False
+
+        spread_percent = (highest - lowest) / lowest * 100
+        if spread_percent > ODDS_CHECK_MAX_SPREAD_PERCENT:
+            self.log(f"Skipped {event_name} — odds not stable across {ODDS_CHECK_COUNT} checks "
+                      f"({ODDS_CHECK_GAP_SECONDS}s apart): {checks} "
+                      f"({spread_percent:.1f}% spread, max {ODDS_CHECK_MAX_SPREAD_PERCENT}%)")
+            return False
+
+        self.log(f"Odds confirmed stable across {ODDS_CHECK_COUNT} checks "
+                  f"({ODDS_CHECK_GAP_SECONDS}s apart): {checks}")
+        return True
 
     async def run(self):
         self.log(f"Starting. Market: {self.market_name}, odds {self.cfg['min_back_odds']}-{self.cfg['max_back_odds']}")
@@ -282,6 +344,13 @@ class StrategyRunner:
                 continue
 
             bet_side = matched_cfg.get("bet_side", self.bet_side)
+
+            odds_ok = await self._confirm_odds_stable(
+                event_id, market_id, runner_id, odds, bet_side, event_name
+            )
+            if not odds_ok:
+                continue
+
             stake = self.stake_for_step()
 
             action_word = "Lay" if bet_side == "lay" else "Back"
@@ -340,11 +409,6 @@ class StrategyRunner:
         self.log("Scan done: nothing matched the strategy right now.")
 
     async def check_cash_out(self):
-        """For each open bet, checks if current lay odds let us lock in
-        an EQUAL profit on both outcomes (win or lose), worth at least
-        cash_out_at_percent of the original stake. If so, places the
-        lay bet sized so both sides pay out the same amount.
-        """
         for bet in self.active_bets:
             if bet.get("cashed_out") or bet.get("settled_via_cashout"):
                 continue

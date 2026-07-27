@@ -1081,6 +1081,9 @@ STRATEGIES_PAGE = """
         <div class="field full">
           <div class="checkbox-row"><input type="checkbox" id="f_enabled"><label style="margin:0;">Enabled</label></div>
         </div>
+        <div class="field full">
+          <div class="checkbox-row"><input type="checkbox" id="f_autorestart"><label style="margin:0;">Auto-restart when done (won target or lost bankroll)</label></div>
+        </div>
       </div>
       <div class="modal-actions">
         <button class="btn" onclick="closeModal()">Cancel</button>
@@ -1162,6 +1165,9 @@ STRATEGIES_PAGE = """
         </div>
         <div class="field full">
           <div class="checkbox-row"><input type="checkbox" id="mf_enabled" checked><label style="margin:0;">Enabled</label></div>
+        </div>
+        <div class="field full">
+          <div class="checkbox-row"><input type="checkbox" id="mf_autorestart"><label style="margin:0;">Auto-restart when done (won target or lost bankroll)</label></div>
         </div>
       </div>
 
@@ -1259,6 +1265,7 @@ function renderList() {
     const isMulti = s.strategy_mode === 'multi_sport';
     const liveTag = s.live_mode === 'live' ? ' · LIVE' : s.live_mode === 'both' ? ' · pre+live' : '';
     const fsTag = s.favorite_on_flashscore ? ` · FlashScore from step ${s.favorite_min_step || 1}` : '';
+    const arTag = s.autoRestart ? ' · Auto-restart ON' : '';
     const cats = s.included_categories || [];
     const leaguesFallback = s.included_leagues || [];
     let leagueTag = '';
@@ -1271,11 +1278,11 @@ function renderList() {
     let metaLine;
     if (isMulti) {
       const sportList = (s.sport_configs || []).map(r => r.sport_name + '/' + r.market_name).join(', ');
-      metaLine = `MULTI: ${sportList}${liveTag}${fsTag}${leagueTag}`;
+      metaLine = `MULTI: ${sportList}${liveTag}${fsTag}${arTag}${leagueTag}`;
     } else {
       const sport = s.sport_name || (s.sport_names || [])[0] || '?';
       const market = s.market_name || (s.market_names || [])[0] || '?';
-      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${s.spread_cap_percent ? ' · spread cap ' + s.spread_cap_percent + '%' : ''}${s.min_field_size ? ' · min field ' + s.min_field_size : ''}${liveTag}${fsTag}${leagueTag}`;
+      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${s.spread_cap_percent ? ' · spread cap ' + s.spread_cap_percent + '%' : ''}${s.min_field_size ? ' · min field ' + s.min_field_size : ''}${liveTag}${fsTag}${arTag}${leagueTag}`;
     }
     const editFn = isMulti ? `openMultiModal(${i})` : `openModal(${i})`;
     html += `<div class="card strat-row">
@@ -1354,6 +1361,7 @@ function openModal(index) {
 
   document.getElementById('f_live_mode').value = s.live_mode || 'pre';
   document.getElementById('f_enabled').checked = s.enabled !== false;
+  document.getElementById('f_autorestart').checked = !!s.autoRestart;
   document.getElementById('modalBg').classList.add('open');
 }
 
@@ -1438,6 +1446,7 @@ function openMultiModal(index) {
   onMultiFlashscoreToggle();
   document.getElementById('mf_live_mode').value = s.live_mode || 'pre';
   document.getElementById('mf_enabled').checked = s.enabled !== false;
+  document.getElementById('mf_autorestart').checked = !!s.autoRestart;
 
   const sports = s.sport_configs || (s.sport_name ? [{
     sport_name: s.sport_name, market_name: s.market_name,
@@ -1560,10 +1569,10 @@ function saveMultiStrategy() {
     favorite_min_step: favoriteMinStep,
     live_mode: document.getElementById('mf_live_mode').value,
     enabled: document.getElementById('mf_enabled').checked,
+    autoRestart: document.getElementById('mf_autorestart').checked,
     included_categories: checkedCategories,
     included_leagues: checkedLeagues,
     keep_in_play: existing.keep_in_play ?? false,
-    autoRestart: existing.autoRestart ?? false,
     bet_side: sportRows[0].bet_side,
     bet_mode: sportRows[0].bet_mode,
     cash_out_at_percent: existing.cash_out_at_percent ?? null,
@@ -1725,7 +1734,7 @@ function saveStrategy() {
     included_categories: checkedCategories,
     included_leagues: checkedLeagues,
     keep_in_play: existing.keep_in_play ?? false,
-    autoRestart: existing.autoRestart ?? false,
+    autoRestart: document.getElementById('f_autorestart').checked,
     total_range: market === 'Total' ? totalRange : null,
     total_direction: market === 'Total' ? totalDirection : null,
     description: existing.description || '',

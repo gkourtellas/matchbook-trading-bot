@@ -447,7 +447,7 @@
       "total_range": null
     },
     {
-      "autoRestart": true,
+      "autoRestart": false,
       "bankroll": 5,
       "base_stake": null,
       "bet_mode": "normal",
@@ -462,8 +462,6 @@
       "excluded_leagues": [],
       "favorite_min_step": 1,
       "favorite_on_flashscore": true,
-      "included_categories": [],
-      "included_leagues": [],
       "keep_in_play": false,
       "live_mode": "pre",
       "market_name": "Moneyline",
@@ -611,7 +609,7 @@
       "total_range": null
     },
     {
-      "autoRestart": true,
+      "autoRestart": false,
       "bankroll": 1,
       "base_stake": null,
       "bet_mode": "normal",
@@ -683,7 +681,7 @@
       "total_range": null
     },
     {
-      "autoRestart": true,
+      "autoRestart": false,
       "bankroll": 10,
       "base_stake": 0.1,
       "bet_mode": "normal",
@@ -737,7 +735,7 @@
       "total_range": "2.5"
     },
     {
-      "autoRestart": true,
+      "autoRestart": false,
       "bankroll": 10,
       "base_stake": 0.1,
       "bet_mode": "normal",
@@ -789,54 +787,6 @@
       "target_profit": 10,
       "total_direction": null,
       "total_range": null
-    },
-    {
-      "name": "All in Basketball",
-      "live_mode": "pre",
-      "enabled": true,
-      "sport_name": "Basketball",
-      "sport_names": [
-        "Basketball"
-      ],
-      "market_name": "Moneyline",
-      "market_names": [
-        "Moneyline"
-      ],
-      "min_back_odds": 1.01,
-      "max_back_odds": 1.1,
-      "strategy_type": "compound",
-      "staking_plan": null,
-      "staking_steps": null,
-      "base_stake": null,
-      "compound_start": 1,
-      "compound_target": 2,
-      "max_open_bets": 1,
-      "bankroll": 10,
-      "max_total_exposure": 10,
-      "max_session_loss": 10,
-      "target_profit": 10,
-      "poll_interval_seconds": 600,
-      "open_positions_cooldown_seconds": 600,
-      "pause_scanning_with_open_positions": true,
-      "event_lookahead_minutes": 180,
-      "min_seconds_to_start": 300,
-      "odds_type": "DECIMAL",
-      "currency": "EUR",
-      "minimum_liquidity": 2,
-      "cash_out_at_percent": null,
-      "spread_cap_percent": null,
-      "min_field_size": null,
-      "favorite_on_flashscore": true,
-      "favorite_min_step": 1,
-      "bet_side": "back",
-      "bet_mode": "normal",
-      "included_categories": [],
-      "included_leagues": [],
-      "keep_in_play": false,
-      "autoRestart": true,
-      "total_range": null,
-      "total_direction": null,
-      "description": ""
     }
   ]
 }
