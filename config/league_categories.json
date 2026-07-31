@@ -75,7 +75,10 @@
     "Switzerland Super League",
     "UEFA Champions League Qualification",
     "UEFA Europa Conference League Qualification",
-    "UEFA Europa League Qualification"
+    "UEFA Europa League Qualification",
+    "Austria 2. Liga",
+    "Austria Bundesliga",
+    "Belgium Supercup"
   ],
   "Leagues For Win Strategies": [
     "Argentina Primera Nacional",
@@ -97,6 +100,8 @@
     "Norway Premier League",
     "Paraguay Primera Division",
     "Poland Ekstraklasa",
-    "Sweden Allsvenskan"
+    "Sweden Allsvenskan",
+    "Austria Bundesliga",
+    "Bulgaria First Division"
   ]
 }
