@@ -126,12 +126,29 @@ def load_strategies(client):
 
     valid = []
     for s in enabled:
-        sport = s.get("sport_name") or (s.get("sport_names") or [None])[0]
-        if sport not in sport_ids:
-            print(f"[{s['name']}] ⚠️ SKIPPED — sport '{sport}' is not offered on Matchbook "
-                  f"right now. Available: {sorted(sport_ids.keys())}")
-            continue
-        s["_sport_id"] = sport_ids[sport]
+        sport_configs = s.get("sport_configs")
+
+        if sport_configs:
+            # Multi-sport strategy: resolve a sport id for each row.
+            missing = []
+            for row in sport_configs:
+                row_sport = row.get("sport_name")
+                if row_sport in sport_ids:
+                    row["_sport_id"] = sport_ids[row_sport]
+                else:
+                    missing.append(row_sport)
+            if missing:
+                print(f"[{s['name']}] ⚠️ Some sports not offered right now, skipping those rows: {missing}")
+            if not any(row.get("_sport_id") for row in sport_configs):
+                print(f"[{s['name']}] ⚠️ SKIPPED — none of its sports are offered on Matchbook right now.")
+                continue
+        else:
+            sport = s.get("sport_name") or (s.get("sport_names") or [None])[0]
+            if sport not in sport_ids:
+                print(f"[{s['name']}] ⚠️ SKIPPED — sport '{sport}' is not offered on Matchbook "
+                      f"right now. Available: {sorted(sport_ids.keys())}")
+                continue
+            s["_sport_id"] = sport_ids[sport]
 
         # Live-linked league filter: resolved fresh every load, so
         # editing a category on the dashboard applies on next restart

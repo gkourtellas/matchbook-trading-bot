@@ -22,6 +22,8 @@ services:
     container_name: matchbook_dashboard
     restart: "no"
     command: ["python", "-u", "src/dashboard.py"]
+    env_file:
+      - .env
     ports:
       - "8050:8050"
     volumes:

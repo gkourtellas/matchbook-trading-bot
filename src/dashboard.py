@@ -15,9 +15,11 @@ import json
 import sqlite3
 import subprocess
 import shutil
+import time
 from datetime import datetime
 from functools import wraps
 from flask import Flask, jsonify, render_template_string, request, Response
+from api_client import MatchbookClient
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "bets.db")
 STRATEGIES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "strategies.json")
@@ -27,6 +29,75 @@ STATE_DIR = os.path.join(os.path.dirname(__file__), "..", "config", "state")
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD")
 
 app = Flask(__name__)
+
+# Real sports only — excludes specials, politics, multiples, virtuals, test entries.
+SPORTS = [
+    {"name": "American Football", "id": 1},
+    {"name": "Athletics", "id": 555636871580009},
+    {"name": "Australian Rules", "id": 112},
+    {"name": "Auto Racing", "id": 13},
+    {"name": "Baseball", "id": 3},
+    {"name": "Basketball", "id": 4},
+    {"name": "Boxing", "id": 14},
+    {"name": "Chess", "id": 1387652895550017},
+    {"name": "Cricket", "id": 110},
+    {"name": "Cycling", "id": 115},
+    {"name": "Darts", "id": 116},
+    {"name": "Formula 1", "id": 29471135545400054},
+    {"name": "Gaelic Football", "id": 117},
+    {"name": "Golf", "id": 8},
+    {"name": "Handball", "id": 1326054153540017},
+    {"name": "Hurling", "id": 118},
+    {"name": "Ice Hockey", "id": 6},
+    {"name": "MMA", "id": 126},
+    {"name": "Motorsport", "id": 29469772436600060},
+    {"name": "NCAA Basketball", "id": 5},
+    {"name": "NCAA Football", "id": 2},
+    {"name": "Rugby League", "id": 114},
+    {"name": "Rugby Union", "id": 18},
+    {"name": "Snooker", "id": 120},
+    {"name": "Soccer", "id": 15},
+    {"name": "Table Tennis", "id": 1389388027310017},
+    {"name": "Tennis", "id": 9},
+    {"name": "Volleyball", "id": 1939998342510016},
+    {"name": "eSports", "id": 123},
+]
+_SPORT_ID_BY_NAME = {s["name"]: s["id"] for s in SPORTS}
+
+_market_cache = {}  # sport_name -> (timestamp, [market names])
+_MARKET_CACHE_TTL = 3600  # 1 hour
+_mb_client = None
+
+
+def _get_mb_client():
+    global _mb_client
+    if _mb_client is None:
+        _mb_client = MatchbookClient()
+        _mb_client.login()
+    return _mb_client
+
+
+def get_markets_for_sport(sport_name):
+    cached = _market_cache.get(sport_name)
+    if cached and time.time() - cached[0] < _MARKET_CACHE_TTL:
+        return cached[1]
+
+    sport_id = _SPORT_ID_BY_NAME.get(sport_name)
+    if not sport_id:
+        return []
+
+    client = _get_mb_client()
+    data = client.get_live_events(sport_id, per_page=50)
+    names = set()
+    if data:
+        for event in data.get("events", []):
+            for market in event.get("markets", []):
+                if market.get("name"):
+                    names.add(market["name"])
+
+    result = sorted(names)
+    _market_cache[sport_name] = (time.time(), result)
+    return result
 
 
 def get_enabled_strategy_names():
@@ -344,10 +415,15 @@ function cls(n) { return n >= 0 ? 'profit' : 'loss'; }
 if (window.ChartDataLabels) { Chart.register(window.ChartDataLabels); }
 
 fetch('/api/summary').then(r => r.json()).then(data => {
-  let html = '<table><tr><th>Strategy</th><th>Bets</th><th>Won</th><th>Lost</th><th>Pending</th><th>Win %</th><th>Profit</th></tr>';
+  let html = '<table><tr><th>Strategy</th><th>Bets</th><th>Won</th><th>Lost</th><th>Pending</th><th>Win %</th><th>Profit</th><th>Balance</th></tr>';
   data.forEach(s => {
     const rowStyle = s.enabled ? '' : ' style="opacity:0.45;"';
     const nameLabel = s.enabled ? s.strategy_name : `${s.strategy_name} (inactive)`;
+    const balanceCell = s.balance === null || s.balance === undefined
+      ? '<td style="color:var(--muted);">—</td>'
+      : (s.balance_live
+          ? `<td style="${s.balance <= 0 ? 'color:var(--loss); font-weight:700;' : ''}">${s.balance.toFixed(2)}${s.balance <= 0 ? ' ⚠️' : ''}</td>`
+          : `<td style="color:var(--muted);">${s.balance.toFixed(2)} <span style="font-size:11px;">(start)</span></td>`);
     html += `<tr${rowStyle}>
       <td>${nameLabel}</td>
       <td>${s.total}</td>
@@ -356,6 +432,7 @@ fetch('/api/summary').then(r => r.json()).then(data => {
       <td class="pending">${s.pending}</td>
       <td>${s.win_rate}%</td>
       <td class="${cls(s.profit)}">${fmt(s.profit)}</td>
+      ${balanceCell}
     </tr>`;
   });
   html += '</table>';
@@ -989,8 +1066,8 @@ STRATEGIES_PAGE = """
       <div class="error-box" id="errorBox"></div>
       <div class="field-grid">
         <div class="field full"><label>Name</label><input id="f_name"></div>
-        <div class="field"><label>Sport</label><input id="f_sport" placeholder="e.g. Soccer"></div>
-        <div class="field"><label>Market</label><input id="f_market" placeholder="e.g. Match Odds"></div>
+        <div class="field"><label>Sport</label><select id="f_sport" onchange="onFSportChange()"></select></div>
+        <div class="field"><label>Market</label><select id="f_market"></select></div>
         <div class="field">
           <label>Bet side</label>
           <select id="f_bet_side">
@@ -1103,6 +1180,43 @@ STRATEGIES_PAGE = """
 
         <div class="field full">
           <label>Sports / Markets</label>
+
+          <div style="background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-top:6px;">
+            <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+              <input type="checkbox" id="mf_use_global" onchange="toggleGlobalSettings()">
+              Use same settings for all sports (except Sport & Market)
+            </label>
+            <div id="mf_global_fields" style="display:none; margin-top:10px;">
+              <div class="field-grid" style="grid-template-columns:1fr 1fr; gap:8px;">
+                <div class="field">
+                  <label>Bet side</label>
+                  <select id="mf_g_bet_side" onchange="applyGlobalToRows()">
+                    <option value="back">Back</option>
+                    <option value="lay">Lay</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Bet mode</label>
+                  <select id="mf_g_bet_mode" onchange="applyGlobalToRows()">
+                    <option value="normal">Normal</option>
+                    <option value="double_chance">Double Chance</option>
+                  </select>
+                </div>
+                <div class="field"><label>Min odds</label><input id="mf_g_min_odds" type="number" step="0.01" value="1.45" oninput="applyGlobalToRows()"></div>
+                <div class="field"><label>Max odds</label><input id="mf_g_max_odds" type="number" step="0.01" value="1.6" oninput="applyGlobalToRows()"></div>
+                <div class="field"><label>Total line</label><input id="mf_g_total_range" placeholder="e.g. 2.5" oninput="applyGlobalToRows()"></div>
+                <div class="field">
+                  <label>Direction</label>
+                  <select id="mf_g_total_direction" onchange="applyGlobalToRows()">
+                    <option value="">— none —</option>
+                    <option value="Over">Over</option>
+                    <option value="Under">Under</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div id="mf_sport_rows" style="display:flex; flex-direction:column; gap:10px; margin-top:6px;"></div>
           <button class="btn" onclick="addSportRow()" style="margin-top:8px; font-size:12px;">+ Add sport</button>
         </div>
@@ -1319,14 +1433,63 @@ function onMultiFlashscoreToggle() {
     document.getElementById('mf_favorite_on_flashscore').checked ? '' : 'none';
 }
 
+let _sportsListCache = null;
+
+async function loadSportsList() {
+  if (_sportsListCache) return _sportsListCache;
+  const res = await fetch('/api/sports');
+  _sportsListCache = await res.json();
+  return _sportsListCache;
+}
+
+async function populateSportSelect(selectEl, selectedValue) {
+  const sports = await loadSportsList();
+  selectEl.innerHTML = '<option value="">— select sport —</option>' +
+    sports.map(s => `<option value="${s}" ${s === selectedValue ? 'selected' : ''}>${s}</option>`).join('');
+}
+
+async function populateMarketSelect(selectEl, sportName, selectedValue) {
+  selectEl.innerHTML = '<option value="">loading...</option>';
+  if (!sportName) { selectEl.innerHTML = '<option value="">— pick sport first —</option>'; return; }
+  try {
+    const res = await fetch('/api/markets_for_sport?sport=' + encodeURIComponent(sportName));
+    const data = await res.json();
+    const markets = data.markets || [];
+    if (markets.length === 0) {
+      selectEl.innerHTML = '<option value="">no live markets found — try later</option>';
+      return;
+    }
+    selectEl.innerHTML = markets.map(m => `<option value="${m}" ${m === selectedValue ? 'selected' : ''}>${m}</option>`).join('');
+    if (selectedValue && !markets.includes(selectedValue)) {
+      selectEl.insertAdjacentHTML('afterbegin', `<option value="${selectedValue}" selected>${selectedValue} (saved)</option>`);
+    }
+  } catch (e) {
+    selectEl.innerHTML = '<option value="">error loading markets</option>';
+  }
+}
+
+function onFSportChange(selectedMarket) {
+  const sport = document.getElementById('f_sport').value;
+  populateMarketSelect(document.getElementById('f_market'), sport, selectedMarket || '');
+}
+
+function onSrSportChange(sportSelectEl, selectedMarket) {
+  const row = sportSelectEl.closest('.sport-row');
+  const marketSelect = row.querySelector('.sr_market');
+  populateMarketSelect(marketSelect, sportSelectEl.value, selectedMarket || '');
+}
+
 function openModal(index) {
   editingIndex = index;
   document.getElementById('errorBox').style.display = 'none';
   const s = index === null ? {} : strategies[index];
   document.getElementById('modalTitle').textContent = index === null ? 'Add Strategy' : `Edit: ${s.name}`;
   document.getElementById('f_name').value = s.name || '';
-  document.getElementById('f_sport').value = s.sport_name || (s.sport_names || [])[0] || '';
-  document.getElementById('f_market').value = s.market_name || (s.market_names || [])[0] || '';
+  const _fSportVal = s.sport_name || (s.sport_names || [])[0] || '';
+  const _fMarketVal = s.market_name || (s.market_names || [])[0] || '';
+  populateSportSelect(document.getElementById('f_sport'), _fSportVal).then(() => {
+    onFSportChange(_fMarketVal);
+  });
   document.getElementById('f_bet_side').value = s.bet_side || 'back';
   document.getElementById('f_bet_mode').value = s.bet_mode || 'normal';
   document.getElementById('f_min_odds').value = s.min_back_odds ?? 1.45;
@@ -1373,8 +1536,8 @@ const SPORT_ROW_TEMPLATE = (idx, data={}) => `
   <div class="sport-row" id="sport_row_${idx}" style="background:var(--card2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; position:relative;">
     <button onclick="removeSportRow(${idx})" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;">✕</button>
     <div class="field-grid" style="grid-template-columns:1fr 1fr; gap:8px;">
-      <div class="field"><label>Sport</label><input class="sr_sport" placeholder="e.g. Soccer" value="${data.sport_name||''}"></div>
-      <div class="field"><label>Market</label><input class="sr_market" placeholder="e.g. Match Odds" value="${data.market_name||''}"></div>
+      <div class="field"><label>Sport</label><select class="sr_sport" onchange="onSrSportChange(this)"></select></div>
+      <div class="field"><label>Market</label><select class="sr_market"></select></div>
       <div class="field">
         <label>Bet side</label>
         <select class="sr_bet_side">
@@ -1405,12 +1568,55 @@ const SPORT_ROW_TEMPLATE = (idx, data={}) => `
 
 let sportRowCount = 0;
 
+function toggleGlobalSettings() {
+  const on = document.getElementById('mf_use_global').checked;
+  document.getElementById('mf_global_fields').style.display = on ? '' : 'none';
+  if (on) applyGlobalToRows();
+  document.querySelectorAll('#mf_sport_rows .sport-row').forEach(row => {
+    ['.sr_bet_side', '.sr_bet_mode', '.sr_min_odds', '.sr_max_odds', '.sr_total_range', '.sr_total_direction'].forEach(sel => {
+      row.querySelector(sel).disabled = on;
+    });
+  });
+}
+
+function applyGlobalToRows() {
+  if (!document.getElementById('mf_use_global').checked) return;
+  const g = {
+    bet_side: document.getElementById('mf_g_bet_side').value,
+    bet_mode: document.getElementById('mf_g_bet_mode').value,
+    min_odds: document.getElementById('mf_g_min_odds').value,
+    max_odds: document.getElementById('mf_g_max_odds').value,
+    total_range: document.getElementById('mf_g_total_range').value,
+    total_direction: document.getElementById('mf_g_total_direction').value,
+  };
+  document.querySelectorAll('#mf_sport_rows .sport-row').forEach(row => {
+    row.querySelector('.sr_bet_side').value = g.bet_side;
+    row.querySelector('.sr_bet_mode').value = g.bet_mode;
+    row.querySelector('.sr_min_odds').value = g.min_odds;
+    row.querySelector('.sr_max_odds').value = g.max_odds;
+    row.querySelector('.sr_total_range').value = g.total_range;
+    row.querySelector('.sr_total_direction').value = g.total_direction;
+  });
+}
+
 function addSportRow(data={}) {
   const idx = sportRowCount++;
   const container = document.getElementById('mf_sport_rows');
   const div = document.createElement('div');
   div.innerHTML = SPORT_ROW_TEMPLATE(idx, data);
-  container.appendChild(div.firstElementChild);
+  const rowEl = div.firstElementChild;
+  container.appendChild(rowEl);
+  const sportSelect = rowEl.querySelector('.sr_sport');
+  const marketSelect = rowEl.querySelector('.sr_market');
+  populateSportSelect(sportSelect, data.sport_name || '').then(() => {
+    populateMarketSelect(marketSelect, data.sport_name || '', data.market_name || '');
+  });
+  if (document.getElementById('mf_use_global').checked) {
+    applyGlobalToRows();
+    ['.sr_bet_side', '.sr_bet_mode', '.sr_min_odds', '.sr_max_odds', '.sr_total_range', '.sr_total_direction'].forEach(sel => {
+      rowEl.querySelector(sel).disabled = true;
+    });
+  }
 }
 
 function removeSportRow(idx) {
@@ -1422,6 +1628,8 @@ function openMultiModal(index) {
   editingMultiIndex = index;
   sportRowCount = 0;
   document.getElementById('multiErrorBox').style.display = 'none';
+  document.getElementById('mf_use_global').checked = false;
+  document.getElementById('mf_global_fields').style.display = 'none';
   document.getElementById('mf_sport_rows').innerHTML = '';
   const s = index === null ? {} : strategies[index];
   document.getElementById('multiModalTitle').textContent = index === null ? 'Add Multi-Sport Strategy' : `Edit: ${s.name}`;
@@ -1868,9 +2076,43 @@ def summary():
         settled = r["won"] + r["lost"]
         r["win_rate"] = round(100 * r["won"] / settled, 1) if settled else 0
         r["enabled"] = True if enabled_names is None else (r["strategy_name"] in enabled_names)
+        r["balance"], r["balance_live"] = _read_balance_for_strategy(r["strategy_name"])
 
     rows.sort(key=lambda r: (not r["enabled"], r["strategy_name"]))
     return jsonify(rows)
+
+
+def _read_balance_for_strategy(name):
+    """Reads the saved balance from that strategy's state file.
+    If no state file yet (never placed a bet, or just Reset), falls back
+    to the strategy's configured compound_start so the dashboard shows
+    what balance it WILL start at, instead of a blank dash.
+    Returns (balance, is_live) — is_live False means "not started yet".
+    """
+    safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", name.strip())
+    path = os.path.join(STATE_DIR, f"{safe_name}.json")
+    if os.path.isfile(path):
+        try:
+            with open(path, encoding="utf-8") as f:
+                state = json.load(f)
+            bal = state.get("balance")
+            if bal is not None:
+                return bal, True
+        except Exception:
+            pass
+
+    # No live balance — fall back to compound_start from strategy config.
+    if os.path.isfile(STRATEGIES_FILE):
+        try:
+            with open(STRATEGIES_FILE, encoding="utf-8") as f:
+                all_strategies = json.load(f).get("strategies", [])
+            for s in all_strategies:
+                if s.get("name") == name and s.get("strategy_type") == "compound":
+                    return s.get("compound_start"), False
+        except Exception:
+            pass
+
+    return None, False
 
 
 @app.route("/api/strategy_league_breakdown")
@@ -2069,6 +2311,21 @@ def save_league_categories():
             return jsonify({"error": f"Category '{cat}' must contain a list of league names."}), 400
     save_categories(data)
     return jsonify({"saved": True})
+
+
+@app.route("/api/sports")
+def api_sports():
+    return jsonify(sorted(_SPORT_ID_BY_NAME.keys()))
+
+
+@app.route("/api/markets_for_sport")
+def api_markets_for_sport():
+    sport = request.args.get("sport", "")
+    try:
+        markets = get_markets_for_sport(sport)
+    except Exception as e:
+        return jsonify({"error": str(e), "markets": []}), 200
+    return jsonify({"markets": markets})
 
 
 @app.route("/api/strategies", methods=["GET"])

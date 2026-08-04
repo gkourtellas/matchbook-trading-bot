@@ -470,7 +470,7 @@
       "market_names": [
         "Moneyline"
       ],
-      "max_back_odds": 1.08,
+      "max_back_odds": 1.06,
       "max_open_bets": 1,
       "max_session_loss": 1,
       "max_spread_percent": 5,
@@ -817,7 +817,7 @@
       "total_range": null
     },
     {
-      "autoRestart": true,
+      "autoRestart": false,
       "bankroll": 10,
       "base_stake": null,
       "bet_mode": "normal",
@@ -827,13 +827,11 @@
       "compound_target": 5,
       "currency": "EUR",
       "description": "",
-      "enabled": true,
+      "enabled": false,
       "event_lookahead_minutes": 180,
       "favorite_min_step": 1,
       "favorite_on_flashscore": false,
-      "included_categories": [
-        "Leagues For Win Strategies"
-      ],
+      "included_categories": [],
       "included_leagues": [],
       "keep_in_play": false,
       "live_mode": "pre",
@@ -841,7 +839,7 @@
       "market_names": [
         "Match Odds"
       ],
-      "max_back_odds": 1.15,
+      "max_back_odds": 1.2,
       "max_open_bets": 1,
       "max_session_loss": 10,
       "max_total_exposure": 10,
