@@ -230,15 +230,28 @@ class MatchbookClient:
         return None
 
     def outcome_from_offer(self, offer):
-        """Return 'won' or 'lost' from one offer object, or None if not settled."""
+        """Return 'won', 'lost', or 'push' from one offer object, or None if not settled."""
         if not offer:
             return None
+
+        def outcome_from_pl(pl):
+            if pl is None:
+                return None
+            if pl > 0:
+                return "won"
+            if pl == 0:
+                return "push"
+            return "lost"
 
         result = (offer.get("result") or "").upper()
         if result == "WIN":
             return "won"
         if result in ("LOSE", "LOST"):
             return "lost"
+        if result in ("PUSH", "PUSH_LOSE", "VOID", "VOIDED", "CANCELLED", "CANCELED"):
+            return "push"
+        if result == "PUSH_WIN":
+            return "won"
 
         status = (offer.get("status") or "").upper()
 
@@ -246,12 +259,12 @@ class MatchbookClient:
             items = offer.get(key) or []
             if items:
                 pl = items[0].get("profit-loss", items[0].get("profit_and_loss", 0))
-                return "won" if pl > 0 else "lost"
+                return outcome_from_pl(pl)
 
         if status in ("SETTLED", "FLUSHED"):
             pl = offer.get("profit-loss", offer.get("profit_and_loss"))
             if pl is not None:
-                return "won" if pl > 0 else "lost"
+                return outcome_from_pl(pl)
 
         for key in ("matched-bets", "matched_bets"):
             for bet in offer.get(key) or []:
@@ -260,10 +273,14 @@ class MatchbookClient:
                     return "won"
                 if bet_result in ("LOSE", "LOST"):
                     return "lost"
+                if bet_result in ("PUSH", "PUSH_LOSE", "VOID", "VOIDED", "CANCELLED", "CANCELED"):
+                    return "push"
+                if bet_result == "PUSH_WIN":
+                    return "won"
                 if status in ("SETTLED", "FLUSHED"):
                     pl = bet.get("profit-loss", bet.get("profit_and_loss"))
                     if pl is not None:
-                        return "won" if pl > 0 else "lost"
+                        return outcome_from_pl(pl)
 
         return None
 
@@ -271,17 +288,28 @@ class MatchbookClient:
     def _outcome_from_settled_bet(bet):
         bet_result = (bet.get("result") or "").upper()
         if bet_result == "WIN":
-            return "won"
-        if bet_result in ("LOSE", "LOST"):
-            return "lost"
-        if bet_result in ("PUSH_WIN",):
-            return "won"
-        if bet_result in ("PUSH", "PUSH_LOSE"):
-            return "lost"
-        pl = bet.get("profit-loss", bet.get("profit_and_loss"))
-        if pl is not None:
-            return "won" if pl > 0 else "lost"
-        return None
+            outcome = "won"
+        elif bet_result in ("LOSE", "LOST"):
+            outcome = "lost"
+        elif bet_result in ("PUSH_WIN",):
+            outcome = "won"
+        elif bet_result in ("PUSH", "PUSH_LOSE", "VOID", "VOIDED", "CANCELLED", "CANCELED"):
+            # Event voided/cancelled — stake is returned, not lost. Must not
+            # be counted as a loss.
+            outcome = "push"
+        else:
+            pl = bet.get("profit-loss", bet.get("profit_and_loss"))
+            if pl is None:
+                outcome = None
+            elif pl > 0:
+                outcome = "won"
+            elif pl == 0:
+                outcome = "push"
+            else:
+                outcome = "lost"
+
+        real_odds = bet.get("odds")
+        return outcome, real_odds
 
     def get_settled_outcome_for_offer(self, offer_id, after_dt=None, event_id=None, sport_id=None):
         """Look up offer in Matchbook settled-bets report (WIN / LOSE / profit-loss)."""
@@ -306,7 +334,7 @@ class MatchbookClient:
                         response = requests.get(url, params=params, headers=self.headers)
 
                 if response.status_code != 200:
-                    return None
+                    return None, None
 
                 data = response.json()
                 for market in data.get("markets", []):
@@ -319,16 +347,20 @@ class MatchbookClient:
                 total = data.get("total", 0)
                 offset += per_page
                 if offset >= total:
-                    return None
+                    return None, None
             except Exception as e:
                 print(f"Error fetching settled bets: {str(e)}")
-                return None
+                return None, None
 
     def resolve_offer_outcome(self, offer_id, after_dt=None, event_id=None, sport_id=None):
-        """Resolve won/lost from Matchbook only (offers API + settled-bets report)."""
-        outcome = self.get_settled_outcome_for_offer(offer_id, after_dt, event_id, sport_id)
+        """Resolve won/lost from Matchbook only (offers API + settled-bets report).
+        Also returns real_odds — the actual matched price from the settled-bets
+        report, when available (that report is the only reliable source once a
+        bet is settled; the open-offers endpoint returns nothing for it by then).
+        """
+        outcome, real_odds = self.get_settled_outcome_for_offer(offer_id, after_dt, event_id, sport_id)
         if outcome:
-            return outcome, "settled-report"
+            return outcome, "settled-report", real_odds
 
         raw = self.get_order_status(offer_id)
         offer = self.unwrap_offer(raw)
@@ -337,9 +369,9 @@ class MatchbookClient:
             "not_found" if raw is None else "unknown"
         )
         if outcome:
-            return outcome, status_label
+            return outcome, status_label, None
 
-        return None, status_label
+        return None, status_label, None
 
     def send_telegram(self, message, login=False):
         """Helper service to push instant alerts to your Telegram chat.

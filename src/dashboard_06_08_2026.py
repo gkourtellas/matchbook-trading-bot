@@ -18,7 +18,7 @@ import shutil
 import time
 from datetime import datetime
 from functools import wraps
-from flask import Flask, jsonify, render_template_string, request, Response, send_from_directory
+from flask import Flask, jsonify, render_template_string, request, Response
 from api_client import MatchbookClient
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "bets.db")
@@ -29,43 +29,6 @@ STATE_DIR = os.path.join(os.path.dirname(__file__), "..", "config", "state")
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD")
 
 app = Flask(__name__)
-
-BUILD_VERSION = "2026-08-10-0900"
-
-
-@app.route("/api/build_version")
-def api_build_version():
-    return jsonify({"build": BUILD_VERSION})
-
-
-PWA_MANIFEST = {
-    "name": "Matchbook Trading Bot",
-    "short_name": "Matchbook",
-    "start_url": "/",
-    "scope": "/",
-    "display": "standalone",
-    "background_color": "#0a0e14",
-    "theme_color": "#0a0e14",
-    "icons": [
-        {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
-        {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
-    ],
-}
-
-
-@app.route("/manifest.json")
-def manifest():
-    return jsonify(PWA_MANIFEST)
-
-
-@app.route("/static/<path:filename>")
-def static_files(filename):
-    static_dir = os.path.join(os.path.dirname(__file__), "static")
-    return send_from_directory(static_dir, filename)
-
-ICON_192_B64 = "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"
-ICON_512_B64 = "iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAIAAAB7GkOtAAAWZElEQVR4nO3d6ZNdZZ3A8dtL9pCQjYQsJN0BBGQPCVOupc6MOmqpuKCo478xL6bK8sW8nr/BURE3GB0d1BpmXEpLCUtY3IB0OiGEhEB2svYyL7oqpkJCuvve5zzPc36fzysKiuc8OQ2/b597zz23b+GSlR0A4unPvQEA8hAAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACCowdwbKNGnv/Zi7i0AvffI12/IvYWy9C1csjL3HnIy6yGy4EmIGABDH3irgDEIFABzH5imIDFofwDMfWDW2l2CNgfA6Ad6oq0ZaGEAzH0ghfZloFUBMPqBBrSmBC0JgNEPNKwFGag+AEY/kEvtDag7AKY/kF29Gag1AEY/UJQaM1Dlw+BMf6A0Nc6lyq4AajzFQCgVXQrUdAVg+gPlq2hSVROAis4pEFwt86qCl4BqOZUAFyn85aDSA5Br+hf+YwNmyjB5q6ID0NgPrOSfEJBCkz0odsKUG4AGfjzF/lSAJoWdNoUGIOnPo8yfBJBdtMlTYgAS/QwKPPtAmYJMoeICkOK8l3bSgSq0fhyVFYCen+6izjVQoxbPpYIC0NuzXM4pBlqglQOqlAD08OQWcmaBlmlfA4oIgOkP1KJN86qaZwFNR/azCbRem+ZM/iuAnuS0TT8SoAotmF2ZrwBacAaBmHoyefI+7DJnAEx/oGq1N6Du9wBMfyCvqqdQtgB0H72qzzvQGt3PolwXAXkCYPoDbVJpA6p8Ccj0B0pT41zKEIAuQ1fjWQYi6HI6NX8R0HQATH+gxeqaUTW9BFTXmQVi6mZSNXwR0GgAuvmzmf5ALWppQE1XAAD0UHMB8Os/EEcVFwEVXAGY/kCNyp9dDQVg1kEr/wwC9FwzFwEVXAEAVKrwX2GLDkDh5w7gikqeY00EIO8DrwFq1MDkLPcKoORsAkxfsdMseQD8+g8wO6nnZ6FXAMUGE2AWypxphQYAgNTSBmB21y9lphKgG7ObbElfBXIFABCUAAAElTAAXv8BuFBprwK5AgAISgAAgiorAF7/AdqtqCmXKgA+AAzQK4kmallXAAA0pqAAFHVlBJBIObOuoAAA0CQBAAhKAACCEgCAoJIEwD2gAL2VYq6WcgVQztviAKkVMvFKCQAADRMAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACAoAQAISgAAghIAgKAEACCowdwbII9rht/17q98I/cuLu2pH/3L7h0/zL2LHtt871dv/8i/5t7Fpf3s39976tj+3LsgA1cAFGf43n/OvYWe6xve9uXce4CLCQDFuXrNLSs2bMm9i15aff37Fi/flHsXcDEBoEQt+315871fyb0FuAQBoERrb/nI/MWrcu+iNxYv37T6+vfl3gVcggBQov7+waF7Hsi9i94Y3vaVTqcv9y7gEgSAQm3acn9/f/V3qQ3OXbjxzvty7wIuTQAo1PzFq9a986O5d9Gt6+64b3De4ty7gEsTAMo1vK32+0H7hrd5+5dyCQDlWr7+zquvvTX3Lmbvms3vvmrlcO5dwGUJAEWr+gbKzdVfwdByAkDR1t/68bkLl+XexWwsWrZh9Q3vz70LeDsCQNH6B+Zuuvv+3LuYjeFtX+nr8/8XRfMfKKUb3vpAX99A7l3MzMCcBRvv/EzuXcAVCAClW7Dk2mtv+lDuXczMdXd8as78Jbl3AVcgAFSgundT3f1JFQSACqzcdO+Sa27MvYvpWjX0riWrbsi9C7gyAaAOFf1OXfWtq4QiANThuts/WcWr6guvXrfmxg/m3gVMiwBQh1ruqxne+mV3f1IL/6VSjeFtpc/WgcH5G+/6XO5dwHQV/b8TXGjRsusK/2aVDbd/cu6Cpbl3AdMlANSk8LeCW/ZNlrSeAFCT1de/d/GKody7uLSVG7ctXX1T7l3A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"
-
 
 # Real sports only — excludes specials, politics, multiples, virtuals, test entries.
 SPORTS = [
@@ -235,9 +198,6 @@ def validate_strategies(strategies):
         if market != "Total" and (s.get("total_range") or s.get("total_direction")):
             return f"Strategy '{s['name']}': total_range/total_direction are set but market isn't 'Total'."
 
-        if market != "Both Teams To Score" and s.get("btts_direction"):
-            return f"Strategy '{s['name']}': btts_direction is set but market isn't 'Both Teams To Score'."
-
         spread_cap = s.get("spread_cap_percent")
         if spread_cap is not None and spread_cap <= 0:
             return f"Strategy '{s['name']}': spread_cap_percent must be greater than 0."
@@ -308,11 +268,6 @@ PAGE = """
 <title>Bet Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0a0e14">
 <style>
   :root {
     --bg: #0a0e14;
@@ -336,15 +291,6 @@ PAGE = """
     padding: 28px 32px 60px;
   }
   .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
-  .topbar { position: relative; flex-wrap: wrap; }
-  .hamburger { display: none; background: none; border: 1px solid var(--border); color: var(--text); font-size: 18px; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-  .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
-  @media (max-width: 760px) {
-    .hamburger { display: block; }
-    .nav-links { display: none; position: absolute; top: 48px; right: 0; flex-direction: column; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px; z-index: 100; min-width: 200px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-    .nav-links.open { display: flex; }
-    .nav-links .nav-btn { width: 100%; text-align: left; }
-  }
   .topbar h0 {
     font-family: 'JetBrains Mono', monospace;
     font-size: 13px;
@@ -430,13 +376,11 @@ PAGE = """
 </head>
 <body>
   <div class="topbar">
-    <h0>matchbook // live dashboard <span style="opacity:0.35;">{{ build }}</span></h0>
-    <button class="hamburger" onclick="toggleNav()">☰</button>
-    <div class="nav-links" id="navLinks">
+    <h0>matchbook // live dashboard</h0>
+    <div style="display:flex; gap:10px;">
       <a class="nav-btn secondary" href="/strategies">⚙ Manage Strategies</a>
       <a class="nav-btn secondary" href="/categories">Leagues</a>
       <a class="nav-btn secondary" href="/analytics">Analytics</a>
-      <a class="nav-btn secondary" href="/logs">Logs</a>
       <button class="nav-btn" style="background: var(--pending); color: #1a1300;" onclick="restartBot()">⟲ Restart Bot</button>
     </div>
   </div>
@@ -449,7 +393,7 @@ PAGE = """
   <h1 style="display:flex; align-items:center; justify-content:space-between;">
     Strategy Performance
     <label style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted); display:flex; align-items:center; gap:6px; cursor:pointer;">
-      <input type="checkbox" id="hideInactive" checked onchange="renderSummary()"> hide inactive
+      <input type="checkbox" id="hideInactive" onchange="renderSummary()"> hide inactive
     </label>
   </h1>
   <div class="card"><div id="summary"></div></div>
@@ -465,17 +409,7 @@ PAGE = """
   </div>
 
   <h1>Win Rate by League <span style="font-weight:400; text-transform:none; letter-spacing:0;">— per strategy</span></h1>
-  <div class="card">
-    <div style="display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
-      <select id="lbStrategyFilter" onchange="renderLeagueBreakdown()" style="background:var(--card2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:'JetBrains Mono', monospace; font-size:12px;">
-        <option value="">All strategies</option>
-      </select>
-      <select id="lbLeagueFilter" onchange="renderLeagueBreakdown()" style="background:var(--card2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:'JetBrains Mono', monospace; font-size:12px;">
-        <option value="">All leagues</option>
-      </select>
-    </div>
-    <div id="leagueBreakdown"></div>
-  </div>
+  <div class="card"><div id="leagueBreakdown"></div></div>
 
   <h1 style="margin-top:26px;">More</h1>
   <div class="sub-tabs" style="margin-bottom:14px;">
@@ -488,22 +422,12 @@ PAGE = """
   </div>
 
   <div class="maintab-panel" data-maintab-panel="recent" style="display:none;">
-    <div class="card">
-      <div style="display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
-        <select id="recentStrategyFilter" onchange="renderRecent()" style="background:var(--card2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:'JetBrains Mono', monospace; font-size:12px;">
-          <option value="">All strategies</option>
-        </select>
-      </div>
-      <div id="recent"></div>
-    </div>
+    <div class="card"><div id="recent"></div></div>
   </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <script>
-function toggleNav() { document.getElementById('navLinks').classList.toggle('open'); }
-if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/service-worker.js').catch(() => {}); }
-
 function fmt(n) { return (n >= 0 ? '+' : '') + n.toFixed(2); }
 function cls(n) { return n >= 0 ? 'profit' : 'loss'; }
 
@@ -583,21 +507,14 @@ fetch('/api/steps').then(r => r.json()).then(data => {
   document.getElementById('steps').innerHTML = html;
 });
 
-let _leagueBreakdownData = [];
-function renderLeagueBreakdown() {
-  const stratVal = document.getElementById('lbStrategyFilter').value;
-  const leagueVal = document.getElementById('lbLeagueFilter').value;
-  let rows = _leagueBreakdownData;
-  if (stratVal) rows = rows.filter(r => r.strategy_name === stratVal);
-  if (leagueVal) rows = rows.filter(r => r.league === leagueVal);
-
-  if (!rows.length) {
+fetch('/api/strategy_league_breakdown').then(r => r.json()).then(data => {
+  if (!data.length) {
     document.getElementById('leagueBreakdown').innerHTML = '<p class="small">No settled bets with a captured league yet.</p>';
     return;
   }
   let html = '<table><tr><th>Strategy</th><th>League</th><th>Bets</th><th>Won</th><th>Lost</th><th>Win %</th><th>Profit</th></tr>';
   let lastStrategy = null;
-  rows.forEach(r => {
+  data.forEach(r => {
     const newBlock = lastStrategy !== null && lastStrategy !== r.strategy_name;
     html += `<tr class="${newBlock ? 'strategy-block' : ''}">
       <td>${r.strategy_name}</td>
@@ -612,16 +529,6 @@ function renderLeagueBreakdown() {
   });
   html += '</table>';
   document.getElementById('leagueBreakdown').innerHTML = html;
-}
-fetch('/api/strategy_league_breakdown').then(r => r.json()).then(data => {
-  _leagueBreakdownData = data;
-  const strategies = [...new Set(data.map(r => r.strategy_name))].sort();
-  const leagues = [...new Set(data.map(r => r.league))].sort();
-  const stratSel = document.getElementById('lbStrategyFilter');
-  const leagueSel = document.getElementById('lbLeagueFilter');
-  strategies.forEach(s => stratSel.insertAdjacentHTML('beforeend', `<option value="${s}">${s}</option>`));
-  leagues.forEach(l => leagueSel.insertAdjacentHTML('beforeend', `<option value="${l}">${l}</option>`));
-  renderLeagueBreakdown();
 });
 
 fetch('/api/pending').then(r => r.json()).then(data => {
@@ -649,12 +556,9 @@ fetch('/api/pending').then(r => r.json()).then(data => {
   document.getElementById('pending').innerHTML = html;
 });
 
-let _recentData = [];
-function renderRecent() {
-  const filterVal = document.getElementById('recentStrategyFilter').value;
-  const rows = filterVal ? _recentData.filter(b => b.strategy_name === filterVal) : _recentData;
+fetch('/api/recent').then(r => r.json()).then(data => {
   let html = '<table><tr><th>Time</th><th>Strategy</th><th>League</th><th>Match</th><th>Selection</th><th>Odds</th><th>Stake</th><th>Step</th><th>Result</th><th>Profit</th></tr>';
-  rows.forEach(b => {
+  data.forEach(b => {
     const resultClass = b.result === 'won' ? 'profit' : 'loss';
     html += `<tr>
       <td>${(b.placed_at || '').replace('T', ' ').slice(0, 16)}</td>
@@ -671,13 +575,6 @@ function renderRecent() {
   });
   html += '</table>';
   document.getElementById('recent').innerHTML = html;
-}
-fetch('/api/recent').then(r => r.json()).then(data => {
-  _recentData = data;
-  const strategies = [...new Set(data.map(b => b.strategy_name))].sort();
-  const sel = document.getElementById('recentStrategyFilter');
-  strategies.forEach(s => sel.insertAdjacentHTML('beforeend', `<option value="${s}">${s}</option>`));
-  renderRecent();
 });
 
 let profitChart = null;
@@ -733,11 +630,6 @@ ANALYTICS_PAGE = """
 <title>Analytics</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0a0e14">
 <style>
   :root {
     --bg: #0a0e14; --card: #11161f; --card2: #141a25;
@@ -747,18 +639,8 @@ ANALYTICS_PAGE = """
   * { box-sizing: border-box; }
   body { font-family: 'Inter', -apple-system, Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 28px 32px 60px; }
   .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
-  .topbar { position: relative; flex-wrap: wrap; }
-  .hamburger { display: none; background: none; border: 1px solid var(--border); color: var(--text); font-size: 18px; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-  .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
-  @media (max-width: 760px) {
-    .hamburger { display: block; }
-    .nav-links { display: none; position: absolute; top: 48px; right: 0; flex-direction: column; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px; z-index: 100; min-width: 200px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-    .nav-links.open { display: flex; }
-    .nav-links .nav-btn { width: 100%; text-align: left; }
-  }
   .topbar h0 { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
   .nav-btn { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--bg); background: var(--accent); border: none; border-radius: 8px; padding: 9px 16px; text-decoration: none; cursor: pointer; }
-  .nav-btn.secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
   @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
   .full { grid-column: 1 / -1; }
@@ -770,13 +652,11 @@ ANALYTICS_PAGE = """
 </head>
 <body>
   <div class="topbar">
-    <h0>matchbook // analytics <span style="opacity:0.35;">{{ build }}</span></h0>
-    <button class="hamburger" onclick="toggleNav()">☰</button>
-    <div class="nav-links" id="navLinks">
+    <h0>matchbook // analytics</h0>
+    <div style="display:flex; gap:10px;">
       <a class="nav-btn secondary" href="/">Dashboard</a>
       <a class="nav-btn secondary" href="/strategies">⚙ Manage Strategies</a>
       <a class="nav-btn secondary" href="/categories">Leagues</a>
-      <a class="nav-btn secondary" href="/logs">Logs</a>
     </div>
   </div>
 
@@ -805,8 +685,6 @@ ANALYTICS_PAGE = """
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <script>
-function toggleNav() { document.getElementById('navLinks').classList.toggle('open'); }
-if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/service-worker.js').catch(() => {}); }
 if (window.ChartDataLabels) { Chart.register(window.ChartDataLabels); }
 const muted = '#7a8699';
 const gridColor = '#1c2330';
@@ -938,11 +816,6 @@ CATEGORIES_PAGE = """
 <title>League Categories</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0a0e14">
 <style>
   :root {
     --bg: #0a0e14; --card: #11161f; --card2: #141a25;
@@ -951,18 +824,8 @@ CATEGORIES_PAGE = """
   * { box-sizing: border-box; }
   body { font-family: 'Inter', -apple-system, Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 28px 32px 60px; }
   .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
-  .topbar { position: relative; flex-wrap: wrap; }
-  .hamburger { display: none; background: none; border: 1px solid var(--border); color: var(--text); font-size: 18px; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-  .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
-  @media (max-width: 760px) {
-    .hamburger { display: block; }
-    .nav-links { display: none; position: absolute; top: 48px; right: 0; flex-direction: column; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px; z-index: 100; min-width: 200px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-    .nav-links.open { display: flex; }
-    .nav-links .nav-btn { width: 100%; text-align: left; }
-  }
   .topbar h0 { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
   .nav-btn { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--bg); background: var(--accent); border: none; border-radius: 8px; padding: 9px 16px; text-decoration: none; cursor: pointer; }
-  .nav-btn.secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
   .layout { display: grid; grid-template-columns: 1fr 1.3fr; gap: 18px; }
   @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
@@ -982,25 +845,22 @@ CATEGORIES_PAGE = """
 </head>
 <body>
   <div class="topbar">
-    <h0>matchbook // league categories <span style="opacity:0.35;">{{ build }}</span></h0>
-    <button class="hamburger" onclick="toggleNav()">☰</button>
-    <div class="nav-links" id="navLinks">
+    <h0>matchbook // league categories</h0>
+    <div style="display:flex; gap:10px;">
       <a class="nav-btn secondary" href="/">Dashboard</a>
       <a class="nav-btn secondary" href="/strategies">⚙ Manage Strategies</a>
       <a class="nav-btn secondary" href="/analytics">Analytics</a>
-      <a class="nav-btn secondary" href="/logs">Logs</a>
     </div>
   </div>
 
   <div class="add-cat-row">
-    <select id="sportSelector" onchange="switchSport()" style="background:var(--card2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:8px 12px; font-family:'Inter', sans-serif; font-size:13px;"></select>
     <input type="text" id="newCatName" placeholder="New category name (e.g. Top Leagues)">
     <button class="btn" onclick="addCategory()">+ Add category</button>
   </div>
 
   <div class="layout">
     <div class="card">
-      <h2 id="leagueListTitle">All Leagues</h2>
+      <h2>All Leagues</h2>
       <div id="leagueList"></div>
     </div>
     <div class="card">
@@ -1010,40 +870,20 @@ CATEGORIES_PAGE = """
   </div>
 
 <script>
-function toggleNav() { document.getElementById('navLinks').classList.toggle('open'); }
-if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/service-worker.js').catch(() => {}); }
 let leagues = [];
 let categories = {};
-let currentSport = 'Soccer';
-
-function switchSport() {
-  currentSport = document.getElementById('sportSelector').value;
-  document.getElementById('leagueListTitle').textContent = `All Leagues — ${currentSport}`;
-  loadLeaguesForSport();
-}
-
-function loadLeaguesForSport() {
-  fetch('/api/leagues?sport=' + encodeURIComponent(currentSport)).then(r => r.json()).then(l => {
-    leagues = (l || []).slice().sort((a, b) => a.localeCompare(b));
-    render();
-  });
-}
 
 function load() {
   Promise.all([
-    fetch('/api/leagues_sports').then(r => r.json()),
+    fetch('/api/leagues').then(r => r.json()),
     fetch('/api/league_categories').then(r => r.json())
-  ]).then(([sports, c]) => {
-    const sel = document.getElementById('sportSelector');
-    sel.innerHTML = (sports.length ? sports : ['Soccer']).map(s => `<option value="${s}">${s}</option>`).join('');
-    currentSport = sel.value || 'Soccer';
-    document.getElementById('leagueListTitle').textContent = `All Leagues — ${currentSport}`;
-
+  ]).then(([l, c]) => {
+    leagues = (l || []).slice().sort((a, b) => a.localeCompare(b));
     categories = c || {};
     Object.keys(categories).forEach(cat => {
       categories[cat] = (categories[cat] || []).slice().sort((a, b) => a.localeCompare(b));
     });
-    loadLeaguesForSport();
+    render();
   });
 }
 
@@ -1130,11 +970,6 @@ STRATEGIES_PAGE = """
 <title>Manage Strategies</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0a0e14">
 <style>
   :root {
     --bg: #0a0e14; --card: #11161f; --card2: #141a25;
@@ -1144,15 +979,6 @@ STRATEGIES_PAGE = """
   * { box-sizing: border-box; }
   body { font-family: 'Inter', -apple-system, Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 28px 32px 60px; }
   .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
-  .topbar { position: relative; flex-wrap: wrap; }
-  .hamburger { display: none; background: none; border: 1px solid var(--border); color: var(--text); font-size: 18px; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-  .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
-  @media (max-width: 760px) {
-    .hamburger { display: block; }
-    .nav-links { display: none; position: absolute; top: 48px; right: 0; flex-direction: column; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px; z-index: 100; min-width: 200px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-    .nav-links.open { display: flex; }
-    .nav-links .nav-btn { width: 100%; text-align: left; }
-  }
   .topbar h0 { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
   .nav-btn { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--bg); background: var(--accent); border: none; border-radius: 8px; padding: 9px 16px; text-decoration: none; cursor: pointer; }
   .nav-btn.secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
@@ -1196,13 +1022,11 @@ STRATEGIES_PAGE = """
 </head>
 <body>
   <div class="topbar">
-    <h0>matchbook // manage strategies <span style="opacity:0.35;">{{ build }}</span></h0>
-    <button class="hamburger" onclick="toggleNav()">☰</button>
-    <div class="nav-links" id="navLinks">
+    <h0>matchbook // manage strategies</h0>
+    <div style="display:flex; gap:10px;">
       <a class="nav-btn secondary" href="/">Dashboard</a>
       <a class="nav-btn secondary" href="/categories">Leagues</a>
       <a class="nav-btn secondary" href="/analytics">Analytics</a>
-      <a class="nav-btn secondary" href="/logs">Logs</a>
       <button class="nav-btn" style="background: var(--pending); color: #1a1300;" onclick="restartBot()">⟲ Restart Bot</button>
     </div>
   </div>
@@ -1252,14 +1076,6 @@ STRATEGIES_PAGE = """
             <option value="">— not a Total market —</option>
             <option value="Over">Over</option>
             <option value="Under">Under</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>BTTS side <span style="color:var(--muted); text-transform:none;">(Both Teams To Score only)</span></label>
-          <select id="f_btts_direction">
-            <option value="">— either —</option>
-            <option value="Yes">Yes</option>
-            <option value="No">No</option>
           </select>
         </div>
         <div class="field full">
@@ -1459,8 +1275,6 @@ STRATEGIES_PAGE = """
   </div>
 
 <script>
-function toggleNav() { document.getElementById('navLinks').classList.toggle('open'); }
-if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/service-worker.js').catch(() => {}); }
 let strategies = [];
 let editingIndex = null;
 let allLeagues = [];
@@ -1535,10 +1349,6 @@ function fetchStrategies() {
       return;
     }
     strategies = data;
-    strategies.sort((a, b) => {
-      if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
-      return (a.name || '').localeCompare(b.name || '');
-    });
     renderList();
   });
 }
@@ -1568,7 +1378,7 @@ function renderList() {
     } else {
       const sport = s.sport_name || (s.sport_names || [])[0] || '?';
       const market = s.market_name || (s.market_names || [])[0] || '?';
-      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''}${s.btts_direction ? ' BTTS: ' + s.btts_direction : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${s.spread_cap_percent ? ' · spread cap ' + s.spread_cap_percent + '%' : ''}${s.min_field_size ? ' · min field ' + s.min_field_size : ''}${liveTag}${fsTag}${arTag}${leagueTag}`;
+      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${s.spread_cap_percent ? ' · spread cap ' + s.spread_cap_percent + '%' : ''}${s.min_field_size ? ' · min field ' + s.min_field_size : ''}${liveTag}${fsTag}${arTag}${leagueTag}`;
     }
     const editFn = isMulti ? `openMultiModal(${i})` : `openModal(${i})`;
     html += `<div class="card strat-row">
@@ -1668,7 +1478,6 @@ function openModal(index) {
   document.getElementById('f_max_odds').value = s.max_back_odds ?? 1.6;
   document.getElementById('f_total_range').value = s.total_range ?? '';
   document.getElementById('f_total_direction').value = s.total_direction ?? '';
-  document.getElementById('f_btts_direction').value = s.btts_direction ?? '';
   const stratType = s.strategy_type || 'normal';
   document.getElementById('f_strategy_type').value = stratType;
   document.getElementById('f_staking_plan').value = (s.staking_plan || [0.1,0.3,0.9,2.7,8.1,24.3]).join(', ');
@@ -1734,14 +1543,6 @@ const SPORT_ROW_TEMPLATE = (idx, data={}) => `
           <option value="" ${!data.total_direction?'selected':''}>— none —</option>
           <option value="Over" ${data.total_direction==='Over'?'selected':''}>Over</option>
           <option value="Under" ${data.total_direction==='Under'?'selected':''}>Under</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>BTTS side</label>
-        <select class="sr_btts_direction">
-          <option value="" ${!data.btts_direction?'selected':''}>— either —</option>
-          <option value="Yes" ${data.btts_direction==='Yes'?'selected':''}>Yes</option>
-          <option value="No" ${data.btts_direction==='No'?'selected':''}>No</option>
         </select>
       </div>
     </div>
@@ -1873,7 +1674,6 @@ function getSportRows() {
     max_back_odds: parseFloat(row.querySelector('.sr_max_odds').value),
     total_range: row.querySelector('.sr_total_range').value.trim() || null,
     total_direction: row.querySelector('.sr_total_direction').value || null,
-    btts_direction: row.querySelector('.sr_btts_direction').value || null,
   }));
 }
 
@@ -2051,7 +1851,6 @@ function saveStrategy() {
   const betMode = document.getElementById('f_bet_mode').value;
   const totalRange = document.getElementById('f_total_range').value.trim();
   const totalDirection = document.getElementById('f_total_direction').value;
-  const bttsDirection = document.getElementById('f_btts_direction').value;
 
   if (betMode === 'double_chance') {
     if (market !== 'Match Odds') {
@@ -2128,7 +1927,6 @@ function saveStrategy() {
     autoRestart: document.getElementById('f_autorestart').checked,
     total_range: market === 'Total' ? totalRange : null,
     total_direction: market === 'Total' ? totalDirection : null,
-    btts_direction: market === 'Both Teams To Score' ? bttsDirection : null,
     description: existing.description || '',
   };
 
@@ -2226,19 +2024,19 @@ def query(sql, params=()):
 @app.route("/")
 @require_password
 def home():
-    return render_template_string(PAGE, build=BUILD_VERSION)
+    return render_template_string(PAGE)
 
 
 @app.route("/analytics")
 @require_password
 def analytics_page():
-    return render_template_string(ANALYTICS_PAGE, build=BUILD_VERSION)
+    return render_template_string(ANALYTICS_PAGE)
 
 
 @app.route("/categories")
 @require_password
 def categories_page():
-    return render_template_string(CATEGORIES_PAGE, build=BUILD_VERSION)
+    return render_template_string(CATEGORIES_PAGE)
 
 
 @app.route("/api/summary")
@@ -2466,42 +2264,16 @@ def recent():
     return jsonify(rows)
 
 
-LEAGUES_DIR = os.path.join(os.path.dirname(__file__), "..", "config", "leagues")
-
-
 @app.route("/api/leagues")
 @require_password
 def get_leagues():
-    sport = request.args.get("sport", "Soccer")
-    safe = re.sub(r"[^A-Za-z0-9_]+", "_", sport.strip())
-    path = os.path.join(LEAGUES_DIR, f"{safe}.json")
-
-    # Fall back to the old flat file for Soccer, so nothing breaks for
-    # strategies set up before per-sport league files existed.
-    if not os.path.isfile(path) and sport == "Soccer" and os.path.isfile(LEAGUES_FILE):
-        path = LEAGUES_FILE
-
-    if not os.path.isfile(path):
+    if not os.path.isfile(LEAGUES_FILE):
         return jsonify([])
     try:
-        with open(path, encoding="utf-8") as f:
+        with open(LEAGUES_FILE, encoding="utf-8") as f:
             return jsonify(json.load(f))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/leagues_sports")
-@require_password
-def get_leagues_sports():
-    """Which sports currently have a collected league list."""
-    sports = []
-    if os.path.isdir(LEAGUES_DIR):
-        for fname in os.listdir(LEAGUES_DIR):
-            if fname.endswith(".json"):
-                sports.append(fname[:-5])
-    if "Soccer" not in sports and os.path.isfile(LEAGUES_FILE):
-        sports.append("Soccer")
-    return jsonify(sorted(sports))
 
 
 @app.route("/api/league_categories", methods=["GET"])
@@ -2521,44 +2293,6 @@ def save_league_categories():
             return jsonify({"error": f"Category '{cat}' must contain a list of league names."}), 400
     save_categories(data)
     return jsonify({"saved": True})
-
-
-import base64
-
-
-@app.route("/manifest.json")
-def pwa_manifest():
-    return jsonify({
-        "name": "Matchbook Dashboard",
-        "short_name": "Matchbook",
-        "start_url": "/",
-        "scope": "/",
-        "display": "standalone",
-        "background_color": "#0a0e14",
-        "theme_color": "#0a0e14",
-        "icons": [
-            {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"},
-            {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"},
-        ],
-    })
-
-
-@app.route("/icon-192.png")
-def pwa_icon_192():
-    return Response(base64.b64decode(ICON_192_B64), mimetype="image/png")
-
-
-@app.route("/icon-512.png")
-def pwa_icon_512():
-    return Response(base64.b64decode(ICON_512_B64), mimetype="image/png")
-
-
-@app.route("/service-worker.js")
-def pwa_service_worker():
-    # Minimal passthrough worker — just needs to exist for "Add to Home
-    # Screen" / standalone install to be offered by the browser.
-    js = "self.addEventListener('fetch', () => {});"
-    return Response(js, mimetype="application/javascript")
 
 
 @app.route("/api/sports")
@@ -2619,162 +2353,7 @@ def reset_state(strategy_name):
 @app.route("/strategies")
 @require_password
 def strategies_page():
-    return render_template_string(STRATEGIES_PAGE, build=BUILD_VERSION)
-
-
-LOGS_DIR = os.path.join(os.path.dirname(__file__), "..", "logs")
-
-
-@app.route("/api/logs")
-@require_password
-def api_logs():
-    which = request.args.get("file", "bot")
-    lines = min(int(request.args.get("lines", 300)), 2000)
-    fname = "skipped.log" if which == "skipped" else "bot.log"
-    path = os.path.join(LOGS_DIR, fname)
-
-    if not os.path.isfile(path):
-        return jsonify({"lines": [], "error": f"{fname} not found yet"})
-
-    try:
-        with open(path, encoding="utf-8", errors="replace") as f:
-            all_lines = f.readlines()
-        tail = all_lines[-lines:]
-        return jsonify({"lines": [ln.rstrip("\n") for ln in tail]})
-    except Exception as e:
-        return jsonify({"lines": [], "error": str(e)}), 500
-
-
-LOGS_PAGE = """
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>matchbook // logs</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icon-192.png">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0a0e14">
-<style>
-  :root {
-    --bg: #0a0e14; --card: #11161f; --card2: #141a25; --border: #1c2330; --border-thick: #2a3344;
-    --text: #e4e7ec; --muted: #7a8699; --win: #2dd4a8; --loss: #ff6b5e; --pending: #f5b942; --accent: #5b8def;
-  }
-  * { box-sizing: border-box; }
-  body { font-family: 'Inter', -apple-system, Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 28px 32px 60px; }
-  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; position: relative; flex-wrap: wrap; }
-  .topbar h0 { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
-  .nav-btn { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--bg); background: var(--accent); border: none; border-radius: 8px; padding: 9px 16px; text-decoration: none; cursor: pointer; }
-  .nav-btn.secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
-  .hamburger { display: none; background: none; border: 1px solid var(--border); color: var(--text); font-size: 18px; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-  .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
-  @media (max-width: 760px) {
-    .hamburger { display: block; }
-    .nav-links { display: none; position: absolute; top: 48px; right: 0; flex-direction: column; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px; z-index: 100; min-width: 200px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-    .nav-links.open { display: flex; }
-    .nav-links .nav-btn { width: 100%; text-align: left; }
-  }
-  .sub-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-  .sub-tab { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
-  .sub-tab.active { color: var(--text); border-color: var(--accent); color: var(--accent); }
-  .controls { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
-  .controls input, .controls select { background: var(--card2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
-  .controls label { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-  .log-box { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; max-height: 75vh; overflow-y: auto; }
-  .log-line { border-bottom: 1px solid rgba(255,255,255,0.03); padding: 2px 0; }
-  .log-line.match { background: rgba(91,141,239,0.08); }
-  .empty { color: var(--muted); padding: 20px 0; text-align: center; }
-</style>
-</head>
-<body>
-
-  <div class="topbar">
-    <h0>matchbook // logs <span style="opacity:0.35;">{{ build }}</span></h0>
-    <button class="hamburger" onclick="toggleNav()">☰</button>
-    <div class="nav-links" id="navLinks">
-      <a class="nav-btn secondary" href="/">Dashboard</a>
-      <a class="nav-btn secondary" href="/strategies">⚙ Manage Strategies</a>
-      <a class="nav-btn secondary" href="/categories">Leagues</a>
-      <a class="nav-btn secondary" href="/analytics">Analytics</a>
-    </div>
-  </div>
-
-  <div class="sub-tabs">
-    <div class="sub-tab active" data-file="bot">Bot Log</div>
-    <div class="sub-tab" data-file="skipped">Skipped Log</div>
-  </div>
-
-  <div class="controls">
-    <label>Lines: <select id="lineCount" onchange="load()">
-      <option value="150">150</option>
-      <option value="300" selected>300</option>
-      <option value="800">800</option>
-      <option value="2000">2000</option>
-    </select></label>
-    <input type="text" id="searchBox" placeholder="Filter (e.g. strategy name)..." oninput="render()" style="min-width:220px;">
-    <label><input type="checkbox" id="autoRefresh" checked> auto-refresh (10s)</label>
-  </div>
-
-  <div class="log-box" id="logBox"><div class="empty">Loading…</div></div>
-
-<script>
-function toggleNav() { document.getElementById('navLinks').classList.toggle('open'); }
-
-let currentFile = 'bot';
-let rawLines = [];
-let refreshTimer = null;
-
-document.querySelectorAll('.sub-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    currentFile = tab.dataset.file;
-    load();
-  });
-});
-
-function load() {
-  const lines = document.getElementById('lineCount').value;
-  fetch(`/api/logs?file=${currentFile}&lines=${lines}`)
-    .then(r => r.json())
-    .then(data => {
-      rawLines = data.lines || [];
-      render();
-    });
-}
-
-function render() {
-  const filter = document.getElementById('searchBox').value.trim().toLowerCase();
-  const box = document.getElementById('logBox');
-  const filtered = filter ? rawLines.filter(l => l.toLowerCase().includes(filter)) : rawLines;
-
-  if (!filtered.length) {
-    box.innerHTML = '<div class="empty">No log lines yet.</div>';
-    return;
-  }
-
-  const escape = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  box.innerHTML = filtered.map(l => `<div class="log-line${filter ? ' match' : ''}">${escape(l)}</div>`).join('');
-  box.scrollTop = box.scrollHeight;
-}
-
-load();
-setInterval(() => {
-  if (document.getElementById('autoRefresh').checked) load();
-}, 10000);
-</script>
-</body>
-</html>
-"""
-
-
-@app.route("/logs")
-@require_password
-def logs_page():
-    return render_template_string(LOGS_PAGE, build=BUILD_VERSION)
+    return render_template_string(STRATEGIES_PAGE)
 
 
 if __name__ == "__main__":

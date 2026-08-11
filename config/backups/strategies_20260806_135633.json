@@ -457,7 +457,7 @@
       "compound_target": 7.5,
       "currency": "EUR",
       "description": "",
-      "enabled": true,
+      "enabled": false,
       "event_lookahead_minutes": 180,
       "excluded_leagues": [],
       "favorite_min_step": 1,
@@ -841,7 +841,7 @@
       "market_names": [
         "Match Odds"
       ],
-      "max_back_odds": 1.1,
+      "max_back_odds": 1.15,
       "max_open_bets": 1,
       "max_session_loss": 10,
       "max_total_exposure": 10,
@@ -869,106 +869,170 @@
     {
       "autoRestart": true,
       "bankroll": 10,
-      "base_stake": 0.1,
-      "bet_mode": "normal",
-      "bet_side": "back",
-      "cash_out_at_percent": null,
-      "compound_start": null,
-      "compound_target": null,
-      "currency": "EUR",
-      "description": "",
-      "enabled": true,
-      "event_lookahead_minutes": 180,
-      "favorite_min_step": 1,
-      "favorite_on_flashscore": false,
-      "included_categories": [
-        "Leagues For More Strategies"
-      ],
-      "included_leagues": [],
-      "keep_in_play": false,
-      "live_mode": "pre",
-      "market_name": "Both Teams To Score",
-      "market_names": [
-        "Both Teams To Score"
-      ],
-      "max_back_odds": 1.6,
-      "max_open_bets": 1,
-      "max_session_loss": 10,
-      "max_total_exposure": 10,
-      "min_back_odds": 1.45,
-      "min_field_size": null,
-      "min_seconds_to_start": 300,
-      "minimum_liquidity": 2,
-      "name": "3 Step GG",
-      "odds_type": "DECIMAL",
-      "open_positions_cooldown_seconds": 600,
-      "pause_scanning_with_open_positions": true,
-      "poll_interval_seconds": 600,
-      "sport_name": "Soccer",
-      "sport_names": [
-        "Soccer"
-      ],
-      "spread_cap_percent": null,
-      "staking_plan": [
-        0.1,
-        0.3,
-        0.9
-      ],
-      "staking_steps": 3,
-      "strategy_type": "normal",
-      "target_profit": 10,
-      "total_direction": null,
-      "total_range": null
-    },
-    {
-      "autoRestart": true,
-      "bankroll": 10,
       "base_stake": null,
       "bet_mode": "normal",
       "bet_side": "back",
       "cash_out_at_percent": null,
-      "compound_start": 2,
-      "compound_target": 2.5,
+      "compound_start": 1,
+      "compound_target": 1.5,
       "currency": "EUR",
-      "description": "",
       "enabled": true,
       "event_lookahead_minutes": 180,
       "favorite_min_step": 1,
       "favorite_on_flashscore": false,
-      "included_categories": [
-        "Leagues For More Strategies"
-      ],
+      "included_categories": [],
       "included_leagues": [],
       "keep_in_play": false,
       "live_mode": "pre",
-      "market_name": "Total",
+      "market_name": "Winner",
       "market_names": [
-        "Total"
+        "Winner",
+        "Winner",
+        "Moneyline",
+        "Moneyline",
+        "Match Odds",
+        "Moneyline",
+        "Moneyline",
+        "Winner",
+        "Match Odds",
+        "Moneyline"
       ],
-      "max_back_odds": 1.06,
+      "max_back_odds": 1.09,
       "max_open_bets": 1,
       "max_session_loss": 10,
       "max_total_exposure": 10,
       "min_back_odds": 1.01,
       "min_field_size": null,
       "min_seconds_to_start": 300,
-      "minimum_liquidity": 2,
-      "name": "All In Over 0.5",
+      "minimum_liquidity": 50,
+      "name": "Multi All In",
       "odds_type": "DECIMAL",
       "open_positions_cooldown_seconds": 600,
       "pause_scanning_with_open_positions": true,
       "poll_interval_seconds": 600,
-      "sport_name": "Soccer",
+      "sport_configs": [
+        {
+          "sport_name": "American Football",
+          "market_name": "Winner",
+          "bet_side": "back",
+          "bet_mode": "normal",
+          "min_back_odds": 1.01,
+          "max_back_odds": 1.09,
+          "total_range": null,
+          "total_direction": null
+        },
+        {
+          "sport_name": "Australian Rules",
+          "market_name": "Winner",
+          "bet_side": "back",
+          "bet_mode": "normal",
+          "min_back_odds": 1.01,
+          "max_back_odds": 1.09,
+          "total_range": null,
+          "total_direction": null
+        },
+        {
+          "sport_name": "Baseball",
+          "market_name": "Moneyline",
+          "bet_side": "back",
+          "bet_mode": "normal",
+          "min_back_odds": 1.01,
+          "max_back_odds": 1.09,
+          "total_range": null,
+          "total_direction": null
+        },
+        {
+          "sport_name": "Basketball",
+          "market_name": "Moneyline",
+          "bet_side": "back",
+          "bet_mode": "normal",
+          "min_back_odds": 1.01,
+          "max_back_odds": 1.09,
+          "total_range": null,
+          "total_direction": null
+        },
+        {
+          "sport_name": "Boxing",
+          "market_name": "Match Odds",
+          "bet_side": "back",
+          "bet_mode": "normal",
+          "min_back_odds": 1.01,
+          "max_back_odds": 1.09,
+          "total_range": null,
+          "total_direction": null
+        },
+        {
+          "sport_name": "Cricket",
+          "market_name": "Moneyline",
+          "bet_side": "back",
+          "bet_mode": "normal",
+          "min_back_odds": 1.01,
+          "max_back_odds": 1.09,
+          "total_range": null,
+          "total_direction": null
+        },
+        {
+          "sport_name": "MMA",
+          "market_name": "Moneyline",
+          "bet_side": "back",
+          "bet_mode": "normal",
+          "min_back_odds": 1.01,
+          "max_back_odds": 1.09,
+          "total_range": null,
+          "total_direction": null
+        },
+        {
+          "sport_name": "Rugby Union",
+          "market_name": "Winner",
+          "bet_side": "back",
+          "bet_mode": "normal",
+          "min_back_odds": 1.01,
+          "max_back_odds": 1.09,
+          "total_range": null,
+          "total_direction": null
+        },
+        {
+          "sport_name": "Soccer",
+          "market_name": "Match Odds",
+          "bet_side": "back",
+          "bet_mode": "normal",
+          "min_back_odds": 1.01,
+          "max_back_odds": 1.09,
+          "total_range": null,
+          "total_direction": null
+        },
+        {
+          "sport_name": "Tennis",
+          "market_name": "Moneyline",
+          "bet_side": "back",
+          "bet_mode": "normal",
+          "min_back_odds": 1.01,
+          "max_back_odds": 1.09,
+          "total_range": null,
+          "total_direction": null
+        }
+      ],
+      "sport_name": "American Football",
       "sport_names": [
-        "Soccer"
+        "American Football",
+        "Australian Rules",
+        "Baseball",
+        "Basketball",
+        "Boxing",
+        "Cricket",
+        "MMA",
+        "Rugby Union",
+        "Soccer",
+        "Tennis"
       ],
       "spread_cap_percent": null,
       "staking_plan": null,
       "staking_steps": null,
+      "strategy_mode": "multi_sport",
       "strategy_type": "compound",
       "target_profit": 10,
-      "total_direction": "Over",
-      "total_range": "0.5"
+      "total_direction": null,
+      "total_range": null
     }
   ]
 }

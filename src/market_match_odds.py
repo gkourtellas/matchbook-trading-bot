@@ -1,9 +1,13 @@
 """Finds a betting opportunity in a 'Match Odds' or 'Moneyline' market
 (both are simple win/lose markets — same logic, different name per sport).
+Also handles 'Both Teams To Score' — same structure (a list of runners
+with back/lay prices), just with "Yes"/"No" runners instead of team names.
 
 Filters added:
 - min_field_size: skip market if fewer runners than this (team sports too)
 - spread_cap_percent: skip runner if (lay-back)/back * 100 > cap (thin market)
+- btts_direction: for BTTS markets only — "Yes" or "No" to only consider
+  that side. Leave unset/empty to allow either (old behavior).
 """
 
 
@@ -18,8 +22,14 @@ def find_opportunity(market, strategy):
         return None
 
     spread_cap = strategy.get("spread_cap_percent")
+    wanted_direction = str(strategy.get("btts_direction", "")).strip().lower()
 
     for runner in runners:
+        runner_name = runner.get("name") or ""
+
+        if wanted_direction and wanted_direction != runner_name.strip().lower():
+            continue
+
         prices = runner.get("prices", [])
         backs = [p for p in prices if p.get("side") == "back"]
         if not backs:
