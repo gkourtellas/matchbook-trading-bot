@@ -8,25 +8,24 @@ load_dotenv()
 # --- Configuration ---
 USERNAME = os.environ["MATCHBOOK_USERNAME"]
 PASSWORD = os.environ["MATCHBOOK_PASSWORD"]
-TARGET_SPORT_IDS = [15]  # Configured for Soccer
-OUTPUT_FILE = "config/leagues.json"
+
+# Add more sports here as needed — id: name (name is used for the output filename).
+TARGET_SPORTS = {15: "Soccer", 4: "Basketball", 9: "Tennis"}
+
+LEAGUES_DIR = "config/leagues"
+os.makedirs(LEAGUES_DIR, exist_ok=True)
 
 # --- API Endpoints ---
 LOGIN_URL = "https://api.matchbook.com/bpapi/rest/security/session"
 EVENTS_URL = "https://api.matchbook.com/edge/rest/events"
 
-# 1. Load existing leagues to prevent duplicates
-existing_leagues = set()
-if os.path.exists(OUTPUT_FILE):
-    try:
-        with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            if isinstance(data, list):
-                existing_leagues = set(data)
-    except (json.JSONDecodeError, IOError):
-        pass
 
-# 2. Authenticate and get Session Token
+def output_path(sport_name):
+    safe = "".join(c if c.isalnum() else "_" for c in sport_name.strip())
+    return os.path.join(LEAGUES_DIR, f"{safe}.json")
+
+
+# 1. Authenticate and get Session Token
 login_payload = {"username": USERNAME, "password": PASSWORD}
 login_headers = {
     "content-type": "application/json;charset=UTF-8",
@@ -38,34 +37,53 @@ response = requests.post(
 response.raise_for_status()
 session_token = response.json().get("session-token")
 
-# 3. Setup Authenticated Headers
 authenticated_headers = {
     "session-token": session_token,
     "accept": "application/json",
 }
 
-# 4. Pull Events for the chosen Sports
-sport_ids_str = ",".join(map(str, TARGET_SPORT_IDS))
-query_params = {"sport-ids": sport_ids_str, "per-page": "100", "states": "open"}
-events_response = requests.get(
-    EVENTS_URL, headers=authenticated_headers, params=query_params
-)
-events_response.raise_for_status()
-events_data = events_response.json()
+# 2. Pull leagues for each sport separately — one output file per sport,
+#    so football and basketball (and anything else added later) never mix.
+for sport_id, sport_name in TARGET_SPORTS.items():
+    path = output_path(sport_name)
 
-# 5. Extract Unique League Names
-new_leagues_found = 0
-for event in events_data.get("events", []):
-    meta_tags = event.get("meta-tags", [])
-    for tag in meta_tags:
-        if tag.get("type") == "COMPETITION":
-            league_name = tag.get("name")
-            if league_name and league_name not in existing_leagues:
-                existing_leagues.add(league_name)
-                new_leagues_found += 1
+    existing_leagues = set()
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    existing_leagues = set(data)
+        except (json.JSONDecodeError, IOError):
+            pass
 
-# 6. Save the updated list back to the file
-with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-    json.dump(sorted(list(existing_leagues)), f, indent=4, ensure_ascii=False)
+    new_leagues_found = 0
+    offset = 0
+    per_page = 100
+    while True:
+        query_params = {"sport-ids": sport_id, "per-page": per_page, "offset": offset, "states": "open"}
+        events_response = requests.get(
+            EVENTS_URL, headers=authenticated_headers, params=query_params
+        )
+        events_response.raise_for_status()
+        events_data = events_response.json()
 
-print(f"Added {new_leagues_found} new leagues. Total stored: {len(existing_leagues)}")
+        events = events_data.get("events", [])
+        for event in events:
+            meta_tags = event.get("meta-tags", [])
+            for tag in meta_tags:
+                if tag.get("type") == "COMPETITION":
+                    league_name = tag.get("name")
+                    if league_name and league_name not in existing_leagues:
+                        existing_leagues.add(league_name)
+                        new_leagues_found += 1
+
+        total = events_data.get("total", 0)
+        offset += per_page
+        if offset >= total or not events:
+            break
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(sorted(existing_leagues), f, indent=4, ensure_ascii=False)
+
+    print(f"[{sport_name}] Added {new_leagues_found} new leagues. Total stored: {len(existing_leagues)}")

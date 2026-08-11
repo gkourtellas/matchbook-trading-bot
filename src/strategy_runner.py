@@ -38,6 +38,7 @@ MATCHERS = {
     "Match Odds": market_match_odds,
     "Moneyline": market_match_odds,
     "Winner": market_match_odds,
+    "Both Teams To Score": market_match_odds,
     "Total": market_total,
     "Double Chance": market_match_odds,
     "WIN": market_racing_favorite,
@@ -55,6 +56,7 @@ class StrategyRunner:
         self.client = client
 
         self.strategy_type = strategy.get("strategy_type", "normal")
+        self.auto_restart = bool(strategy.get("autoRestart", False))
 
         if self.strategy_type == "compound":
             self.compound_start = float(strategy["compound_start"])
@@ -152,6 +154,8 @@ class StrategyRunner:
         return float(self.staking_plan[idx])
 
     def _bet_profit(self, bet, outcome):
+        if outcome == "push":
+            return 0.0
         stake, odds = bet["stake"], bet["odds"]
         if self.bet_side == "lay":
             return round(stake, 4) if outcome == "won" else -round(stake * (odds - 1), 4)
@@ -164,12 +168,15 @@ class StrategyRunner:
                 return tag.get("name")
         return None
 
-    async def _confirm_odds_stable(self, event_id, market_id, runner_id, first_odds, bet_side, event_name):
+    async def _confirm_odds_stable(self, event_id, market_id, runner_id, first_odds, bet_side, event_name, stake):
         """Re-checks the same runner's price ODDS_CHECK_COUNT times total
         (first_odds counts as check #1), ODDS_CHECK_GAP_SECONDS apart.
         Returns True only if every check stayed within
-        ODDS_CHECK_MAX_SPREAD_PERCENT of each other. Used to catch a
-        bad/stale/thin price instead of betting on it blind.
+        ODDS_CHECK_MAX_SPREAD_PERCENT of each other, AND the top-of-book
+        available size can actually cover the stake we're about to place.
+        Without that liquidity check, a thin market lets the order slide
+        through several much worse price levels to get filled — the price
+        itself looked fine and "stable", there just wasn't enough of it.
         """
         if not event_id or not market_id or not runner_id:
             self.log(f"Skipped {event_name} — missing event/market/runner id, can't confirm odds")
@@ -177,6 +184,7 @@ class StrategyRunner:
 
         checks = [first_odds]
         side = "lay" if bet_side == "lay" else "back"
+        last_available = None
 
         for i in range(ODDS_CHECK_COUNT - 1):
             await asyncio.sleep(ODDS_CHECK_GAP_SECONDS)
@@ -204,6 +212,7 @@ class StrategyRunner:
                 return False
 
             checks.append(odds_now)
+            last_available = best.get("available-amount", best.get("available_amount"))
 
         lowest, highest = min(checks), max(checks)
         if lowest <= 0:
@@ -215,6 +224,12 @@ class StrategyRunner:
             self.log(f"Skipped {event_name} — odds not stable across {ODDS_CHECK_COUNT} checks "
                       f"({ODDS_CHECK_GAP_SECONDS}s apart): {checks} "
                       f"({spread_percent:.1f}% spread, max {ODDS_CHECK_MAX_SPREAD_PERCENT}%)")
+            return False
+
+        if last_available is not None and last_available < stake:
+            self.log(f"Skipped {event_name} — only {last_available} available at the best price, "
+                      f"need {stake} for this bet. Market's too thin, would slide to a much worse "
+                      f"price to fill.")
             return False
 
         self.log(f"Odds confirmed stable across {ODDS_CHECK_COUNT} checks "
@@ -379,14 +394,13 @@ class StrategyRunner:
                 continue
 
             bet_side = matched_cfg.get("bet_side", self.bet_side)
+            stake = self.stake_for_step()
 
             odds_ok = await self._confirm_odds_stable(
-                event_id, market_id, runner_id, odds, bet_side, event_name
+                event_id, market_id, runner_id, odds, bet_side, event_name, stake
             )
             if not odds_ok:
                 continue
-
-            stake = self.stake_for_step()
 
             action_word = "Lay" if bet_side == "lay" else "Back"
             self.log(f"🎯 Match found: {event_name} -> {action_word} {runner_name} @ {odds}")
@@ -423,17 +437,25 @@ class StrategyRunner:
                 "step": self.current_step,
                 "sport_id": matched_cfg.get("_sport_id") or self.cfg.get("_sport_id"),
             }
+            league = self._extract_league(event)
             bet["record_id"] = record_bet_placed(
                 self.name, event_name, runner_name, odds, stake,
-                self.current_step, bet["placed_at"], league=self._extract_league(event)
+                self.current_step, bet["placed_at"], league=league, offer_id=bet["offer_id"]
             )
             self.active_bets.append(bet)
             self._save()
 
+            start_time_str = (
+                start_time.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Europe/Athens")).strftime("%Y-%m-%d %H:%M")
+                if start_time else "?"
+            )
             msg = (
                 f"🚀 Bet Placed [{self.name}]\n"
                 f"Step: {self.current_step}/{self.max_steps}\n"
                 f"Event: {event_name}\n"
+                f"Sport: {sport}\n"
+                f"League: {league or '—'}\n"
+                f"Start: {start_time_str}\n"
                 f"Selection: {runner_name}\n"
                 f"Odds: {odds}\n"
                 f"Stake: {stake}"
@@ -544,21 +566,20 @@ class StrategyRunner:
                 continue
 
             after_dt = bet.get("placed_at") or bet.get("start_time")
-            outcome, source = await asyncio.to_thread(
+            outcome, source, real_odds = await asyncio.to_thread(
                 self.client.resolve_offer_outcome,
                 bet["offer_id"], after_dt=after_dt, event_id=bet.get("event_id"),
                 sport_id=bet.get("sport_id") or self.cfg.get("_sport_id")
             )
 
-            if outcome not in ("won", "lost"):
+            if outcome not in ("won", "lost", "push"):
                 self.log(f"Waiting on result for '{bet['event_name']}' — not settled yet.")
                 still_open.append(bet)
                 continue
 
-            result_label = "Won" if outcome == "won" else "Lost"
+            result_label = {"won": "Won", "lost": "Lost", "push": "Push (void)"}[outcome]
+            result_icon = {"won": "✅", "lost": "❌", "push": "➖"}[outcome]
 
-            order_status = await asyncio.to_thread(self.client.get_order_status, bet["offer_id"])
-            real_odds = self._weighted_matched_odds(order_status)
             if real_odds is not None and real_odds != bet["odds"]:
                 self.log(f"'{bet['event_name']}': requested odds {bet['odds']}, "
                          f"actually matched at {real_odds} — using the real price.")
@@ -570,11 +591,12 @@ class StrategyRunner:
             if self.strategy_type == "compound":
                 if outcome == "won":
                     self.balance = round(self.balance * bet["odds"], 2)
-                else:
+                elif outcome == "lost":
                     self.balance = 0.0
+                # push: balance unchanged, stake was returned
 
                 settle_msg = (
-                    f"Settled [{self.name}]\n"
+                    f"{result_icon} Settled [{self.name}]\n"
                     f"Event: {bet['event_name']}\n"
                     f"Result: {result_label}\n"
                     f"Balance: {self.balance} (target {self.compound_target})"
@@ -583,19 +605,30 @@ class StrategyRunner:
                 self.client.send_telegram(settle_msg)
 
                 if self.balance <= 0:
-                    self.log("💥 Balance hit 0. Disabling.")
-                    await disable_strategy(self.name, "balance hit 0")
+                    if self.auto_restart:
+                        self.log(f"💥 Balance hit 0. Auto-restart is on — resetting to {self.compound_start} and continuing.")
+                        self.balance = self.compound_start
+                    else:
+                        self.log("💥 Balance hit 0. Disabling.")
+                        await disable_strategy(self.name, "balance hit 0")
                 elif self.balance >= self.compound_target:
-                    self.log(f"🏁 Target {self.compound_target} reached. Disabling.")
-                    await disable_strategy(self.name, "target reached")
+                    if self.auto_restart:
+                        self.log(f"🏁 Target {self.compound_target} reached. Auto-restart is on — "
+                                 f"resetting to {self.compound_start} and continuing.")
+                        self.balance = self.compound_start
+                    else:
+                        self.log(f"🏁 Target {self.compound_target} reached. Disabling.")
+                        await disable_strategy(self.name, "target reached")
 
             else:
-                self.current_step = 1 if outcome == "won" else (
-                    self.current_step + 1 if self.current_step < self.max_steps else 1
-                )
+                if outcome == "won":
+                    self.current_step = 1
+                elif outcome == "lost":
+                    self.current_step = self.current_step + 1 if self.current_step < self.max_steps else 1
+                # push: step stays the same, retry this step next time
 
                 settle_msg = (
-                    f"Settled [{self.name}]\n"
+                    f"{result_icon} Settled [{self.name}]\n"
                     f"Event: {bet['event_name']}\n"
                     f"Result: {result_label}\n"
                     f"Next step: {self.current_step}/{self.max_steps}"
@@ -608,11 +641,20 @@ class StrategyRunner:
                     settle_msg += f"\nBankroll: {self.balance} (stop-loss at {stop_at})"
 
                     if self.balance <= stop_at:
-                        self.log(settle_msg)
-                        self.client.send_telegram(settle_msg)
-                        self.log(f"🛑 Bankroll hit {self.balance}, at/below stop-loss ({stop_at}). Disabling.")
-                        await disable_strategy(self.name, "bankroll stop-loss hit")
-                        continue
+                        if self.auto_restart:
+                            self.log(f"🛑 Bankroll hit {self.balance}, at/below stop-loss ({stop_at}). "
+                                     f"Auto-restart is on — resetting to {self.starting_bankroll} and continuing.")
+                            self.balance = self.starting_bankroll
+                            settle_msg += f"\nAuto-restart: reset to {self.starting_bankroll}"
+                            self.log(settle_msg)
+                            self.client.send_telegram(settle_msg)
+                            continue
+                        else:
+                            self.log(settle_msg)
+                            self.client.send_telegram(settle_msg)
+                            self.log(f"🛑 Bankroll hit {self.balance}, at/below stop-loss ({stop_at}). Disabling.")
+                            await disable_strategy(self.name, "bankroll stop-loss hit")
+                            continue
 
                 self.log(settle_msg)
                 self.client.send_telegram(settle_msg)

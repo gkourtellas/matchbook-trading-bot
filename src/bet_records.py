@@ -35,16 +35,18 @@ def _connect():
         conn.execute("ALTER TABLE bets ADD COLUMN result_type TEXT")
     if "league" not in cols:
         conn.execute("ALTER TABLE bets ADD COLUMN league TEXT")
+    if "offer_id" not in cols:
+        conn.execute("ALTER TABLE bets ADD COLUMN offer_id TEXT")
     return conn
 
 
-def record_bet_placed(strategy_name, event_name, selection_name, odds, stake, step, placed_at, league=None):
+def record_bet_placed(strategy_name, event_name, selection_name, odds, stake, step, placed_at, league=None, offer_id=None):
     """Call this the moment a bet is placed. Returns the row id."""
     conn = _connect()
     cur = conn.execute(
-        """INSERT INTO bets (strategy_name, event_name, selection_name, odds, stake, step, placed_at, league)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-        (strategy_name, event_name, selection_name, odds, stake, step, placed_at.isoformat(), league),
+        """INSERT INTO bets (strategy_name, event_name, selection_name, odds, stake, step, placed_at, league, offer_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (strategy_name, event_name, selection_name, odds, stake, step, placed_at.isoformat(), league, offer_id),
     )
     conn.commit()
     row_id = cur.lastrowid
@@ -53,14 +55,18 @@ def record_bet_placed(strategy_name, event_name, selection_name, odds, stake, st
 
 
 def record_bet_settled(row_id, result, odds, stake, bet_side="back"):
-    """Call this once a bet's result (won/lost) is known.
+    """Call this once a bet's result (won/lost/push) is known.
 
     For a 'back' bet: win profit = stake * (odds - 1), lose = -stake.
     For a 'lay' bet it's the mirror image: win (selection loses) profit
     = stake, lose (selection wins) = -stake * (odds - 1) — that's your
     liability on the lay.
+    A 'push' means the event was voided/cancelled — stake is returned,
+    profit is always 0 regardless of side.
     """
-    if bet_side == "lay":
+    if result == "push":
+        profit = 0.0
+    elif bet_side == "lay":
         profit = round(stake, 4) if result == "won" else -round(stake * (odds - 1), 4)
     else:
         profit = round(stake * (odds - 1), 4) if result == "won" else -stake

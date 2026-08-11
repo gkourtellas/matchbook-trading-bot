@@ -21,15 +21,13 @@ def _safe_filename(sport_name):
 
 
 def _extract_league_name(event):
-    """Tries a few likely field names/locations for the league/competition.
-    Returns None if nothing usable is found.
+    """Matchbook puts the league/competition in event['meta-tags'] as an
+    entry with type 'COMPETITION' — this matches the extraction already
+    proven to work for the db's league column (strategy_runner.py).
     """
-    for key in ("category", "competition", "competition-name", "tournament", "league", "league-name"):
-        value = event.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-        if isinstance(value, dict):
-            name = value.get("name")
+    for tag in event.get("meta-tags", []):
+        if tag.get("type") == "COMPETITION":
+            name = tag.get("name")
             if isinstance(name, str) and name.strip():
                 return name.strip()
     return None
