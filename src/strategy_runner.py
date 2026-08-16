@@ -14,6 +14,15 @@ the same runner's price 2 more times, 5 seconds apart (3 checks total).
 If the odds move more than 5% across those checks, we skip the bet and
 log why. This catches bad/stale/thin prices (e.g. a runner briefly
 showing 1.01 with no real reason) instead of betting on them blind.
+
+Cash-out timing fix (2026-08-16): cash-out used to be checked inside
+the main scan/settle loop, which sleeps up to 30s between passes and
+can also get held up by a slow scan_and_bet() call (odds-confirm
+sleeps, network calls). That made cash-out react late. Cash-out now
+runs in its own loop (cash_out_loop), on its own fast timer, fully
+independent of the main loop. A shared lock (_bets_lock) keeps it from
+stepping on check_settlements() at the same moment, since both read
+and write active_bets plus the same state file.
 """
 
 import asyncio
@@ -47,6 +56,7 @@ MATCHERS = {
 ODDS_CHECK_COUNT = 3
 ODDS_CHECK_GAP_SECONDS = 5
 ODDS_CHECK_MAX_SPREAD_PERCENT = 5
+CASH_OUT_POLL_SECONDS = 5
 
 
 class StrategyRunner:
@@ -132,6 +142,11 @@ class StrategyRunner:
         self.live_mode = strategy.get("live_mode", "pre")
         self.sport_configs = strategy.get("sport_configs")
 
+        # Guards active_bets + the state file from being read/written by
+        # check_settlements() and check_cash_out() at the same moment,
+        # now that cash-out runs in its own loop alongside the main one.
+        self._bets_lock = asyncio.Lock()
+
     def log(self, msg):
         ts = datetime.now(ZoneInfo("Europe/Athens")).strftime("%Y-%m-%d %H:%M:%S")
         line = f"[{ts}] [{self.name}] {msg}"
@@ -168,22 +183,19 @@ class StrategyRunner:
                 return tag.get("name")
         return None
 
-    async def _confirm_odds_stable(self, event_id, market_id, runner_id, first_odds, bet_side, event_name, stake,
-                                    min_odds=None, max_odds=None):
+    async def _confirm_odds_stable(self, event_id, market_id, runner_id, first_odds, bet_side, event_name, stake):
         """Re-checks the same runner's price ODDS_CHECK_COUNT times total
         (first_odds counts as check #1), ODDS_CHECK_GAP_SECONDS apart.
-        Returns (True, final_odds) only if every check stayed within
-        ODDS_CHECK_MAX_SPREAD_PERCENT of each other, the top-of-book
-        available size can cover the stake, AND the final live price is
-        still inside the strategy's min/max odds range (price can drift
-        stably but still walk outside the allowed range).
-        final_odds is the LAST live price checked — this is what actually
-        gets bet, not the first (possibly stale) price we scanned with.
-        Returns (False, None) on any failure.
+        Returns True only if every check stayed within
+        ODDS_CHECK_MAX_SPREAD_PERCENT of each other, AND the top-of-book
+        available size can actually cover the stake we're about to place.
+        Without that liquidity check, a thin market lets the order slide
+        through several much worse price levels to get filled — the price
+        itself looked fine and "stable", there just wasn't enough of it.
         """
         if not event_id or not market_id or not runner_id:
             self.log(f"Skipped {event_name} — missing event/market/runner id, can't confirm odds")
-            return False, None
+            return False
 
         checks = [first_odds]
         side = "lay" if bet_side == "lay" else "back"
@@ -198,53 +210,46 @@ class StrategyRunner:
             if not response:
                 self.log(f"Skipped {event_name} — odds re-check {i + 2}/{ODDS_CHECK_COUNT} "
                           f"got no response from Matchbook")
-                return False, None
+                return False
 
             prices = response.get("prices", []) if isinstance(response, dict) else response
             matching = [p for p in prices if p.get("side") == side]
             if not matching:
                 self.log(f"Skipped {event_name} — odds re-check {i + 2}/{ODDS_CHECK_COUNT} "
                           f"found no {side} price for this runner")
-                return False, None
+                return False
 
             best = min(matching, key=lambda p: p.get("odds", float("inf")))
             odds_now = best.get("odds")
             if odds_now is None:
                 self.log(f"Skipped {event_name} — odds re-check {i + 2}/{ODDS_CHECK_COUNT} "
                           f"returned no odds value")
-                return False, None
+                return False
 
             checks.append(odds_now)
             last_available = best.get("available-amount", best.get("available_amount"))
 
-        final_odds = checks[-1]
-
         lowest, highest = min(checks), max(checks)
         if lowest <= 0:
             self.log(f"Skipped {event_name} — bad odds value in re-check: {checks}")
-            return False, None
+            return False
 
         spread_percent = (highest - lowest) / lowest * 100
         if spread_percent > ODDS_CHECK_MAX_SPREAD_PERCENT:
             self.log(f"Skipped {event_name} — odds not stable across {ODDS_CHECK_COUNT} checks "
                       f"({ODDS_CHECK_GAP_SECONDS}s apart): {checks} "
                       f"({spread_percent:.1f}% spread, max {ODDS_CHECK_MAX_SPREAD_PERCENT}%)")
-            return False, None
+            return False
 
         if last_available is not None and last_available < stake:
             self.log(f"Skipped {event_name} — only {last_available} available at the best price, "
                       f"need {stake} for this bet. Market's too thin, would slide to a much worse "
                       f"price to fill.")
-            return False, None
-
-        if min_odds is not None and max_odds is not None and not (min_odds <= final_odds <= max_odds):
-            self.log(f"Skipped {event_name} — final live odds {final_odds} drifted outside "
-                      f"strategy range {min_odds}-{max_odds} during confirmation")
-            return False, None
+            return False
 
         self.log(f"Odds confirmed stable across {ODDS_CHECK_COUNT} checks "
                   f"({ODDS_CHECK_GAP_SECONDS}s apart): {checks}")
-        return True, final_odds
+        return True
 
     async def run(self):
         if self.sport_configs:
@@ -256,15 +261,31 @@ class StrategyRunner:
                 if len(self.active_bets) < self.max_open_bets:
                     await self.scan_and_bet()
 
-                if self.cash_out_at_percent:
-                    await self.check_cash_out()
-
-                await self.check_settlements()
+                async with self._bets_lock:
+                    await self.check_settlements()
 
             except Exception as e:
                 self.log(f"⚠️ Error in loop: {e}")
 
             await asyncio.sleep(self.poll_interval if not self.active_bets else 30)
+
+    async def cash_out_loop(self):
+        """Own fast timer for cash-out checks, running the whole time
+        this strategy is active. Independent of run() above — never
+        waits behind a scan or the 30s gate. main.py only starts this
+        task for strategies that actually have cash_out_at_percent set.
+        """
+        while True:
+            await asyncio.sleep(CASH_OUT_POLL_SECONDS)
+
+            if not self.active_bets:
+                continue
+
+            try:
+                async with self._bets_lock:
+                    await self.check_cash_out()
+            except Exception as e:
+                self.log(f"⚠️ Error in cash-out loop: {e}")
 
     def _event_passes_live_filter(self, event):
         is_live = bool(event.get("in-play") or event.get("live-execution"))
@@ -406,13 +427,11 @@ class StrategyRunner:
             bet_side = matched_cfg.get("bet_side", self.bet_side)
             stake = self.stake_for_step()
 
-            odds_ok, confirmed_odds = await self._confirm_odds_stable(
-                event_id, market_id, runner_id, odds, bet_side, event_name, stake,
-                min_odds=matched_cfg.get("min_back_odds"), max_odds=matched_cfg.get("max_back_odds")
+            odds_ok = await self._confirm_odds_stable(
+                event_id, market_id, runner_id, odds, bet_side, event_name, stake
             )
             if not odds_ok:
                 continue
-            odds = confirmed_odds  # bet the live price we just confirmed, not the stale scan price
 
             action_word = "Lay" if bet_side == "lay" else "Back"
             self.log(f"🎯 Match found: {event_name} -> {action_word} {runner_name} @ {odds}")

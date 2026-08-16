@@ -3,6 +3,11 @@ all running at the same time, independently.
 
 To add, remove, or change a strategy: edit config/strategies.json only.
 No code changes needed.
+
+Strategies with cash_out_at_percent set also get a second task
+(cash_out_loop) running alongside their main loop, so cash-out checks
+happen on their own fast timer instead of waiting behind the normal
+scan/settle loop.
 """
 
 import asyncio
@@ -31,7 +36,14 @@ async def main():
     print(f"Loaded {len(strategies)} strategy(ies): {', '.join(s['name'] for s in strategies)}")
 
     runners = [StrategyRunner(s, client) for s in strategies]
-    await asyncio.gather(*(r.run() for r in runners))
+
+    tasks = []
+    for r in runners:
+        tasks.append(r.run())
+        if r.cash_out_at_percent:
+            tasks.append(r.cash_out_loop())
+
+    await asyncio.gather(*tasks)
 
 
 if __name__ == "__main__":

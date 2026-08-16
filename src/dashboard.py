@@ -946,12 +946,11 @@ CATEGORIES_PAGE = """
 <style>
   :root {
     --bg: #0a0e14; --card: #11161f; --card2: #141a25;
-    --border: #1c2330; --text: #e4e7ec; --muted: #7a8699; --accent: #5b8def; --loss: #ff6b5e;
+    --border: #1c2330; --text: #e4e7ec; --muted: #7a8699; --accent: #5b8def; --loss: #ff6b5e; --win: #2dd4a8;
   }
   * { box-sizing: border-box; }
   body { font-family: 'Inter', -apple-system, Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 28px 32px 60px; }
-  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
-  .topbar { position: relative; flex-wrap: wrap; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; position: relative; flex-wrap: wrap; }
   .hamburger { display: none; background: none; border: 1px solid var(--border); color: var(--text); font-size: 18px; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
   .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
   @media (max-width: 760px) {
@@ -969,15 +968,21 @@ CATEGORIES_PAGE = """
   .card h2 { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; }
   .league-item { display: flex; align-items: center; gap: 8px; padding: 6px 4px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; border-bottom: 1px solid var(--border); }
   .cat-block { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: var(--card2); }
-  .cat-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .cat-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
   .cat-title { font-weight: 600; font-size: 14px; }
-  .cat-leagues { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); line-height: 1.9; }
-  .cat-leagues a { color: var(--loss); text-decoration: none; margin-left: 4px; }
+  .cat-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .cat-league-row { display: flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); padding: 2px 0; }
+  .cat-league-row a { color: var(--loss); text-decoration: none; margin-left: auto; }
+  .cat-bulk-remove { font-size: 11px; margin-top: 6px; }
   .btn { font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--card2); color: var(--text); cursor: pointer; }
+  .btn.small { padding: 4px 8px; font-size: 11px; }
   .btn.danger:hover { border-color: var(--loss); color: var(--loss); }
+  .btn.accent { border-color: var(--accent); color: var(--accent); }
   input[type=text] { background: var(--card2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 8px 10px; font-family: 'JetBrains Mono', monospace; font-size: 13px; width: 100%; }
-  .add-cat-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .add-cat-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
   select { background: var(--card2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 6px 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .bulk-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .checkbox-row { display: flex; align-items: center; gap: 6px; flex: 1; }
 </style>
 </head>
 <body>
@@ -1001,6 +1006,12 @@ CATEGORIES_PAGE = """
   <div class="layout">
     <div class="card">
       <h2 id="leagueListTitle">All Leagues</h2>
+      <div class="bulk-row">
+        <select id="bulkCatSelect"></select>
+        <button class="btn accent" onclick="bulkAdd()">Add checked leagues to category</button>
+        <button class="btn small" onclick="selectAllLeagues()">Select all</button>
+        <button class="btn small" onclick="clearAllLeagues()">Clear</button>
+      </div>
       <div id="leagueList"></div>
     </div>
     <div class="card">
@@ -1029,14 +1040,19 @@ function loadLeaguesForSport() {
   });
 }
 
-function load() {
+function load(keepSport) {
   Promise.all([
     fetch('/api/leagues_sports').then(r => r.json()),
     fetch('/api/league_categories').then(r => r.json())
   ]).then(([sports, c]) => {
+    const list = sports.length ? sports : ['Soccer'];
     const sel = document.getElementById('sportSelector');
-    sel.innerHTML = (sports.length ? sports : ['Soccer']).map(s => `<option value="${s}">${s}</option>`).join('');
-    currentSport = sel.value || 'Soccer';
+    sel.innerHTML = list.map(s => `<option value="${s}">${s}</option>`).join('');
+    if (keepSport && list.includes(currentSport)) {
+      sel.value = currentSport;
+    } else {
+      currentSport = sel.value || 'Soccer';
+    }
     document.getElementById('leagueListTitle').textContent = `All Leagues — ${currentSport}`;
 
     categories = c || {};
@@ -1050,13 +1066,16 @@ function load() {
 function render() {
   const catNames = Object.keys(categories).sort();
 
+  const bulkSel = document.getElementById('bulkCatSelect');
+  bulkSel.innerHTML = catNames.length
+    ? catNames.map(c => `<option value="${c}">${c}</option>`).join('')
+    : '<option value="">-- add a category first --</option>';
+
   let leagueHtml = '';
   leagues.forEach(name => {
-    const opts = catNames.map(c => `<option value="${c}">${c}</option>`).join('');
     leagueHtml += `<div class="league-item">
+      <input type="checkbox" class="league-check" value="${escAttr(name)}">
       <span style="flex:1;">${name}</span>
-      <select id="sel_${safeId(name)}">${opts || '<option value="">-- add a category first --</option>'}</select>
-      <button class="btn" onclick="assign('${escName(name)}')">Add</button>
     </div>`;
   });
   document.getElementById('leagueList').innerHTML = leagueHtml || '<p style="color:var(--muted);">No leagues captured yet.</p>';
@@ -1064,12 +1083,20 @@ function render() {
   let catHtml = '';
   catNames.forEach(cat => {
     const inCat = categories[cat] || [];
+    const safeCat = safeId(cat);
     catHtml += `<div class="cat-block">
       <div class="cat-title-row">
         <div class="cat-title">${cat} (${inCat.length})</div>
-        <button class="btn danger" onclick="deleteCategory('${escName(cat)}')">Delete category</button>
+        <div class="cat-actions">
+          <button class="btn small" onclick="copyCategory('${escName(cat)}')">Copy</button>
+          <button class="btn small danger" onclick="deleteCategory('${escName(cat)}')">Delete</button>
+        </div>
       </div>
-      <div class="cat-leagues">${inCat.map(l => `${l} <a href="#" onclick="removeFromCat('${escName(cat)}','${escName(l)}');return false;">✕</a>`).join('<br>') || '(empty)'}</div>
+      ${inCat.map(l => `<div class="cat-league-row">
+          <input type="checkbox" class="rm_${safeCat}" value="${escAttr(l)}">
+          <span>${l}</span>
+        </div>`).join('') || '<span style="color:var(--muted); font-size:12px;">(empty)</span>'}
+      ${inCat.length ? `<button class="btn small danger cat-bulk-remove" onclick="bulkRemove('${escName(cat)}','${safeCat}')">Remove checked</button>` : ''}
     </div>`;
   });
   document.getElementById('catList').innerHTML = catHtml || '<p style="color:var(--muted);">No categories yet — add one above.</p>';
@@ -1077,6 +1104,14 @@ function render() {
 
 function safeId(name) { return name.replace(/[^a-zA-Z0-9]/g, '_'); }
 function escName(name) { return name.replace(/'/g, "\\\\'"); }
+function escAttr(name) { return name.replace(/"/g, '&quot;'); }
+
+function selectAllLeagues() {
+  document.querySelectorAll('.league-check').forEach(cb => cb.checked = true);
+}
+function clearAllLeagues() {
+  document.querySelectorAll('.league-check').forEach(cb => cb.checked = false);
+}
 
 function addCategory() {
   const name = document.getElementById('newCatName').value.trim();
@@ -1092,17 +1127,27 @@ function deleteCategory(name) {
   persist();
 }
 
-function assign(leagueName) {
-  const sel = document.getElementById('sel_' + safeId(leagueName));
-  const cat = sel.value;
-  if (!cat) return;
-  if (!categories[cat]) categories[cat] = [];
-  if (!categories[cat].includes(leagueName)) categories[cat].push(leagueName);
+function copyCategory(name) {
+  const newName = prompt('Copy "' + name + '" as:', name + ' Copy');
+  if (!newName || !newName.trim()) return;
+  categories[newName.trim()] = (categories[name] || []).slice();
   persist();
 }
 
-function removeFromCat(cat, leagueName) {
-  categories[cat] = (categories[cat] || []).filter(l => l !== leagueName);
+function bulkAdd() {
+  const cat = document.getElementById('bulkCatSelect').value;
+  if (!cat) { alert('Add a category first.'); return; }
+  const checked = Array.from(document.querySelectorAll('.league-check:checked')).map(cb => cb.value);
+  if (!checked.length) return;
+  if (!categories[cat]) categories[cat] = [];
+  checked.forEach(l => { if (!categories[cat].includes(l)) categories[cat].push(l); });
+  persist();
+}
+
+function bulkRemove(cat, safeCat) {
+  const checked = Array.from(document.querySelectorAll('.rm_' + safeCat + ':checked')).map(cb => cb.value);
+  if (!checked.length) return;
+  categories[cat] = (categories[cat] || []).filter(l => !checked.includes(l));
   persist();
 }
 
@@ -1111,16 +1156,14 @@ function persist() {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(categories)
-  }).then(r => r.json()).then(() => load());
+  }).then(r => r.json()).then(() => load(true));
 }
 
-load();
+load(false);
 </script>
 </body>
 </html>
 """
-
-
 STRATEGIES_PAGE = """
 <!DOCTYPE html>
 <html>
