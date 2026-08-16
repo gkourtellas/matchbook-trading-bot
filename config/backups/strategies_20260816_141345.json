@@ -594,60 +594,6 @@
     {
       "autoRestart": false,
       "bankroll": 10,
-      "base_stake": 0.5,
-      "bet_mode": "normal",
-      "bet_side": "back",
-      "btts_direction": null,
-      "cash_out_at_percent": 2,
-      "compound_start": null,
-      "compound_target": null,
-      "currency": "EUR",
-      "description": "",
-      "enabled": true,
-      "event_lookahead_minutes": 180,
-      "excluded_leagues": [],
-      "favorite_min_step": 1,
-      "favorite_on_flashscore": false,
-      "included_categories": [
-        "Leagues For Win Strategies"
-      ],
-      "included_leagues": [],
-      "keep_in_play": false,
-      "live_mode": "pre",
-      "market_name": "Double Chance",
-      "market_names": [
-        "Double Chance"
-      ],
-      "max_back_odds": 1.1,
-      "max_open_bets": 3,
-      "max_session_loss": 10,
-      "max_total_exposure": 10,
-      "min_back_odds": 1.01,
-      "min_field_size": null,
-      "min_seconds_to_start": 300,
-      "minimum_liquidity": 50,
-      "name": "Double Chance",
-      "odds_type": "DECIMAL",
-      "open_positions_cooldown_seconds": 600,
-      "pause_scanning_with_open_positions": true,
-      "poll_interval_seconds": 600,
-      "sport_name": "Soccer",
-      "sport_names": [
-        "Soccer"
-      ],
-      "spread_cap_percent": null,
-      "staking_plan": [
-        0.5
-      ],
-      "staking_steps": 1,
-      "strategy_type": "normal",
-      "target_profit": 10,
-      "total_direction": null,
-      "total_range": null
-    },
-    {
-      "autoRestart": false,
-      "bankroll": 10,
       "base_stake": 0.1,
       "bet_mode": "normal",
       "bet_side": "back",
@@ -740,6 +686,60 @@
       "target_profit": 1,
       "total_direction": null,
       "total_range": null
+    },
+    {
+      "autoRestart": false,
+      "bankroll": 10,
+      "base_stake": 0.5,
+      "bet_mode": "normal",
+      "bet_side": "back",
+      "cash_out_at_percent": 2,
+      "compound_start": null,
+      "compound_target": null,
+      "currency": "EUR",
+      "description": "",
+      "enabled": true,
+      "event_lookahead_minutes": 180,
+      "excluded_leagues": [],
+      "favorite_min_step": 1,
+      "favorite_on_flashscore": false,
+      "keep_in_play": false,
+      "live_mode": "pre",
+      "market_name": "Double Chance",
+      "market_names": [
+        "Double Chance"
+      ],
+      "max_back_odds": 1.1,
+      "max_open_bets": 3,
+      "max_session_loss": 10,
+      "max_total_exposure": 10,
+      "min_back_odds": 1.01,
+      "min_field_size": null,
+      "min_seconds_to_start": 300,
+      "minimum_liquidity": 50,
+      "name": "Double Chance",
+      "odds_type": "DECIMAL",
+      "open_positions_cooldown_seconds": 600,
+      "pause_scanning_with_open_positions": true,
+      "poll_interval_seconds": 600,
+      "sport_name": "Soccer",
+      "sport_names": [
+        "Soccer"
+      ],
+      "spread_cap_percent": null,
+      "staking_plan": [
+        0.5
+      ],
+      "staking_steps": 1,
+      "strategy_type": "normal",
+      "target_profit": 10,
+      "total_direction": null,
+      "total_range": null,
+      "included_categories": [
+        "Leagues For Win Strategies"
+      ],
+      "included_leagues": [],
+      "btts_direction": null
     },
     {
       "autoRestart": false,
@@ -988,7 +988,7 @@
       "compound_target": null,
       "currency": "EUR",
       "description": "",
-      "enabled": true,
+      "enabled": false,
       "event_lookahead_minutes": 30,
       "excluded_leagues": [],
       "favorite_min_step": 1,
@@ -1025,10 +1025,7 @@
       "strategy_type": "normal",
       "target_profit": 10,
       "total_direction": "Under",
-      "total_range": "2.5",
-      "included_categories": [],
-      "included_leagues": [],
-      "btts_direction": null
+      "total_range": "2.5"
     },
     {
       "autoRestart": false,

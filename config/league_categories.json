@@ -35,7 +35,6 @@
     "Denmark Superliga",
     "Ecuador Cup",
     "El Salvador Primera Division",
-    "Elite Club Friendlies",
     "England Championship",
     "England League 1",
     "England League Cup",
@@ -72,16 +71,13 @@
     "Poland I liga",
     "Romania Liga 1",
     "Scotland League Cup",
-    "Sweden Allsvenskan",
     "Sweden Superettan",
     "Switzerland Super League",
-    "UEFA Champions League Qualification",
     "UEFA Europa Conference League Qualification",
     "UEFA Europa League Qualification",
     "Uruguay Primera Divisi\u00f3n",
     "Uruguay Segunda Divisi\u00f3n",
     "US Major League Soccer",
-    "US USL Championship",
     "Wales Premier League"
   ],
   "Leagues For Win Strategies": [
@@ -109,5 +105,15 @@
     "Serbia SuperLiga",
     "Sweden Allsvenskan",
     "Uruguay Primera Divisi\u00f3n"
+  ],
+  "Tennis": [
+    "ATP Cincinnati",
+    "ATP Cincinnati Qualification",
+    "ATP Montreal",
+    "ATP US Open",
+    "WTA Cincinnati",
+    "WTA Cincinnati Qualification",
+    "WTA Toronto",
+    "WTA US Open"
   ]
 }
