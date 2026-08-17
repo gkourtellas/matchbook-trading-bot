@@ -1,11 +1,11 @@
 {
-  "current_step": 3,
+  "current_step": 1,
   "active_bet_info": {
-    "offer_id": 33548479111101060,
-    "event_id": 33504837330000023,
-    "start_time": "2026-06-14T14:00:00",
-    "placed_at": "2026-06-14T12:54:22.865599",
-    "selection_name": "EC Juventude",
-    "event_name": "EC Juventude vs Atl\u00e9tica Ponte Preta"
+    "offer_id": 33608401503100022,
+    "event_id": 33549003870000023,
+    "start_time": "2026-06-21T14:00:00",
+    "placed_at": "2026-06-21T11:21:26.845536",
+    "selection_name": "Bryne",
+    "event_name": "Bryne vs \u00c5sane"
   }
 }

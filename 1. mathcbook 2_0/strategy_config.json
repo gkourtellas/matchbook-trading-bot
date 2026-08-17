@@ -1,0 +1,49 @@
+{
+  "strategies": [
+    {
+      "name": "Win_Step 6/1.5",
+      "enabled": true,
+      "sport_id": "15",
+      "market_name": "Match Odds",
+      "min_back_odds": 1.45,
+      "max_back_odds": 1.60,
+      "staking_plan": [0.11, 0.12, 0.13, 0.14, 0.15, 0.16]
+    },
+    {
+      "name": "More_Step 6/1.5",
+      "enabled": true,
+      "sport_id": "15",
+      "market_name": "Total Goals",
+      "min_back_odds": 1.45,
+      "max_back_odds": 1.60,
+      "staking_plan": [0.11, 0.12, 0.13, 0.14, 0.15, 0.16]
+    },
+    {
+      "name": "Hockey_6 Steps_1.5",
+      "enabled": true,
+      "sport_id": "4",
+      "market_name": "Match Odds",
+      "min_back_odds": 1.45,
+      "max_back_odds": 1.60,
+          "staking_plan": [0.11, 0.12, 0.13, 0.14, 0.15, 0.16]
+    },
+    {
+      "name": "Baseball",
+      "enabled": true,
+      "sport_id": "1",
+      "market_name": "Match Odds",
+      "min_back_odds": 1.45,
+      "max_back_odds": 1.60,
+      "staking_plan": [0.11, 0.12, 0.13, 0.14, 0.15, 0.16]
+    },
+    {
+      "name": "Test Fixed Bet",
+      "enabled": false,
+      "sport_id": "15",
+      "market_name": "Match Odds",
+      "min_back_odds": 1.45,
+      "max_back_odds": 1.60,
+      "staking_plan": [0.1]
+    }
+  ]
+}

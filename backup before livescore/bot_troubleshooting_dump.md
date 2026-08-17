@@ -14,7 +14,6 @@ import os
 import requests
 import json
 import time
-from datetime import datetime, timedelta
 
 class MatchbookClient:
     def __init__(self):
@@ -26,7 +25,6 @@ class MatchbookClient:
         self.auth_url = "https://api.matchbook.com/bpapi/rest/security/session"
         self.base_url = "https://api.matchbook.com/edge/rest"
         self.session_token = None
-        self.last_login_time = None
         self.headers = {
             "content-type": "application/json;charset=UTF-8",
             "accept": "application/json"
@@ -50,7 +48,6 @@ class MatchbookClient:
                     data = response.json()
                     self.session_token = data.get("session-token")
                     self.headers["session-token"] = self.session_token
-                    self.last_login_time = datetime.utcnow()
                     self.send_telegram("✅ Matchbook login successful. Session token acquired.")
                     return True
                 
@@ -69,29 +66,11 @@ class MatchbookClient:
                 self.send_telegram(f"❌ Login exception encountered: {str(e)}")
                 return False
 
-    def ensure_valid_session(self):
-        """Proactively checks if the current token is older than 4 hours and refreshes if needed."""
-        if not self.last_login_time or not self.session_token:
-            print("No active session token found. Initializing login...")
-            return self.login()
-        
-        # If token is older than 4 hours, force a proactive background refresh
-        if datetime.utcnow() - self.last_login_time > timedelta(hours=4):
-            print("🔄 Session token is older than 4 hours. Executing proactive background refresh...")
-            return self.login()
-        return True
-
     def get_navigation(self):
         """Retrieves the navigation hierarchy to locate sports and markets."""
-        self.ensure_valid_session()
         url = f"{self.base_url}/navigation"
         try:
             response = requests.get(url, headers=self.headers)
-            if response.status_code == 401:
-                print("⚠️ Received 401 Unauthorized on get_navigation. Attempting reactive session refresh...")
-                if self.login():
-                    response = requests.get(url, headers=self.headers)
-            
             if response.status_code == 200:
                 return response.json()
             return None
@@ -101,7 +80,6 @@ class MatchbookClient:
 
     def get_live_events(self, sport_ids, per_page=20):
         """Fetches active events, runners, and exchange market odds for specified sport IDs."""
-        self.ensure_valid_session()
         url = f"{self.base_url}/events"
         params = {
             "sport-ids": sport_ids,
@@ -115,11 +93,6 @@ class MatchbookClient:
         }
         try:
             response = requests.get(url, params=params, headers=self.headers)
-            if response.status_code == 401:
-                print("⚠️ Received 401 Unauthorized on get_live_events. Attempting reactive session refresh...")
-                if self.login():
-                    response = requests.get(url, params=params, headers=self.headers)
-                    
             if response.status_code == 200:
                 return response.json()
             return None
@@ -129,7 +102,6 @@ class MatchbookClient:
 
     def submit_order(self, runner_id, side, odds, stake):
         """Submits an exchange order for a specific selection runner ID."""
-        self.ensure_valid_session()
         url = f"{self.base_url}/v2/offers"
         payload = {
             "odds-type": "DECIMAL",
@@ -145,11 +117,6 @@ class MatchbookClient:
         }
         try:
             response = requests.post(url, data=json.dumps(payload), headers=self.headers)
-            if response.status_code == 401:
-                print("⚠️ Received 401 Unauthorized on submit_order. Attempting reactive session refresh...")
-                if self.login():
-                    response = requests.post(url, data=json.dumps(payload), headers=self.headers)
-
             if response.status_code in [200, 201]:
                 return response.json()
             print(f"Order submission rejected. Status: {response.status_code}, Response: {response.text}")
@@ -160,16 +127,10 @@ class MatchbookClient:
 
     def get_order_status(self, offer_id):
         """Fetch one offer by ID (Matchbook: GET /v2/offers?offer-ids=...)."""
-        self.ensure_valid_session()
         url = f"{self.base_url}/v2/offers"
         params = {"offer-ids": str(offer_id), "per-page": 1}
         try:
             response = requests.get(url, params=params, headers=self.headers)
-            if response.status_code == 401:
-                print("⚠️ Received 401 Unauthorized on get_order_status. Attempting reactive session refresh...")
-                if self.login():
-                    response = requests.get(url, params=params, headers=self.headers)
-
             if response.status_code == 200:
                 return response.json()
             return None
@@ -245,7 +206,6 @@ class MatchbookClient:
 
     def get_settled_outcome_for_offer(self, offer_id, after_dt=None, event_id=None):
         """Look up offer in Matchbook settled-bets report (WIN / LOSE / profit-loss)."""
-        self.ensure_valid_session()
         url = f"{self.base_url}/reports/v2/bets/settled"
         target = str(offer_id)
         offset = 0
@@ -260,11 +220,6 @@ class MatchbookClient:
 
             try:
                 response = requests.get(url, params=params, headers=self.headers)
-                if response.status_code == 401:
-                    print("⚠️ Received 401 Unauthorized on get_settled_outcome_for_offer. Attempting reactive session refresh...")
-                    if self.login():
-                        response = requests.get(url, params=params, headers=self.headers)
-
                 if response.status_code != 200:
                     return None
 
@@ -532,8 +487,6 @@ def main():
 
                 print("⏰ 110 minutes elapsed since kickoff. Transitioning to minute-by-minute status tracking...")
 
-                consecutive_failures = 0
-
                 while True:
                     time.sleep(60)
                     offer_id = active_bet_info.get("offer_id")
@@ -553,21 +506,6 @@ def main():
                     )
 
                     if outcome not in ("won", "lost"):
-                        if source in ("not_found", "unknown"):
-                            consecutive_failures += 1
-                            if consecutive_failures >= 5:
-                                alert_msg = (
-                                    f"🚨 Settlement Loop Error\n"
-                                    f"Offer {offer_id} returned status: {source} 5 times consecutively.\n"
-                                    f"Breaking loop to prevent lockup. Retaining current step: {current_step}."
-                                )
-                                print(alert_msg)
-                                client.send_telegram(alert_msg)
-                                active_bet_info = None
-                                save_state(current_step, active_bet_info)
-                                break
-                        else:
-                            consecutive_failures = 0
                         continue
 
                     result_label = "Won" if outcome == "won" else "Lost"
@@ -1706,294 +1644,5 @@ Start Time: 02:30
 2026-06-14 05:34:53 Checking settlement for offer 33542737036100061 (not_found)...
 2026-06-14 05:35:54 Checking settlement for offer 33542737036100061 (not_found)...
 2026-06-14 05:36:54 Checking settlement for offer 33542737036100061 (not_found)...
-2026-06-14 05:37:54 Checking settlement for offer 33542737036100061 (not_found)...
-2026-06-14 05:38:55 Checking settlement for offer 33542737036100061 (not_found)...
-2026-06-14 05:39:55 Checking settlement for offer 33542737036100061 (not_found)...
-2026-06-14 05:40:56 Checking settlement for offer 33542737036100061 (not_found)...
-2026-06-14 05:41:56 Checking settlement for offer 33542737036100061 (not_found)...
-2026-06-14 05:42:56 Checking settlement for offer 33542737036100061 (not_found)...
-2026-06-14 05:43:57 Checking settlement for offer 33542737036100061 (not_found)...
-2026-06-14 05:44:57 Checking settlement for offer 33542737036100061 (not_found)...
-2026-06-14 05:45:54 Log file: /app/logs/bot.log
-2026-06-14 05:45:54 Starting automated execution strategy loop...
-2026-06-14 05:45:55 Config loaded: mode=production, max_steps=6, odds 1.45-1.6, stake step 1=0.1
-2026-06-14 05:45:55 🔄 Recovered existing active bet profile for: Tampa Bay Rowdies vs Hartford Athletic FC
-2026-06-14 05:45:55 ⏰ 110 minutes elapsed since kickoff. Transitioning to minute-by-minute status tracking...
-2026-06-14 05:46:55 Checking settlement for offer 33542737036100061 (settled-report)...
-2026-06-14 05:46:55 Settled
-Match: Tampa Bay Rowdies vs Hartford Athletic FC
-Result: Lost
-Next step: 2/6
-2026-06-14 05:47:11 
---- Scanning markets at 2026-06-14 05:47:11 (Step 2/6) ---
-2026-06-14 05:47:11 🎯 Trigger conditions met for: PK Keski-Uusimaa vs TPV -> PK Keski-Uusimaa
-2026-06-14 05:47:11 🚀 Bet Placed!
-Step: 2/6
-League: Finland Ykkönen
-Match: PK Keski-Uusimaa vs TPV
-Selection: PK Keski-Uusimaa
-Action: back
-Odds: 1.54
-Stake: 0.3
-Start Time: 14:00
-2026-06-14 05:47:12 ⏳ Active bet track verified. Holding market checks until 110 minutes after kickoff (15:50 Athens time)...
-2026-06-14 06:56:04 Log file: /app/logs/bot.log
-2026-06-14 06:56:04 Starting automated execution strategy loop...
-2026-06-14 06:56:04 Config loaded: mode=production, max_steps=6, odds 1.45-1.6, stake step 1=0.1
-2026-06-14 06:56:04 🔄 Recovered existing active bet profile for: PK Keski-Uusimaa vs TPV
-2026-06-14 06:56:04 ⏳ Active bet track verified. Holding market checks until 110 minutes after kickoff (15:50 Athens time)...
-2026-06-14 12:50:04 ⏰ 110 minutes elapsed since kickoff. Transitioning to minute-by-minute status tracking...
-2026-06-14 12:51:04 🔄 Session token is older than 4 hours. Executing proactive background refresh...
-2026-06-14 12:51:05 Checking settlement for offer 33545916034700022 (matched)...
-2026-06-14 12:52:06 Checking settlement for offer 33545916034700022 (matched)...
-2026-06-14 12:53:06 Checking settlement for offer 33545916034700022 (matched)...
-2026-06-14 12:54:06 Checking settlement for offer 33545916034700022 (settled-report)...
-2026-06-14 12:54:06 Settled
-Match: PK Keski-Uusimaa vs TPV
-Result: Lost
-Next step: 3/6
-2026-06-14 12:54:21 
---- Scanning markets at 2026-06-14 12:54:21 (Step 3/6) ---
-2026-06-14 12:54:22 🎯 Trigger conditions met for: EC Juventude vs Atlética Ponte Preta -> EC Juventude
-2026-06-14 12:54:22 🚀 Bet Placed!
-Step: 3/6
-League: Brazil Serie B
-Match: EC Juventude vs Atlética Ponte Preta
-Selection: EC Juventude
-Action: back
-Odds: 1.49
-Stake: 0.9
-Start Time: 17:00
-2026-06-14 12:54:22 ⏳ Active bet track verified. Holding market checks until 110 minutes after kickoff (18:50 Athens time)...
-2026-06-14 14:17:53 Log file: /app/logs/bot.log
-2026-06-14 14:17:53 Starting automated execution strategy loop...
-2026-06-14 14:17:54 Config loaded: mode=production, max_steps=6, odds 1.45-1.6, stake step 1=0.1
-2026-06-14 14:17:54 🔄 Recovered existing active bet profile for: EC Juventude vs Atlética Ponte Preta
-2026-06-14 14:17:54 ⏳ Active bet track verified. Monitoring live score changes until 110 minutes after kickoff (18:50 Athens time)...
-2026-06-14 14:29:32 Log file: /app/logs/bot.log
-2026-06-14 14:29:32 Starting automated execution strategy loop...
-2026-06-14 14:29:33 Config loaded: mode=production, max_steps=6, odds 1.45-1.6, stake step 1=0.1
-2026-06-14 14:29:33 🔄 Recovered existing active bet profile for: EC Juventude vs Atlética Ponte Preta
-2026-06-14 14:29:33 ⏳ Active bet track verified. Holding market checks until 110 minutes after kickoff (18:50 Athens time)...
-2026-06-14 15:50:03 ⏰ 110 minutes elapsed since kickoff. Transitioning to minute-by-minute status tracking...
-2026-06-14 15:51:03 Checking settlement for offer 33548479111101060 (matched)...
-2026-06-14 15:52:03 Checking settlement for offer 33548479111101060 (matched)...
-2026-06-14 15:53:04 Checking settlement for offer 33548479111101060 (matched)...
-2026-06-14 15:54:04 Checking settlement for offer 33548479111101060 (matched)...
-2026-06-14 15:55:05 Checking settlement for offer 33548479111101060 (matched)...
-2026-06-14 15:56:05 Checking settlement for offer 33548479111101060 (matched)...
-2026-06-14 15:57:05 Checking settlement for offer 33548479111101060 (matched)...
-2026-06-14 15:58:06 Checking settlement for offer 33548479111101060 (settled-report)...
-2026-06-14 15:58:06 Settled
-Match: EC Juventude vs Atlética Ponte Preta
-Result: Won
-Next step: 1/6
-2026-06-14 15:58:21 
---- Scanning markets at 2026-06-14 15:58:21 (Step 1/6) ---
-2026-06-14 15:58:21 🎯 Trigger conditions met for: ABC Futebol vs Maguary -> ABC Futebol
-2026-06-14 15:58:22 🚀 Bet Placed!
-Step: 1/6
-League: Brazil Serie D
-Match: ABC Futebol vs Maguary
-Selection: ABC Futebol
-Action: back
-Odds: 1.56
-Stake: 0.1
-Start Time: 21:00
-2026-06-14 15:58:22 ⏳ Active bet track verified. Holding market checks until 110 minutes after kickoff (22:50 Athens time)...
-2026-06-14 19:50:22 ⏰ 110 minutes elapsed since kickoff. Transitioning to minute-by-minute status tracking...
-2026-06-14 19:51:22 🔄 Session token is older than 4 hours. Executing proactive background refresh...
-2026-06-14 19:51:23 Checking settlement for offer 33549583058600022 (matched)...
-2026-06-14 19:52:24 Checking settlement for offer 33549583058600022 (matched)...
-2026-06-14 19:53:24 Checking settlement for offer 33549583058600022 (matched)...
-2026-06-14 19:54:25 Checking settlement for offer 33549583058600022 (matched)...
-2026-06-14 19:55:25 Checking settlement for offer 33549583058600022 (matched)...
-2026-06-14 19:56:25 Checking settlement for offer 33549583058600022 (matched)...
-2026-06-14 19:57:26 Checking settlement for offer 33549583058600022 (matched)...
-2026-06-14 19:58:26 Checking settlement for offer 33549583058600022 (settled-report)...
-2026-06-14 19:58:26 Settled
-Match: ABC Futebol vs Maguary
-Result: Won
-Next step: 1/6
-2026-06-14 19:58:42 
---- Scanning markets at 2026-06-14 19:58:42 (Step 1/6) ---
-2026-06-14 19:58:42 🎯 Trigger conditions met for: Universidad Católica vs Universidad de Concepción -> Universidad Católica
-2026-06-14 19:58:42 🚀 Bet Placed!
-Step: 1/6
-League: Chile Primera Division
-Match: Universidad Católica vs Universidad de Concepción
-Selection: Universidad Católica
-Action: back
-Odds: 1.5
-Stake: 0.1
-Start Time: 00:30
-2026-06-14 19:58:43 ⏳ Active bet track verified. Holding market checks until 110 minutes after kickoff (02:20 Athens time)...
-2026-06-14 23:20:13 ⏰ 110 minutes elapsed since kickoff. Transitioning to minute-by-minute status tracking...
-2026-06-14 23:21:13 Checking settlement for offer 33551025149302022 (matched)...
-2026-06-14 23:22:14 Checking settlement for offer 33551025149302022 (matched)...
-2026-06-14 23:23:14 Checking settlement for offer 33551025149302022 (matched)...
-2026-06-14 23:24:14 Checking settlement for offer 33551025149302022 (matched)...
-2026-06-14 23:25:15 Checking settlement for offer 33551025149302022 (matched)...
-2026-06-14 23:26:15 Checking settlement for offer 33551025149302022 (matched)...
-2026-06-14 23:27:15 Checking settlement for offer 33551025149302022 (matched)...
-2026-06-14 23:28:16 Checking settlement for offer 33551025149302022 (matched)...
-2026-06-14 23:29:16 Checking settlement for offer 33551025149302022 (matched)...
-2026-06-14 23:30:16 Checking settlement for offer 33551025149302022 (matched)...
-2026-06-14 23:31:17 Checking settlement for offer 33551025149302022 (settled-report)...
-2026-06-14 23:31:17 Settled
-Match: Universidad Católica vs Universidad de Concepción
-Result: Won
-Next step: 1/6
-2026-06-14 23:31:32 
---- Scanning markets at 2026-06-14 23:31:32 (Step 1/6) ---
-2026-06-14 23:31:32 🎯 Trigger conditions met for: Saudi Arabia vs Uruguay -> Uruguay
-2026-06-14 23:31:32 🚀 Bet Placed!
-Step: 1/6
-League: FIFA World Cup
-Match: Saudi Arabia vs Uruguay
-Selection: Uruguay
-Action: back
-Odds: 1.53
-Stake: 0.1
-Start Time: 01:00
-2026-06-14 23:31:33 ⏳ Active bet track verified. Holding market checks until 110 minutes after kickoff (02:50 Athens time)...
-2026-06-15 14:11:07 Log file: /app/logs/bot.log
-2026-06-15 14:11:07 Starting automated execution strategy loop...
-2026-06-15 14:11:07 Config loaded: mode=production, max_steps=6, odds 1.45-1.6, stake step 1=0.1
-2026-06-15 14:11:07 🔄 Recovered existing active bet profile for: Saudi Arabia vs Uruguay
-2026-06-15 14:11:07 ⏳ Active bet track verified. Holding market checks until 110 minutes after kickoff (02:50 Athens time)...
-2026-06-15 19:49:04 Log file: /app/logs/bot.log
-2026-06-15 19:49:04 Starting automated execution strategy loop...
-2026-06-15 19:49:04 Config loaded: mode=production, max_steps=6, odds 1.45-1.6, stake step 1=0.1
-2026-06-15 19:49:04 🔄 Recovered existing active bet profile for: Saudi Arabia vs Uruguay
-2026-06-15 19:49:04 ⏳ Active bet track verified. Holding market checks until 110 minutes after kickoff (02:50 Athens time)...
-2026-06-15 23:50:04 ⏰ 110 minutes elapsed since kickoff. Transitioning to minute-by-minute status tracking...
-2026-06-15 23:51:04 🔄 Session token is older than 4 hours. Executing proactive background refresh...
-2026-06-15 23:51:05 Checking settlement for offer 33552302150300019 (matched)...
-2026-06-15 23:52:06 Checking settlement for offer 33552302150300019 (matched)...
-2026-06-15 23:53:06 Checking settlement for offer 33552302150300019 (matched)...
-2026-06-15 23:54:06 Checking settlement for offer 33552302150300019 (matched)...
-2026-06-15 23:55:06 Checking settlement for offer 33552302150300019 (matched)...
-2026-06-15 23:56:07 Checking settlement for offer 33552302150300019 (matched)...
-2026-06-15 23:57:07 Checking settlement for offer 33552302150300019 (matched)...
-2026-06-15 23:58:08 Checking settlement for offer 33552302150300019 (matched)...
-2026-06-15 23:59:08 Checking settlement for offer 33552302150300019 (matched)...
-2026-06-16 00:00:08 Checking settlement for offer 33552302150300019 (matched)...
-2026-06-16 00:01:09 Checking settlement for offer 33552302150300019 (matched)...
-2026-06-16 00:02:09 Checking settlement for offer 33552302150300019 (matched)...
-2026-06-16 00:03:09 Checking settlement for offer 33552302150300019 (matched)...
-2026-06-16 00:04:10 Checking settlement for offer 33552302150300019 (matched)...
-2026-06-16 00:05:10 Checking settlement for offer 33552302150300019 (matched)...
-2026-06-16 00:06:10 Checking settlement for offer 33552302150300019 (settled-report)...
-2026-06-16 00:06:10 Settled
-Match: Saudi Arabia vs Uruguay
-Result: Lost
-Next step: 2/6
-2026-06-16 00:06:26 
---- Scanning markets at 2026-06-16 00:06:26 (Step 2/6) ---
-2026-06-16 00:06:26 🎯 Trigger conditions met for: France vs Senegal -> France
-2026-06-16 00:06:26 🚀 Bet Placed!
-Step: 2/6
-League: FIFA World Cup
-Match: France vs Senegal
-Selection: France
-Action: back
-Odds: 1.51
-Stake: 0.3
-Start Time: 22:00
-2026-06-16 00:06:27 ⏳ Active bet track verified. Holding market checks until 110 minutes after kickoff (23:50 Athens time)...
-2026-06-17 04:21:22 Log file: /app/logs/bot.log
-2026-06-17 04:21:22 Starting automated execution strategy loop...
-2026-06-17 04:21:23 Config loaded: mode=production, max_steps=6, odds 1.45-1.6, stake step 1=0.1
-2026-06-17 04:21:23 🔄 Recovered existing active bet profile for: France vs Senegal
-2026-06-17 04:21:23 ⏰ 110 minutes elapsed since kickoff. Transitioning to minute-by-minute status tracking...
-2026-06-17 04:22:23 Checking settlement for offer 33561151530300019 (settled-report)...
-2026-06-17 04:22:23 Settled
-Match: France vs Senegal
-Result: Won
-Next step: 1/6
-2026-06-17 04:22:39 
---- Scanning markets at 2026-06-17 04:22:39 (Step 1/6) ---
-2026-06-17 04:22:40 🎯 Trigger conditions met for: FS Jelgava vs Ogre United -> FS Jelgava
-2026-06-17 04:22:40 🚀 Bet Placed!
-Step: 1/6
-League: Latvia Virsliga
-Match: FS Jelgava vs Ogre United
-Selection: FS Jelgava
-Action: back
-Odds: 1.54
-Stake: 0.1
-Start Time: 18:00
-2026-06-17 04:22:40 ⏳ Active bet track verified. Holding market checks until 110 minutes after kickoff (19:50 Athens time)...
-2026-06-17 16:50:11 ⏰ 110 minutes elapsed since kickoff. Transitioning to minute-by-minute status tracking...
-2026-06-17 16:51:11 🔄 Session token is older than 4 hours. Executing proactive background refresh...
-2026-06-17 16:51:11 Checking settlement for offer 33571328870400022 (settled-report)...
-2026-06-17 16:51:11 Settled
-Match: FS Jelgava vs Ogre United
-Result: Lost
-Next step: 2/6
-2026-06-17 16:51:27 
---- Scanning markets at 2026-06-17 16:51:27 (Step 2/6) ---
-2026-06-17 16:51:27 🎯 Trigger conditions met for: Rågsveds IF vs Enköpings SK -> Enköpings SK
-2026-06-17 16:51:27 🚀 Bet Placed!
-Step: 2/6
-League: Sweden Svenska Cupen
-Match: Rågsveds IF vs Enköpings SK
-Selection: Enköpings SK
-Action: back
-Odds: 1.59
-Stake: 0.3
-Start Time: 20:30
-2026-06-17 16:51:28 ⏳ Active bet track verified. Holding market checks until 110 minutes after kickoff (22:20 Athens time)...
-2026-06-17 19:20:28 ⏰ 110 minutes elapsed since kickoff. Transitioning to minute-by-minute status tracking...
-2026-06-17 19:21:28 Checking settlement for offer 33575821630900019 (settled-report)...
-2026-06-17 19:21:28 Settled
-Match: Rågsveds IF vs Enköpings SK
-Result: Won
-Next step: 1/6
-2026-06-17 19:21:44 
---- Scanning markets at 2026-06-17 19:21:44 (Step 1/6) ---
-2026-06-17 19:21:44 🎯 Trigger conditions met for: Switzerland vs Bosnia-Herzegovina -> Switzerland
-2026-06-17 19:21:45 🚀 Bet Placed!
-Step: 1/6
-League: FIFA World Cup
-Match: Switzerland vs Bosnia-Herzegovina
-Selection: Switzerland
-Action: back
-Odds: 1.58
-Stake: 0.1
-Start Time: 22:00
-2026-06-17 19:21:45 ⏳ Active bet track verified. Holding market checks until 110 minutes after kickoff (23:50 Athens time)...
-2026-06-18 19:15:57 Log file: /app/logs/bot.log
-2026-06-18 19:15:57 Starting automated execution strategy loop...
-2026-06-18 19:15:58 Config loaded: mode=production, max_steps=6, odds 1.45-1.6, stake step 1=0.1
-2026-06-18 19:15:58 🔄 Recovered existing active bet profile for: Switzerland vs Bosnia-Herzegovina
-2026-06-18 19:15:58 ⏳ Active bet track verified. Holding market checks until 110 minutes after kickoff (23:50 Athens time)...
-2026-06-18 20:50:28 ⏰ 110 minutes elapsed since kickoff. Transitioning to minute-by-minute status tracking...
-2026-06-18 20:51:28 Checking settlement for offer 33576723355200060 (matched)...
-2026-06-18 20:52:29 Checking settlement for offer 33576723355200060 (matched)...
-2026-06-18 20:53:29 Checking settlement for offer 33576723355200060 (matched)...
-2026-06-18 20:54:29 Checking settlement for offer 33576723355200060 (matched)...
-2026-06-18 20:55:30 Checking settlement for offer 33576723355200060 (matched)...
-2026-06-18 20:56:30 Checking settlement for offer 33576723355200060 (matched)...
-2026-06-18 20:57:30 Checking settlement for offer 33576723355200060 (matched)...
-2026-06-18 20:58:31 Checking settlement for offer 33576723355200060 (settled-report)...
-2026-06-18 20:58:31 Settled
-Match: Switzerland vs Bosnia-Herzegovina
-Result: Won
-Next step: 1/6
-2026-06-18 20:58:46 
---- Scanning markets at 2026-06-18 20:58:46 (Step 1/6) ---
-2026-06-18 20:58:46 🎯 Trigger conditions met for: Germany vs Ivory Coast -> Germany
-2026-06-18 20:58:47 🚀 Bet Placed!
-Step: 1/6
-League: FIFA World Cup
-Match: Germany vs Ivory Coast
-Selection: Germany
-Action: back
-Odds: 1.57
-Stake: 0.1
-Start Time: 23:00
-2026-06-18 20:58:47 ⏳ Active bet track verified. Holding market checks until 110 minutes after kickoff (00:50 Athens time)...
 ```
 

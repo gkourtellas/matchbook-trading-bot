@@ -1,0 +1,13 @@
+services:  
+  matchbook-bot:  
+    build: .  
+    container_name: matchbook_trading_bot_v2  
+    restart: always  
+    volumes:  
+      - ./config.json:/app/config.json  
+      - ./strategy_config.json:/app/strategy_config.json  
+      - ./config:/app/config  
+      - ./logs:/app/logs  
+    environment:  
+      - TZ=Europe/Athens  
+      - PYTHONUNBUFFERED=1
