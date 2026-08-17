@@ -450,7 +450,7 @@
       "compound_target": 2.4,
       "currency": "EUR",
       "description": "",
-      "enabled": false,
+      "enabled": true,
       "event_lookahead_minutes": 180,
       "favorite_min_step": 1,
       "favorite_on_flashscore": false,
