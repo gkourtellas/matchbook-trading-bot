@@ -966,10 +966,12 @@ CATEGORIES_PAGE = """
   @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
   .card h2 { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; }
+  .scroll-panel { max-height: 68vh; overflow-y: auto; padding-right: 4px; }
   .league-item { display: flex; align-items: center; gap: 8px; padding: 6px 4px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; border-bottom: 1px solid var(--border); }
   .cat-block { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: var(--card2); }
-  .cat-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
+  .cat-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; cursor: pointer; }
   .cat-title { font-weight: 600; font-size: 14px; }
+  .cat-toggle { color: var(--muted); font-size: 12px; width: 14px; flex-shrink: 0; }
   .cat-actions { display: flex; gap: 6px; flex-shrink: 0; }
   .cat-league-row { display: flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); padding: 2px 0; }
   .cat-league-row a { color: var(--loss); text-decoration: none; margin-left: auto; }
@@ -1012,11 +1014,11 @@ CATEGORIES_PAGE = """
         <button class="btn small" onclick="selectAllLeagues()">Select all</button>
         <button class="btn small" onclick="clearAllLeagues()">Clear</button>
       </div>
-      <div id="leagueList"></div>
+      <div id="leagueList" class="scroll-panel"></div>
     </div>
     <div class="card">
       <h2>Categories</h2>
-      <div id="catList"></div>
+      <div id="catList" class="scroll-panel"></div>
     </div>
   </div>
 
@@ -1026,6 +1028,19 @@ if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/service-w
 let leagues = [];
 let categories = {};
 let currentSport = 'Soccer';
+let collapsedCats = new Set();
+
+function toggleCatCollapse(cat, safeCat) {
+  if (collapsedCats.has(cat)) {
+    collapsedCats.delete(cat);
+  } else {
+    collapsedCats.add(cat);
+  }
+  const body = document.getElementById('catbody_' + safeCat);
+  if (body) body.style.display = collapsedCats.has(cat) ? 'none' : '';
+  const arrow = document.querySelector(`#catbody_${safeCat}`)?.previousElementSibling?.querySelector('.cat-toggle');
+  if (arrow) arrow.textContent = collapsedCats.has(cat) ? '▸' : '▾';
+}
 
 function switchSport() {
   currentSport = document.getElementById('sportSelector').value;
@@ -1084,19 +1099,23 @@ function render() {
   catNames.forEach(cat => {
     const inCat = categories[cat] || [];
     const safeCat = safeId(cat);
+    const isCollapsed = collapsedCats.has(cat);
     catHtml += `<div class="cat-block">
-      <div class="cat-title-row">
-        <div class="cat-title">${cat} (${inCat.length})</div>
-        <div class="cat-actions">
+      <div class="cat-title-row" onclick="toggleCatCollapse('${escName(cat)}','${safeCat}')">
+        <span class="cat-toggle">${isCollapsed ? '▸' : '▾'}</span>
+        <div class="cat-title" style="flex:1;">${cat} (${inCat.length})</div>
+        <div class="cat-actions" onclick="event.stopPropagation()">
           <button class="btn small" onclick="copyCategory('${escName(cat)}')">Copy</button>
           <button class="btn small danger" onclick="deleteCategory('${escName(cat)}')">Delete</button>
         </div>
       </div>
-      ${inCat.map(l => `<div class="cat-league-row">
-          <input type="checkbox" class="rm_${safeCat}" value="${escAttr(l)}">
-          <span>${l}</span>
-        </div>`).join('') || '<span style="color:var(--muted); font-size:12px;">(empty)</span>'}
-      ${inCat.length ? `<button class="btn small danger cat-bulk-remove" onclick="bulkRemove('${escName(cat)}','${safeCat}')">Remove checked</button>` : ''}
+      <div id="catbody_${safeCat}" style="display:${isCollapsed ? 'none' : ''};">
+        ${inCat.map(l => `<div class="cat-league-row">
+            <input type="checkbox" class="rm_${safeCat}" value="${escAttr(l)}">
+            <span>${l}</span>
+          </div>`).join('') || '<span style="color:var(--muted); font-size:12px;">(empty)</span>'}
+        ${inCat.length ? `<button class="btn small danger cat-bulk-remove" onclick="bulkRemove('${escName(cat)}','${safeCat}')">Remove checked</button>` : ''}
+      </div>
     </div>`;
   });
   document.getElementById('catList').innerHTML = catHtml || '<p style="color:var(--muted);">No categories yet — add one above.</p>';
@@ -1340,6 +1359,10 @@ STRATEGIES_PAGE = """
           <label>Min field size <span style="color:var(--muted); text-transform:none;">(racing mainly — blank for soccer/tennis)</span></label>
           <input id="f_min_field_size" type="number" placeholder="e.g. 4 — leave blank to disable">
         </div>
+        <div class="field">
+          <label>Overlap group <span style="color:var(--muted); text-transform:none;">(same group can bet the same match together; different groups block each other; blank = no restriction)</span></label>
+          <input id="f_overlap_group" type="text" placeholder="e.g. group1 — leave blank for no restriction">
+        </div>
         <div class="field full">
           <div class="checkbox-row"><input type="checkbox" id="f_favorite_on_flashscore" onchange="onFlashscoreToggle()"><label style="margin:0;">Favorite matches on FlashScore</label></div>
         </div>
@@ -1461,6 +1484,10 @@ STRATEGIES_PAGE = """
         <div class="field">
           <label>Min field size <span style="color:var(--muted); text-transform:none;">(racing mainly)</span></label>
           <input id="mf_min_field_size" type="number" placeholder="e.g. 4 — leave blank to disable">
+        </div>
+        <div class="field">
+          <label>Overlap group <span style="color:var(--muted); text-transform:none;">(same group can bet the same match together; different groups block each other; blank = no restriction)</span></label>
+          <input id="mf_overlap_group" type="text" placeholder="e.g. group1 — leave blank for no restriction">
         </div>
         <div class="field full">
           <div class="checkbox-row"><input type="checkbox" id="mf_favorite_on_flashscore" onchange="onMultiFlashscoreToggle()"><label style="margin:0;">Favorite matches on FlashScore</label></div>
@@ -1595,6 +1622,7 @@ function renderList() {
     const liveTag = s.live_mode === 'live' ? ' · LIVE' : s.live_mode === 'both' ? ' · pre+live' : '';
     const fsTag = s.favorite_on_flashscore ? ` · FlashScore from step ${s.favorite_min_step || 1}` : '';
     const arTag = s.autoRestart ? ' · Auto-restart ON' : '';
+    const groupTag = s.overlap_group ? ` · Group: ${s.overlap_group}` : '';
     const cats = s.included_categories || [];
     const leaguesFallback = s.included_leagues || [];
     let leagueTag = '';
@@ -1607,11 +1635,11 @@ function renderList() {
     let metaLine;
     if (isMulti) {
       const sportList = (s.sport_configs || []).map(r => r.sport_name + '/' + r.market_name).join(', ');
-      metaLine = `MULTI: ${sportList}${liveTag}${fsTag}${arTag}${leagueTag}`;
+      metaLine = `MULTI: ${sportList}${liveTag}${fsTag}${arTag}${groupTag}${leagueTag}`;
     } else {
       const sport = s.sport_name || (s.sport_names || [])[0] || '?';
       const market = s.market_name || (s.market_names || [])[0] || '?';
-      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''}${s.btts_direction ? ' BTTS: ' + s.btts_direction : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${s.spread_cap_percent ? ' · spread cap ' + s.spread_cap_percent + '%' : ''}${s.min_field_size ? ' · min field ' + s.min_field_size : ''}${liveTag}${fsTag}${arTag}${leagueTag}`;
+      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''}${s.btts_direction ? ' BTTS: ' + s.btts_direction : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${s.spread_cap_percent ? ' · spread cap ' + s.spread_cap_percent + '%' : ''}${s.min_field_size ? ' · min field ' + s.min_field_size : ''}${liveTag}${fsTag}${arTag}${groupTag}${leagueTag}`;
     }
     const editFn = isMulti ? `openMultiModal(${i})` : `openModal(${i})`;
     html += `<div class="card strat-row">
@@ -1621,6 +1649,7 @@ function renderList() {
       </div>
       <div class="row-actions">
         <button class="btn" onclick="${editFn}">Edit</button>
+        <button class="btn" onclick="copyStrategy(${i})">Copy</button>
         <button class="btn" onclick="toggleActive(${i})">${s.enabled ? 'Disable' : 'Enable'}</button>
         <button class="btn reset" onclick="resetState('${s.name.replace(/'/g, "\\'")}')">Reset State</button>
         <button class="btn danger" onclick="removeStrategy(${i})">Remove</button>
@@ -1628,6 +1657,22 @@ function renderList() {
     </div>`;
   });
   document.getElementById('strategyList').innerHTML = html || '<p style="color:var(--muted); font-family:JetBrains Mono, monospace; font-size:13px;">No strategies yet.</p>';
+}
+
+function copyStrategy(index) {
+  const original = strategies[index];
+  const defaultName = original.name + ' Copy';
+  const newName = prompt('New strategy name:', defaultName);
+  if (!newName || !newName.trim()) return;
+  if (strategies.some(s => s.name === newName.trim())) {
+    alert('A strategy with that name already exists. Pick a different name.');
+    return;
+  }
+  const copy = JSON.parse(JSON.stringify(original));
+  copy.name = newName.trim();
+  copy.enabled = false;  // review before it goes live, same settings as the original otherwise
+  strategies.push(copy);
+  persist();
 }
 
 function resetState(name) {
@@ -1730,6 +1775,7 @@ function openModal(index) {
   document.getElementById('f_cash_out_percent').value = s.cash_out_at_percent ?? '';
   document.getElementById('f_spread_cap_percent').value = s.spread_cap_percent ?? '';
   document.getElementById('f_min_field_size').value = s.min_field_size ?? '';
+  document.getElementById('f_overlap_group').value = s.overlap_group ?? '';
   document.getElementById('f_favorite_on_flashscore').checked = !!s.favorite_on_flashscore;
   document.getElementById('f_favorite_min_step').value = s.favorite_min_step ?? 1;
   onFlashscoreToggle();
@@ -1873,6 +1919,7 @@ function openMultiModal(index) {
   document.getElementById('mf_min_liquidity').value = s.minimum_liquidity ?? 2;
   document.getElementById('mf_spread_cap_percent').value = s.spread_cap_percent ?? '';
   document.getElementById('mf_min_field_size').value = s.min_field_size ?? '';
+  document.getElementById('mf_overlap_group').value = s.overlap_group ?? '';
   document.getElementById('mf_favorite_on_flashscore').checked = !!s.favorite_on_flashscore;
   document.getElementById('mf_favorite_min_step').value = s.favorite_min_step ?? 1;
   onMultiFlashscoreToggle();
@@ -1956,6 +2003,8 @@ function saveMultiStrategy() {
   const spreadCap = spreadCapValue === '' ? null : parseFloat(spreadCapValue);
   const minFieldValue = document.getElementById('mf_min_field_size').value;
   const minField = minFieldValue === '' ? null : parseInt(minFieldValue);
+  const overlapGroupValue = document.getElementById('mf_overlap_group').value.trim();
+  const overlapGroup = overlapGroupValue === '' ? null : overlapGroupValue;
 
   const favoriteOnFlashscore = document.getElementById('mf_favorite_on_flashscore').checked;
   const favoriteMinStepRaw = document.getElementById('mf_favorite_min_step').value;
@@ -1998,6 +2047,7 @@ function saveMultiStrategy() {
     minimum_liquidity: parseFloat(document.getElementById('mf_min_liquidity').value),
     spread_cap_percent: spreadCap,
     min_field_size: minField,
+    overlap_group: overlapGroup,
     favorite_on_flashscore: favoriteOnFlashscore,
     favorite_min_step: favoriteMinStep,
     live_mode: document.getElementById('mf_live_mode').value,
@@ -2065,6 +2115,8 @@ function saveStrategy() {
   const spreadCapPercent = spreadCapValue === '' ? null : parseFloat(spreadCapValue);
   const minFieldValue = document.getElementById('f_min_field_size').value;
   const minFieldSize = minFieldValue === '' ? null : parseInt(minFieldValue);
+  const overlapGroupValue = document.getElementById('f_overlap_group').value.trim();
+  const overlapGroup = overlapGroupValue === '' ? null : overlapGroupValue;
 
   if (cashOutPercent && plan.length > 1) {
     showError('Cash out is only supported for single-step strategies (staking plan with one number). Remove the extra steps or clear the cash out field.');
@@ -2161,6 +2213,7 @@ function saveStrategy() {
     cash_out_at_percent: cashOutPercent,
     spread_cap_percent: spreadCapPercent,
     min_field_size: minFieldSize,
+    overlap_group: overlapGroup,
     favorite_on_flashscore: favoriteOnFlashscore,
     favorite_min_step: favoriteMinStep,
     bet_side: betSide,

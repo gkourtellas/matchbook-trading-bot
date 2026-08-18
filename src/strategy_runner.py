@@ -34,6 +34,7 @@ import market_total
 import market_lay_opponent
 import market_double_chance
 import market_racing_favorite
+import overlap_tracker
 import flashscore_client
 from state_store import load_state, save_state
 from log_util import setup_skip_logging
@@ -141,6 +142,7 @@ class StrategyRunner:
         self.allowed_leagues = strategy.get("_allowed_leagues")
         self.live_mode = strategy.get("live_mode", "pre")
         self.sport_configs = strategy.get("sport_configs")
+        self.overlap_group = strategy.get("overlap_group") or None
 
         # Guards active_bets + the state file from being read/written by
         # check_settlements() and check_cash_out() at the same moment,
@@ -390,6 +392,10 @@ class StrategyRunner:
                 self.log(f"Skipped {event_name} — already have an active bet on this event")
                 continue
 
+            if self.overlap_group and await overlap_tracker.blocked_by_other_group(event_id, self.overlap_group):
+                self.log(f"Skipped {event_name} — already has an active bet from a different overlap group")
+                continue
+
             runner_id = runner_name = odds = market_id = None
             matched_cfg = None
             tried_markets = []
@@ -486,6 +492,7 @@ class StrategyRunner:
             )
             self.active_bets.append(bet)
             self._save()
+            await overlap_tracker.register(event_id, self.overlap_group)
 
             start_time_str = (
                 start_time.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Europe/Athens")).strftime("%Y-%m-%d %H:%M")
@@ -563,6 +570,7 @@ class StrategyRunner:
                 bet["cash_out_profit"] = equal_profit
                 if bet.get("record_id"):
                     record_bet_cashed_out(bet["record_id"], equal_profit)
+                await overlap_tracker.unregister(bet.get("event_id"), self.overlap_group)
 
                 msg = (f"💰 Cashed Out [{self.name}]\nEvent: {bet['event_name']}\n"
                        f"Locked in profit (equal both ways): {equal_profit}")
@@ -618,6 +626,8 @@ class StrategyRunner:
                 self.log(f"Waiting on result for '{bet['event_name']}' — not settled yet.")
                 still_open.append(bet)
                 continue
+
+            await overlap_tracker.unregister(bet.get("event_id"), self.overlap_group)
 
             result_label = {"won": "Won", "lost": "Lost", "push": "Push (void)"}[outcome]
             result_icon = {"won": "✅", "lost": "❌", "push": "➖"}[outcome]
