@@ -37,7 +37,6 @@
       "name": "3 Step GG",
       "odds_type": "DECIMAL",
       "open_positions_cooldown_seconds": 600,
-      "overlap_group": "Group 1",
       "pause_scanning_with_open_positions": true,
       "poll_interval_seconds": 600,
       "sport_name": "Soccer",
@@ -54,7 +53,8 @@
       "strategy_type": "normal",
       "target_profit": 10,
       "total_direction": null,
-      "total_range": null
+      "total_range": null,
+      "overlap_group": "Group 1"
     },
     {
       "autoRestart": true,
@@ -118,7 +118,6 @@
       "base_stake": 0.1,
       "bet_mode": "normal",
       "bet_side": "back",
-      "btts_direction": null,
       "cash_out_at_percent": null,
       "compound_start": null,
       "compound_target": null,
@@ -149,7 +148,6 @@
       "name": "3 Step More 2.5",
       "odds_type": "DECIMAL",
       "open_positions_cooldown_seconds": 600,
-      "overlap_group": "Group 1",
       "pause_scanning_with_open_positions": true,
       "poll_interval_seconds": 600,
       "sport_name": "Soccer",
@@ -329,9 +327,7 @@
       "strategy_type": "normal",
       "target_profit": 10,
       "total_direction": null,
-      "total_range": null,
-      "overlap_group": "Group 1",
-      "btts_direction": null
+      "total_range": null
     },
     {
       "autoRestart": true,

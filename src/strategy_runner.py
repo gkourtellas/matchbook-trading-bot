@@ -442,11 +442,20 @@ class StrategyRunner:
             bet_side = matched_cfg.get("bet_side", self.bet_side)
             stake = self.stake_for_step()
 
+            # Claim this event NOW, before the ~10s odds recheck, not after
+            # the bet lands. Two different-group strategies could otherwise
+            # both pass the block-check, both spend 10s confirming odds, and
+            # both place the bet before either one had actually claimed it.
+            if self.overlap_group:
+                await overlap_tracker.register(event_id, self.overlap_group)
+
             odds_ok, confirmed_odds = await self._confirm_odds_stable(
                 event_id, market_id, runner_id, odds, bet_side, event_name, stake,
                 min_odds=matched_cfg.get("min_back_odds"), max_odds=matched_cfg.get("max_back_odds")
             )
             if not odds_ok:
+                if self.overlap_group:
+                    await overlap_tracker.unregister(event_id, self.overlap_group)
                 continue
             odds = confirmed_odds
 
@@ -460,6 +469,8 @@ class StrategyRunner:
 
             if not order_status:
                 self.log("⚠️ Bet was rejected.")
+                if self.overlap_group:
+                    await overlap_tracker.unregister(event_id, self.overlap_group)
                 continue
 
             sport = matched_cfg.get("sport_name") or self.cfg.get("sport_name") or (self.cfg.get("sport_names") or ["?"])[0]
@@ -492,7 +503,6 @@ class StrategyRunner:
             )
             self.active_bets.append(bet)
             self._save()
-            await overlap_tracker.register(event_id, self.overlap_group)
 
             start_time_str = (
                 start_time.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Europe/Athens")).strftime("%Y-%m-%d %H:%M")
