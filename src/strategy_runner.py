@@ -23,6 +23,13 @@ runs in its own loop (cash_out_loop), on its own fast timer, fully
 independent of the main loop. A shared lock (_bets_lock) keeps it from
 stepping on check_settlements() at the same moment, since both read
 and write active_bets plus the same state file.
+
+FlashScore favorite fix (2026-08-24): favorite_on_flashscore and
+favorite_min_step were saved in strategies.json but never actually
+read anywhere — every bet got favorited regardless. Now respects both:
+toggle off = never favorite; toggle on = favorite once current_step is
+at or above favorite_min_step (compound strategies always favorite
+when the toggle is on, since they don't have "steps").
 """
 
 import asyncio
@@ -169,6 +176,18 @@ class StrategyRunner:
             return round(self.balance, 2)
         idx = max(0, min(self.current_step - 1, len(self.staking_plan) - 1))
         return float(self.staking_plan[idx])
+
+    def _should_favorite_on_flashscore(self):
+        """True only if this strategy's toggle is on AND (for normal
+        staking strategies) the current step has reached favorite_min_step.
+        Compound strategies have no step ladder, so the toggle alone decides.
+        """
+        if not self.cfg.get("favorite_on_flashscore", False):
+            return False
+        if self.strategy_type == "compound":
+            return True
+        min_step = self.cfg.get("favorite_min_step", 1)
+        return self.current_step >= min_step
 
     def _bet_profit(self, bet, outcome):
         if outcome == "push":
@@ -476,7 +495,7 @@ class StrategyRunner:
             sport = matched_cfg.get("sport_name") or self.cfg.get("sport_name") or (self.cfg.get("sport_names") or ["?"])[0]
             record_league(sport, event)
 
-            if sport not in ("Horse Racing", "Greyhound Racing", "Horse Racing (Ante Post)"):
+            if self._should_favorite_on_flashscore() and sport not in ("Horse Racing", "Greyhound Racing", "Horse Racing (Ante Post)"):
                 await asyncio.to_thread(flashscore_client.favorite_event, event_name)
 
             offers = order_status.get("offers", [])
