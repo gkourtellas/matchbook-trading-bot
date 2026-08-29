@@ -17,6 +17,7 @@ import subprocess
 import shutil
 import time
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from functools import wraps
 from flask import Flask, jsonify, render_template_string, request, Response, send_from_directory
 from api_client import MatchbookClient
@@ -2296,6 +2297,18 @@ fetchStrategies();
 """
 
 
+def _to_athens(iso_str):
+    """Times are saved as naive UTC. Converts to Athens time for display."""
+    if not iso_str:
+        return iso_str
+    try:
+        dt = datetime.fromisoformat(iso_str)
+        dt = dt.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Europe/Athens"))
+        return dt.strftime("%Y-%m-%dT%H:%M:%S")
+    except Exception:
+        return iso_str
+
+
 def query(sql, params=()):
     conn = sqlite3.connect(DB_PATH)
     conn.execute("""
@@ -2547,6 +2560,9 @@ def pending():
         WHERE result IS NULL
         ORDER BY strategy_name, placed_at DESC
     """)
+    for r in rows:
+        r["start_time"] = _to_athens(r.get("start_time"))
+        r["placed_at"] = _to_athens(r.get("placed_at"))
     return jsonify(rows)
 
 

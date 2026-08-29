@@ -37,16 +37,19 @@ def _connect():
         conn.execute("ALTER TABLE bets ADD COLUMN league TEXT")
     if "offer_id" not in cols:
         conn.execute("ALTER TABLE bets ADD COLUMN offer_id TEXT")
+    if "start_time" not in cols:
+        conn.execute("ALTER TABLE bets ADD COLUMN start_time TEXT")
     return conn
 
 
-def record_bet_placed(strategy_name, event_name, selection_name, odds, stake, step, placed_at, league=None, offer_id=None):
+def record_bet_placed(strategy_name, event_name, selection_name, odds, stake, step, placed_at, league=None, offer_id=None, start_time=None):
     """Call this the moment a bet is placed. Returns the row id."""
     conn = _connect()
     cur = conn.execute(
-        """INSERT INTO bets (strategy_name, event_name, selection_name, odds, stake, step, placed_at, league, offer_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (strategy_name, event_name, selection_name, odds, stake, step, placed_at.isoformat(), league, offer_id),
+        """INSERT INTO bets (strategy_name, event_name, selection_name, odds, stake, step, placed_at, league, offer_id, start_time)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (strategy_name, event_name, selection_name, odds, stake, step, placed_at.isoformat(), league, offer_id,
+         start_time.isoformat() if start_time else None),
     )
     conn.commit()
     row_id = cur.lastrowid
