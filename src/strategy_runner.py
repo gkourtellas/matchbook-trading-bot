@@ -411,10 +411,6 @@ class StrategyRunner:
                 self.log(f"Skipped {event_name} — already have an active bet on this event")
                 continue
 
-            if self.overlap_group and await overlap_tracker.blocked_by_other_group(event_id, self.overlap_group):
-                self.log(f"Skipped {event_name} — already has an active bet from a different overlap group")
-                continue
-
             runner_id = runner_name = odds = market_id = None
             matched_cfg = None
             tried_markets = []
@@ -458,6 +454,12 @@ class StrategyRunner:
                 self.log(f"Skipped {event_name} — no bet matched ({reason})")
                 continue
 
+            market_type = matched_cfg.get("market_name")
+
+            if self.overlap_group and await overlap_tracker.blocked_by_other_group(event_id, self.overlap_group, market_type):
+                self.log(f"Skipped {event_name} — already has an active {market_type} bet from a different overlap group")
+                continue
+
             bet_side = matched_cfg.get("bet_side", self.bet_side)
             stake = self.stake_for_step()
 
@@ -466,7 +468,7 @@ class StrategyRunner:
             # both pass the block-check, both spend 10s confirming odds, and
             # both place the bet before either one had actually claimed it.
             if self.overlap_group:
-                await overlap_tracker.register(event_id, self.overlap_group)
+                await overlap_tracker.register(event_id, self.overlap_group, market_type)
 
             odds_ok, confirmed_odds = await self._confirm_odds_stable(
                 event_id, market_id, runner_id, odds, bet_side, event_name, stake,
@@ -474,7 +476,7 @@ class StrategyRunner:
             )
             if not odds_ok:
                 if self.overlap_group:
-                    await overlap_tracker.unregister(event_id, self.overlap_group)
+                    await overlap_tracker.unregister(event_id, self.overlap_group, market_type)
                 continue
             odds = confirmed_odds
 
@@ -489,7 +491,7 @@ class StrategyRunner:
             if not order_status:
                 self.log("⚠️ Bet was rejected.")
                 if self.overlap_group:
-                    await overlap_tracker.unregister(event_id, self.overlap_group)
+                    await overlap_tracker.unregister(event_id, self.overlap_group, market_type)
                 continue
 
             sport = matched_cfg.get("sport_name") or self.cfg.get("sport_name") or (self.cfg.get("sport_names") or ["?"])[0]
@@ -514,6 +516,7 @@ class StrategyRunner:
                 "odds": odds,
                 "step": self.current_step,
                 "sport_id": matched_cfg.get("_sport_id") or self.cfg.get("_sport_id"),
+                "market_type": market_type,
             }
             league = self._extract_league(event)
             bet["record_id"] = record_bet_placed(
@@ -600,7 +603,7 @@ class StrategyRunner:
                 bet["cash_out_profit"] = equal_profit
                 if bet.get("record_id"):
                     record_bet_cashed_out(bet["record_id"], equal_profit)
-                await overlap_tracker.unregister(bet.get("event_id"), self.overlap_group)
+                await overlap_tracker.unregister(bet.get("event_id"), self.overlap_group, bet.get("market_type"))
 
                 msg = (f"💰 Cashed Out [{self.name}]\nEvent: {bet['event_name']}\n"
                        f"Locked in profit (equal both ways): {equal_profit}")
@@ -657,7 +660,7 @@ class StrategyRunner:
                 still_open.append(bet)
                 continue
 
-            await overlap_tracker.unregister(bet.get("event_id"), self.overlap_group)
+            await overlap_tracker.unregister(bet.get("event_id"), self.overlap_group, bet.get("market_type"))
 
             result_label = {"won": "Won", "lost": "Lost", "push": "Push (void)"}[outcome]
             result_icon = {"won": "✅", "lost": "❌", "push": "➖"}[outcome]

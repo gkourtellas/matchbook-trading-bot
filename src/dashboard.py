@@ -31,7 +31,7 @@ DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD")
 
 app = Flask(__name__)
 
-BUILD_VERSION = "2026-08-10-0900"
+BUILD_VERSION = "v5"
 
 
 @app.route("/api/build_version")
@@ -438,6 +438,7 @@ PAGE = """
       <a class="nav-btn secondary" href="/categories">Leagues</a>
       <a class="nav-btn secondary" href="/analytics">Analytics</a>
       <a class="nav-btn secondary" href="/logs">Logs</a>
+      <a class="nav-btn secondary" href="/league_skips">League Skips</a>
       <button class="nav-btn" style="background: var(--pending); color: #1a1300;" onclick="restartBot()">⟲ Restart Bot</button>
     </div>
   </div>
@@ -778,6 +779,7 @@ ANALYTICS_PAGE = """
       <a class="nav-btn secondary" href="/strategies">⚙ Manage Strategies</a>
       <a class="nav-btn secondary" href="/categories">Leagues</a>
       <a class="nav-btn secondary" href="/logs">Logs</a>
+      <a class="nav-btn secondary" href="/league_skips">League Skips</a>
     </div>
   </div>
 
@@ -997,6 +999,7 @@ CATEGORIES_PAGE = """
       <a class="nav-btn secondary" href="/strategies">⚙ Manage Strategies</a>
       <a class="nav-btn secondary" href="/analytics">Analytics</a>
       <a class="nav-btn secondary" href="/logs">Logs</a>
+      <a class="nav-btn secondary" href="/league_skips">League Skips</a>
     </div>
   </div>
 
@@ -1266,6 +1269,7 @@ STRATEGIES_PAGE = """
       <a class="nav-btn secondary" href="/categories">Leagues</a>
       <a class="nav-btn secondary" href="/analytics">Analytics</a>
       <a class="nav-btn secondary" href="/logs">Logs</a>
+      <a class="nav-btn secondary" href="/league_skips">League Skips</a>
       <button class="nav-btn" style="background: var(--pending); color: #1a1300;" onclick="restartBot()">⟲ Restart Bot</button>
     </div>
   </div>
@@ -2811,6 +2815,7 @@ LOGS_PAGE = """
       <a class="nav-btn secondary" href="/strategies">⚙ Manage Strategies</a>
       <a class="nav-btn secondary" href="/categories">Leagues</a>
       <a class="nav-btn secondary" href="/analytics">Analytics</a>
+      <a class="nav-btn secondary" href="/league_skips">League Skips</a>
     </div>
   </div>
 
@@ -2887,6 +2892,149 @@ setInterval(() => {
 @require_password
 def logs_page():
     return render_template_string(LOGS_PAGE, build=BUILD_VERSION)
+
+
+@app.route("/api/league_skips")
+@require_password
+def api_league_skips():
+    """Parses skipped.log for 'league not allowed' skips and counts
+    them per league. Optional ?category=Name filters to only strategies
+    that use that category (via strategies.json included_categories).
+    """
+    category = request.args.get("category", "").strip()
+
+    strategy_categories = {}
+    try:
+        with open(STRATEGIES_FILE, encoding="utf-8") as f:
+            for s in json.load(f).get("strategies", []):
+                strategy_categories[s.get("name")] = s.get("included_categories") or []
+    except Exception:
+        pass
+
+    path = os.path.join(LOGS_DIR, "skipped.log")
+    counts = {}
+    if os.path.isfile(path):
+        pattern = re.compile(r"\[([^\]]+)\] Skipped .* league '([^']+)' is not in this strategy's allowed leagues")
+        try:
+            with open(path, encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    m = pattern.search(line)
+                    if not m:
+                        continue
+                    strategy_name, league = m.group(1), m.group(2)
+                    if category and category not in strategy_categories.get(strategy_name, []):
+                        continue
+                    counts[league] = counts.get(league, 0) + 1
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    rows = [{"league": k, "count": v, "reason": "Not in this strategy's allowed leagues"} for k, v in counts.items()]
+    rows.sort(key=lambda r: r["league"])
+    return jsonify(rows)
+
+
+LEAGUE_SKIPS_PAGE = """
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>League Skips</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0e14">
+<style>
+  :root {
+    --bg: #0a0e14; --card: #11161f; --card2: #141a25;
+    --border: #1c2330; --text: #e4e7ec; --muted: #7a8699; --accent: #5b8def; --pending: #f5b942;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 28px 32px 60px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; position: relative; flex-wrap: wrap; }
+  .hamburger { display: none; background: none; border: 1px solid var(--border); color: var(--text); font-size: 18px; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
+  @media (max-width: 760px) {
+    .hamburger { display: block; }
+    .nav-links { display: none; position: absolute; top: 48px; right: 0; flex-direction: column; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px; z-index: 100; min-width: 200px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+    .nav-links.open { display: flex; }
+    .nav-links .nav-btn { width: 100%; text-align: left; }
+  }
+  .topbar h0 { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+  .nav-btn { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--bg); background: var(--accent); border: none; border-radius: 8px; padding: 9px 16px; text-decoration: none; cursor: pointer; }
+  .nav-btn.secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+  td { font-family: 'JetBrains Mono', monospace; }
+  th { color: var(--muted); font-weight: 500; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em; }
+  select { background: var(--card2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 8px 12px; font-family: 'Inter', sans-serif; font-size: 13px; margin-bottom: 16px; }
+  .small { color: var(--muted); font-size: 11.5px; font-family: 'JetBrains Mono', monospace; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <h0>matchbook // league skips <span style="opacity:0.35;">{{ build }}</span></h0>
+    <button class="hamburger" onclick="toggleNav()">☰</button>
+    <div class="nav-links" id="navLinks">
+      <a class="nav-btn secondary" href="/">Dashboard</a>
+      <a class="nav-btn secondary" href="/strategies">⚙ Manage Strategies</a>
+      <a class="nav-btn secondary" href="/categories">Leagues</a>
+      <a class="nav-btn secondary" href="/analytics">Analytics</a>
+      <a class="nav-btn secondary" href="/logs">Logs</a>
+    </div>
+  </div>
+
+  <p class="small" style="margin-bottom:14px;">Leagues that showed up but were skipped because they're not in a strategy's allowed league list.</p>
+
+  <select id="categoryFilter" onchange="load()">
+    <option value="">All categories</option>
+  </select>
+
+  <div class="card"><div id="skipsTable"></div></div>
+
+<script>
+function toggleNav() { document.getElementById('navLinks').classList.toggle('open'); }
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/service-worker.js').catch(() => {}); }
+
+fetch('/api/league_categories').then(r => r.json()).then(cats => {
+  const sel = document.getElementById('categoryFilter');
+  Object.keys(cats).sort().forEach(c => {
+    sel.insertAdjacentHTML('beforeend', `<option value="${c}">${c}</option>`);
+  });
+});
+
+function load() {
+  const category = document.getElementById('categoryFilter').value;
+  const url = category ? `/api/league_skips?category=${encodeURIComponent(category)}` : '/api/league_skips';
+  fetch(url).then(r => r.json()).then(data => {
+    if (!data.length) {
+      document.getElementById('skipsTable').innerHTML = '<p class="small">No league skips found in the current log.</p>';
+      return;
+    }
+    let html = '<table><tr><th>League</th><th>Reason</th><th>Times Skipped</th></tr>';
+    data.forEach(r => {
+      html += `<tr><td>${r.league}</td><td>${r.reason}</td><td>${r.count}</td></tr>`;
+    });
+    html += '</table>';
+    document.getElementById('skipsTable').innerHTML = html;
+  });
+}
+
+load();
+</script>
+</body>
+</html>
+"""
+
+
+@app.route("/league_skips")
+@require_password
+def league_skips_page():
+    return render_template_string(LEAGUE_SKIPS_PAGE, build=BUILD_VERSION)
 
 
 if __name__ == "__main__":
