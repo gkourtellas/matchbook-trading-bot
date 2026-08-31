@@ -143,6 +143,8 @@
     "China Super League",
     "Colombia Categor\u00eda Primera A",
     "Costa Rica Primera Division",
+    "Croatia HNL",
+    "Cyprus 1.Division",
     "Czech Republic Premier League",
     "Denmark Superliga",
     "Ecuador Serie A",
@@ -156,6 +158,8 @@
     "France Ligue 1",
     "France Ligue 2",
     "Germany 2.Bundesliga",
+    "Germany Bundesliga",
+    "Greece Super League",
     "Hungary NB I",
     "Ireland Premier Division",
     "Italy Serie A",
@@ -181,7 +185,9 @@
     "Sweden Allsvenskan",
     "Turkey Super Lig",
     "UAE Pro League",
-    "Uruguay Primera Divisi\u00f3n"
+    "Uruguay Primera Divisi\u00f3n",
+    "Belgium First Division A",
+    "Switzerland Super League"
   ],
   "Tennis": [
     "ATP Cincinnati",
