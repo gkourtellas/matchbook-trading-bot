@@ -19,7 +19,8 @@ import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from functools import wraps
-from flask import Flask, jsonify, render_template_string, request, Response, send_from_directory
+from flask import Flask, jsonify, render_template_string, request, Response, send_from_directory, redirect, url_for, session
+from datetime import timedelta
 from api_client import MatchbookClient
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "config", "bets.db")
@@ -30,8 +31,10 @@ STATE_DIR = os.path.join(os.path.dirname(__file__), "..", "config", "state")
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD")
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("DASHBOARD_SECRET_KEY", "change-me-please")
+app.permanent_session_lifetime = timedelta(days=30)
 
-BUILD_VERSION = "v5"
+BUILD_VERSION = "v8"
 
 
 @app.route("/api/build_version")
@@ -290,14 +293,47 @@ def require_password(view):
     def wrapped(*args, **kwargs):
         if not DASHBOARD_PASSWORD:
             return view(*args, **kwargs)
-        auth = request.authorization
-        if not auth or auth.password != DASHBOARD_PASSWORD:
-            return Response(
-                "Password required.", 401,
-                {"WWW-Authenticate": 'Basic realm="Dashboard"'}
-            )
-        return view(*args, **kwargs)
+        if session.get("logged_in"):
+            return view(*args, **kwargs)
+        return redirect(url_for("login_page"))
     return wrapped
+
+
+LOGIN_PAGE = """
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login</title>
+</head>
+<body style="background:#0a0e14;color:#eee;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+<form method="POST" style="text-align:center;">
+<input type="password" name="password" placeholder="Password" style="padding:10px;font-size:16px;background:#141a25;color:#eee;border:1px solid #333;border-radius:6px;">
+<br><br>
+<label style="font-size:13px;"><input type="checkbox" name="remember" checked> Remember me (30 days)</label>
+<br><br>
+<button type="submit" style="padding:10px 20px;background:#5b8def;color:#0a0e14;border:none;border-radius:6px;font-weight:600;">Login</button>
+</form>
+</body>
+</html>
+"""
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login_page():
+    if request.method == "POST":
+        if request.form.get("password") == DASHBOARD_PASSWORD:
+            session.permanent = True
+            session["logged_in"] = True
+            return redirect(url_for("home"))
+        return "Wrong password", 401
+    return render_template_string(LOGIN_PAGE)
+
+
+@app.route("/logout")
+def logout_page():
+    session.clear()
+    return redirect(url_for("login_page"))
 
 
 PAGE = """
@@ -631,7 +667,7 @@ fetch('/api/pending').then(r => r.json()).then(data => {
     document.getElementById('pending').innerHTML = '<p class="small">No open positions right now.</p>';
     return;
   }
-  let html = '<table><tr><th>Placed</th><th>Strategy</th><th>League</th><th>Match</th><th>Selection</th><th>Odds</th><th>Stake</th><th>Step</th></tr>';
+  let html = '<table><tr><th>Placed</th><th>Strategy</th><th>League</th><th>Match</th><th>Selection</th><th>Odds</th><th>Stake</th><th>Step</th><th>Start</th></tr>';
   let lastStrategy = null;
   data.forEach(b => {
     const newBlock = lastStrategy !== null && lastStrategy !== b.strategy_name;
@@ -644,6 +680,7 @@ fetch('/api/pending').then(r => r.json()).then(data => {
       <td>${b.odds}</td>
       <td>${b.stake}</td>
       <td>${b.step}</td>
+      <td>${(b.start_time || '').replace('T', ' ').slice(0, 16) || '-'}</td>
     </tr>`;
     lastStrategy = b.strategy_name;
   });
