@@ -48,6 +48,7 @@ from log_util import setup_skip_logging
 
 _skip_logger = setup_skip_logging()
 from bet_records import record_bet_placed, record_bet_settled, record_bet_cashed_out
+from skip_records import record_skip
 from league_tracker import record_league
 from strategy_loader import disable_strategy
 
@@ -161,6 +162,12 @@ class StrategyRunner:
         line = f"[{ts}] [{self.name}] {msg}"
         if msg.startswith("Skipped"):
             _skip_logger.info(line)  # goes to logs/skipped.log only
+            try:
+                rest = msg[len("Skipped "):]
+                event_name, _, reason = rest.partition(" — ")
+                record_skip(self.name, event_name.strip(), reason.strip() or event_name.strip())
+            except Exception:
+                pass  # never let recording a skip break the bot
         else:
             print(line)  # goes to logs/bot.log (console + main log)
 
