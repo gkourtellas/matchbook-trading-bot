@@ -137,6 +137,7 @@
   "Leagues For Win Strategies": [
     "Argentina Primera Nacional",
     "Austria Bundesliga",
+    "Belgium First Division A",
     "Brazilian Serie A",
     "Bulgaria First Division",
     "Chile Primera Division",
@@ -183,11 +184,10 @@
     "Spain La Liga",
     "Spain La Liga 2",
     "Sweden Allsvenskan",
+    "Switzerland Super League",
     "Turkey Super Lig",
     "UAE Pro League",
-    "Uruguay Primera Divisi\u00f3n",
-    "Belgium First Division A",
-    "Switzerland Super League"
+    "Uruguay Primera Divisi\u00f3n"
   ],
   "Tennis": [
     "ATP Cincinnati",
@@ -220,7 +220,6 @@
     "Germany 2.Bundesliga",
     "Italy Coppa Italia",
     "Italy Serie A",
-    "Japan J. League",
     "Korea Republic K-League 1",
     "Korea Republic K-League 2",
     "Mexico Liga MX",
