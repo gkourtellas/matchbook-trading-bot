@@ -8,6 +8,13 @@ Filters added:
 - spread_cap_percent: skip runner if (lay-back)/back * 100 > cap (thin market)
 - btts_direction: for BTTS markets only — "Yes" or "No" to only consider
   that side. Leave unset/empty to allow either (old behavior).
+
+FIX (2026-09-06): strategy.get("btts_direction", "") only falls back to
+"" when the key is MISSING. Strategies saved with btts_direction: null
+(key present, value None) got str(None) = "None" -> "none", which is
+truthy, so EVERY runner got skipped (no runner is named "none"). This
+silently killed Match Odds / Moneyline / Win strategies that don't use
+BTTS at all. Now treats None the same as missing.
 """
 
 
@@ -22,7 +29,8 @@ def find_opportunity(market, strategy):
         return None
 
     spread_cap = strategy.get("spread_cap_percent")
-    wanted_direction = str(strategy.get("btts_direction", "")).strip().lower()
+    raw_btts_direction = strategy.get("btts_direction")
+    wanted_direction = str(raw_btts_direction).strip().lower() if raw_btts_direction else ""
 
     for runner in runners:
         runner_name = runner.get("name") or ""
