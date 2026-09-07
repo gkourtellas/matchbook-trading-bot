@@ -236,7 +236,7 @@
       "compound_target": null,
       "currency": "EUR",
       "description": "",
-      "enabled": true,
+      "enabled": false,
       "event_lookahead_minutes": 180,
       "favorite_min_step": 1,
       "favorite_on_flashscore": false,

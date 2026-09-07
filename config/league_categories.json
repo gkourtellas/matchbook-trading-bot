@@ -45,7 +45,6 @@
     "Chile Primera Division",
     "China League One",
     "China League Two",
-    "China Super League",
     "Colombia Cup",
     "Czech Republic Cup",
     "Czech Republic Premier League",
@@ -186,20 +185,26 @@
     "Spain La Liga 2",
     "Sweden Allsvenskan",
     "Switzerland Super League",
+    "Turkey 1. Lig",
     "Turkey Super Lig",
     "UAE Pro League",
-    "Uruguay Primera Divisi\u00f3n",
-    "Turkey 1. Lig"
+    "Uruguay Primera Divisi\u00f3n"
   ],
   "Tennis": [
     "ATP Cincinnati",
     "ATP Cincinnati Qualification",
     "ATP Montreal",
     "ATP US Open",
+    "ATP US Open Doubles",
+    "ATP Winston Salem",
+    "US Open Mixed Doubles",
     "WTA Cincinnati",
     "WTA Cincinnati Qualification",
+    "WTA Monterrey",
     "WTA Toronto",
-    "WTA US Open"
+    "WTA US Open",
+    "WTA US Open Doubles",
+    "WTA US Open Qualification"
   ],
   "Under 2.5": [
     "Argentina Primera Nacional",

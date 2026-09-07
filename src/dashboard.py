@@ -34,7 +34,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("DASHBOARD_SECRET_KEY", "change-me-please")
 app.permanent_session_lifetime = timedelta(days=30)
 
-BUILD_VERSION = "v8"
+BUILD_VERSION = "v10"
 
 
 @app.route("/api/build_version")
@@ -502,9 +502,12 @@ PAGE = """
     <canvas id="profitChart" height="90"></canvas>
   </div>
 
-  <h1>Win Rate by League <span style="font-weight:400; text-transform:none; letter-spacing:0;">— per strategy</span></h1>
+  <h1 id="lbHeading">Win Rate by League <span style="font-weight:400; text-transform:none; letter-spacing:0;">— per strategy</span></h1>
   <div class="card">
-    <div style="display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
+    <div style="display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; align-items:center;">
+      <label style="font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; cursor:pointer;">
+        <input type="checkbox" id="lbGroupToggle" onchange="loadLeagueBreakdown()"> Group by strategy type (Win / GG / Total)
+      </label>
       <select id="lbStrategyFilter" onchange="renderLeagueBreakdown()" style="background:var(--card2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:'JetBrains Mono', monospace; font-size:12px;">
         <option value="">All strategies</option>
       </select>
@@ -622,23 +625,27 @@ fetch('/api/steps').then(r => r.json()).then(data => {
 });
 
 let _leagueBreakdownData = [];
+let _lbGrouped = false;
+
 function renderLeagueBreakdown() {
+  const nameKey = _lbGrouped ? 'group_name' : 'strategy_name';
   const stratVal = document.getElementById('lbStrategyFilter').value;
   const leagueVal = document.getElementById('lbLeagueFilter').value;
   let rows = _leagueBreakdownData;
-  if (stratVal) rows = rows.filter(r => r.strategy_name === stratVal);
+  if (stratVal) rows = rows.filter(r => r[nameKey] === stratVal);
   if (leagueVal) rows = rows.filter(r => r.league === leagueVal);
 
   if (!rows.length) {
     document.getElementById('leagueBreakdown').innerHTML = '<p class="small">No settled bets with a captured league yet.</p>';
     return;
   }
-  let html = '<table><tr><th>Strategy</th><th>League</th><th>Bets</th><th>Won</th><th>Lost</th><th>Win %</th><th>Profit</th></tr>';
-  let lastStrategy = null;
+  const colLabel = _lbGrouped ? 'Group' : 'Strategy';
+  let html = `<table><tr><th>${colLabel}</th><th>League</th><th>Bets</th><th>Won</th><th>Lost</th><th>Win %</th><th>Profit</th></tr>`;
+  let lastName = null;
   rows.forEach(r => {
-    const newBlock = lastStrategy !== null && lastStrategy !== r.strategy_name;
+    const newBlock = lastName !== null && lastName !== r[nameKey];
     html += `<tr class="${newBlock ? 'strategy-block' : ''}">
-      <td>${r.strategy_name}</td>
+      <td>${r[nameKey]}</td>
       <td>${r.league}</td>
       <td>${r.total}</td>
       <td>${r.won}</td>
@@ -646,21 +653,35 @@ function renderLeagueBreakdown() {
       <td>${r.win_rate}%</td>
       <td class="${cls(r.profit)}">${fmt(r.profit)}</td>
     </tr>`;
-    lastStrategy = r.strategy_name;
+    lastName = r[nameKey];
   });
   html += '</table>';
   document.getElementById('leagueBreakdown').innerHTML = html;
 }
-fetch('/api/strategy_league_breakdown').then(r => r.json()).then(data => {
-  _leagueBreakdownData = data;
-  const strategies = [...new Set(data.map(r => r.strategy_name))].sort();
-  const leagues = [...new Set(data.map(r => r.league))].sort();
-  const stratSel = document.getElementById('lbStrategyFilter');
-  const leagueSel = document.getElementById('lbLeagueFilter');
-  strategies.forEach(s => stratSel.insertAdjacentHTML('beforeend', `<option value="${s}">${s}</option>`));
-  leagues.forEach(l => leagueSel.insertAdjacentHTML('beforeend', `<option value="${l}">${l}</option>`));
-  renderLeagueBreakdown();
-});
+
+function loadLeagueBreakdown() {
+  _lbGrouped = document.getElementById('lbGroupToggle').checked;
+  const endpoint = _lbGrouped ? '/api/group_league_breakdown' : '/api/strategy_league_breakdown';
+  const nameKey = _lbGrouped ? 'group_name' : 'strategy_name';
+  const heading = _lbGrouped ? 'grouped by strategy type' : 'per strategy';
+  document.getElementById('lbHeading').innerHTML =
+    `Win Rate by League <span style="font-weight:400; text-transform:none; letter-spacing:0;">— ${heading}</span>`;
+
+  fetch(endpoint).then(r => r.json()).then(data => {
+    _leagueBreakdownData = data;
+    const names = [...new Set(data.map(r => r[nameKey]))].sort();
+    const leagues = [...new Set(data.map(r => r.league))].sort();
+    const stratSel = document.getElementById('lbStrategyFilter');
+    const leagueSel = document.getElementById('lbLeagueFilter');
+    stratSel.innerHTML = `<option value="">All ${_lbGrouped ? 'groups' : 'strategies'}</option>`;
+    leagueSel.innerHTML = '<option value="">All leagues</option>';
+    names.forEach(s => stratSel.insertAdjacentHTML('beforeend', `<option value="${s}">${s}</option>`));
+    leagues.forEach(l => leagueSel.insertAdjacentHTML('beforeend', `<option value="${l}">${l}</option>`));
+    renderLeagueBreakdown();
+  });
+}
+
+loadLeagueBreakdown();
 
 fetch('/api/pending').then(r => r.json()).then(data => {
   if (!data.length) {
@@ -2449,6 +2470,43 @@ def _read_balance_for_strategy(name):
     return None, False
 
 
+def _strategy_group_map():
+    """Maps each strategy name to a market-type group: Win, GG, Total,
+    Double Chance, or Other. Used to merge many similar strategies
+    (e.g. '3 Step Win', '3 Step Win_group2') into one combined view.
+    """
+    mapping = {}
+    if not os.path.isfile(STRATEGIES_FILE):
+        return mapping
+    try:
+        with open(STRATEGIES_FILE, encoding="utf-8") as f:
+            all_strategies = json.load(f).get("strategies", [])
+    except Exception:
+        return mapping
+
+    for s in all_strategies:
+        name = s.get("name")
+        if not name:
+            continue
+        bet_mode = s.get("bet_mode", "normal")
+        market = s.get("market_name") or (s.get("market_names") or [None])[0]
+
+        if bet_mode == "double_chance":
+            group = "Double Chance"
+        elif market in ("Match Odds", "Moneyline", "WIN"):
+            group = "Win"
+        elif market == "Both Teams To Score":
+            group = "GG"
+        elif market == "Total":
+            group = "Total"
+        else:
+            group = market or "Other"
+
+        mapping[name] = group
+
+    return mapping
+
+
 @app.route("/api/strategy_league_breakdown")
 @require_password
 def strategy_league_breakdown():
@@ -2466,6 +2524,45 @@ def strategy_league_breakdown():
     for r in rows:
         r["win_rate"] = round(100 * r["won"] / r["total"], 1) if r["total"] else 0
     return jsonify(rows)
+
+
+@app.route("/api/group_league_breakdown")
+@require_password
+def group_league_breakdown():
+    """Same data as /api/strategy_league_breakdown, but merged across
+    all strategies that share the same market-type group (Win, GG,
+    Total, Double Chance), so you see one combined per-league picture
+    instead of one row per individual strategy.
+    """
+    rows = query("""
+        SELECT strategy_name, league,
+               COUNT(*) as total,
+               SUM(CASE WHEN result = 'won' THEN 1 ELSE 0 END) as won,
+               SUM(CASE WHEN result = 'lost' THEN 1 ELSE 0 END) as lost,
+               COALESCE(SUM(profit), 0) as profit
+        FROM bets
+        WHERE result IS NOT NULL AND league IS NOT NULL
+        GROUP BY strategy_name, league
+    """)
+
+    group_map = _strategy_group_map()
+    merged = {}
+    for r in rows:
+        group = group_map.get(r["strategy_name"], "Other")
+        key = (group, r["league"])
+        if key not in merged:
+            merged[key] = {"group_name": group, "league": r["league"], "total": 0, "won": 0, "lost": 0, "profit": 0.0}
+        merged[key]["total"] += r["total"]
+        merged[key]["won"] += r["won"]
+        merged[key]["lost"] += r["lost"]
+        merged[key]["profit"] += r["profit"]
+
+    result = list(merged.values())
+    for r in result:
+        r["win_rate"] = round(100 * r["won"] / r["total"], 1) if r["total"] else 0
+        r["profit"] = round(r["profit"], 2)
+    result.sort(key=lambda r: (r["group_name"], r["profit"]))
+    return jsonify(result)
 
 
 @app.route("/api/steps")
