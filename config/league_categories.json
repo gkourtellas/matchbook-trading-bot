@@ -131,7 +131,8 @@
     "Uruguay Primera Divisi\u00f3n",
     "Uruguay Segunda Divisi\u00f3n",
     "US Major League Soccer",
-    "Wales Premier League"
+    "Wales Premier League",
+    "UEFA Champions League"
   ],
   "Leagues For Win Strategies": [
     "Argentina Primera Nacional",
@@ -139,7 +140,6 @@
     "Belgium First Division A",
     "Brazilian Serie A",
     "Bulgaria First Division",
-    "Bulgaria Second Division",
     "Chile Primera Division",
     "China Super League",
     "Colombia Categor\u00eda Primera A",
@@ -188,6 +188,7 @@
     "Turkey 1. Lig",
     "Turkey Super Lig",
     "UAE Pro League",
+    "UEFA Champions League",
     "Uruguay Primera Divisi\u00f3n"
   ],
   "Tennis": [
