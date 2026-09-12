@@ -10,6 +10,9 @@ with "virtual" in the name. Doesn't place any bets.
 import sys
 sys.path.insert(0, "src")
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from api_client import MatchbookClient
 
 client = MatchbookClient()
