@@ -151,11 +151,17 @@ class StrategyRunner:
         self.live_mode = strategy.get("live_mode", "pre")
         self.sport_configs = strategy.get("sport_configs")
         self.overlap_group = strategy.get("overlap_group") or None
+        self.telegram_notifications = strategy.get("telegram_notifications", True)
 
         # Guards active_bets + the state file from being read/written by
         # check_settlements() and check_cash_out() at the same moment,
         # now that cash-out runs in its own loop alongside the main one.
         self._bets_lock = asyncio.Lock()
+
+    def notify(self, msg):
+        """Sends to Telegram only if this strategy has notifications on."""
+        if self.telegram_notifications:
+            self.client.send_telegram(msg)
 
     def log(self, msg):
         ts = datetime.now(ZoneInfo("Europe/Athens")).strftime("%Y-%m-%d %H:%M:%S")
@@ -550,7 +556,7 @@ class StrategyRunner:
                 f"Stake: {stake}"
             )
             self.log(msg)
-            self.client.send_telegram(msg)
+            self.notify(msg)
             return True
 
         self.log("Scan done: nothing matched the strategy right now.")
@@ -614,7 +620,7 @@ class StrategyRunner:
 
                 msg = (f"💰 Cashed Out [{self.name}]\nEvent: {bet['event_name']}\n"
                        f"Locked in profit (equal both ways): {equal_profit}")
-                self.client.send_telegram(msg)
+                self.notify(msg)
 
         self.active_bets = [b for b in self.active_bets if not b.get("cashed_out")]
         self._save()
@@ -694,7 +700,7 @@ class StrategyRunner:
                     f"Balance: {self.balance} (target {self.compound_target})"
                 )
                 self.log(settle_msg)
-                self.client.send_telegram(settle_msg)
+                self.notify(settle_msg)
 
                 if self.balance <= 0:
                     if self.auto_restart:
@@ -739,17 +745,17 @@ class StrategyRunner:
                             self.balance = self.starting_bankroll
                             settle_msg += f"\nAuto-restart: reset to {self.starting_bankroll}"
                             self.log(settle_msg)
-                            self.client.send_telegram(settle_msg)
+                            self.notify(settle_msg)
                             continue
                         else:
                             self.log(settle_msg)
-                            self.client.send_telegram(settle_msg)
+                            self.notify(settle_msg)
                             self.log(f"🛑 Bankroll hit {self.balance}, at/below stop-loss ({stop_at}). Disabling.")
                             await disable_strategy(self.name, "bankroll stop-loss hit")
                             continue
 
                 self.log(settle_msg)
-                self.client.send_telegram(settle_msg)
+                self.notify(settle_msg)
 
         self.active_bets = still_open
         self._save()

@@ -1,0 +1,7 @@
+ERROR:  failed to start tunnel: The endpoint 'https://meta-insignificant-jadwiga.ngrok-free.dev' is already online. Either
+ERROR:  1. stop your existing endpoint first, or
+ERROR:  2. start both endpoints with `--pooling-enabled` to load balance between them.
+ERROR:  
+ERROR:  ERR_NGROK_334
+ERROR:  https://ngrok.com/docs/errors/err_ngrok_334
+ERROR:  

@@ -34,7 +34,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("DASHBOARD_SECRET_KEY", "change-me-please")
 app.permanent_session_lifetime = timedelta(days=30)
 
-BUILD_VERSION = "v12"
+BUILD_VERSION = "v13"
 
 
 @app.route("/api/build_version")
@@ -45,8 +45,8 @@ def api_build_version():
 PWA_MANIFEST = {
     "name": "Matchbook Trading Bot",
     "short_name": "Matchbook",
-    "start_url": "/matchbook/",
-    "scope": "/matchbook/",
+    "start_url": "/",
+    "scope": "/",
     "display": "standalone",
     "background_color": "#0a0e14",
     "theme_color": "#0a0e14",
@@ -1462,6 +1462,9 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
           <div class="checkbox-row"><input type="checkbox" id="f_enabled"><label style="margin:0;">Enabled</label></div>
         </div>
         <div class="field full">
+          <div class="checkbox-row"><input type="checkbox" id="f_telegram_notifications"><label style="margin:0;">Send Telegram notifications</label></div>
+        </div>
+        <div class="field full">
           <div class="checkbox-row"><input type="checkbox" id="f_autorestart"><label style="margin:0;">Auto-restart when done (won target or lost bankroll)</label></div>
         </div>
       </div>
@@ -1588,6 +1591,9 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
           <div class="checkbox-row"><input type="checkbox" id="mf_enabled" checked><label style="margin:0;">Enabled</label></div>
         </div>
         <div class="field full">
+          <div class="checkbox-row"><input type="checkbox" id="mf_telegram_notifications" checked><label style="margin:0;">Send Telegram notifications</label></div>
+        </div>
+        <div class="field full">
           <div class="checkbox-row"><input type="checkbox" id="mf_autorestart"><label style="margin:0;">Auto-restart when done (won target or lost bankroll)</label></div>
         </div>
       </div>
@@ -1693,6 +1699,7 @@ function renderList() {
     const liveTag = s.live_mode === 'live' ? ' · LIVE' : s.live_mode === 'both' ? ' · pre+live' : '';
     const fsTag = s.favorite_on_flashscore ? ` · FlashScore from step ${s.favorite_min_step || 1}` : '';
     const arTag = s.autoRestart ? ' · Auto-restart ON' : '';
+    const tgTag = s.telegram_notifications === false ? ' · Telegram OFF' : '';
     const groupTag = s.overlap_group ? ` · Group: ${s.overlap_group}` : '';
     const cats = s.included_categories || [];
     const leaguesFallback = s.included_leagues || [];
@@ -1706,11 +1713,11 @@ function renderList() {
     let metaLine;
     if (isMulti) {
       const sportList = (s.sport_configs || []).map(r => r.sport_name + '/' + r.market_name).join(', ');
-      metaLine = `MULTI: ${sportList}${liveTag}${fsTag}${arTag}${groupTag}${leagueTag}`;
+      metaLine = `MULTI: ${sportList}${liveTag}${fsTag}${arTag}${tgTag}${groupTag}${leagueTag}`;
     } else {
       const sport = s.sport_name || (s.sport_names || [])[0] || '?';
       const market = s.market_name || (s.market_names || [])[0] || '?';
-      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''}${s.btts_direction ? ' BTTS: ' + s.btts_direction : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${s.spread_cap_percent ? ' · spread cap ' + s.spread_cap_percent + '%' : ''}${s.min_field_size ? ' · min field ' + s.min_field_size : ''}${liveTag}${fsTag}${arTag}${groupTag}${leagueTag}`;
+      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''}${s.btts_direction ? ' BTTS: ' + s.btts_direction : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${s.spread_cap_percent ? ' · spread cap ' + s.spread_cap_percent + '%' : ''}${s.min_field_size ? ' · min field ' + s.min_field_size : ''}${liveTag}${fsTag}${arTag}${tgTag}${groupTag}${leagueTag}`;
     }
     const editFn = isMulti ? `openMultiModal(${i})` : `openModal(${i})`;
     html += `<div class="card strat-row">
@@ -1857,6 +1864,7 @@ function openModal(index) {
 
   document.getElementById('f_live_mode').value = s.live_mode || 'pre';
   document.getElementById('f_enabled').checked = s.enabled !== false;
+  document.getElementById('f_telegram_notifications').checked = s.telegram_notifications !== false;
   document.getElementById('f_autorestart').checked = !!s.autoRestart;
   document.getElementById('modalBg').classList.add('open');
 }
@@ -1996,6 +2004,7 @@ function openMultiModal(index) {
   onMultiFlashscoreToggle();
   document.getElementById('mf_live_mode').value = s.live_mode || 'pre';
   document.getElementById('mf_enabled').checked = s.enabled !== false;
+  document.getElementById('mf_telegram_notifications').checked = s.telegram_notifications !== false;
   document.getElementById('mf_autorestart').checked = !!s.autoRestart;
 
   const sports = s.sport_configs || (s.sport_name ? [{
@@ -2123,6 +2132,7 @@ function saveMultiStrategy() {
     favorite_min_step: favoriteMinStep,
     live_mode: document.getElementById('mf_live_mode').value,
     enabled: document.getElementById('mf_enabled').checked,
+    telegram_notifications: document.getElementById('mf_telegram_notifications').checked,
     autoRestart: document.getElementById('mf_autorestart').checked,
     included_categories: checkedCategories,
     included_leagues: checkedLeagues,
@@ -2256,6 +2266,7 @@ function saveStrategy() {
     name: name,
     live_mode: document.getElementById('f_live_mode').value,
     enabled: document.getElementById('f_enabled').checked,
+    telegram_notifications: document.getElementById('f_telegram_notifications').checked,
     sport_name: document.getElementById('f_sport').value.trim(),
     sport_names: [document.getElementById('f_sport').value.trim()],
     market_name: document.getElementById('f_market').value.trim(),
