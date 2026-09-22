@@ -30,6 +30,11 @@ read anywhere — every bet got favorited regardless. Now respects both:
 toggle off = never favorite; toggle on = favorite once current_step is
 at or above favorite_min_step (compound strategies always favorite
 when the toggle is on, since they don't have "steps").
+
+Skip-record removal (2026-09-22): skips.db grew to 268MB and blocked
+git pushes. Removed the skip_records import and the per-skip DB write.
+Skip lines still go to logs/skipped.log as before — just no more
+permanent per-skip SQLite storage.
 """
 
 import asyncio
@@ -48,7 +53,6 @@ from log_util import setup_skip_logging
 
 _skip_logger = setup_skip_logging()
 from bet_records import record_bet_placed, record_bet_settled, record_bet_cashed_out
-from skip_records import record_skip
 from league_tracker import record_league
 from strategy_loader import disable_strategy
 
@@ -151,29 +155,17 @@ class StrategyRunner:
         self.live_mode = strategy.get("live_mode", "pre")
         self.sport_configs = strategy.get("sport_configs")
         self.overlap_group = strategy.get("overlap_group") or None
-        self.telegram_notifications = strategy.get("telegram_notifications", True)
 
         # Guards active_bets + the state file from being read/written by
         # check_settlements() and check_cash_out() at the same moment,
         # now that cash-out runs in its own loop alongside the main one.
         self._bets_lock = asyncio.Lock()
 
-    def notify(self, msg):
-        """Sends to Telegram only if this strategy has notifications on."""
-        if self.telegram_notifications:
-            self.client.send_telegram(msg)
-
     def log(self, msg):
         ts = datetime.now(ZoneInfo("Europe/Athens")).strftime("%Y-%m-%d %H:%M:%S")
         line = f"[{ts}] [{self.name}] {msg}"
         if msg.startswith("Skipped"):
             _skip_logger.info(line)  # goes to logs/skipped.log only
-            try:
-                rest = msg[len("Skipped "):]
-                event_name, _, reason = rest.partition(" — ")
-                record_skip(self.name, event_name.strip(), reason.strip() or event_name.strip())
-            except Exception:
-                pass  # never let recording a skip break the bot
         else:
             print(line)  # goes to logs/bot.log (console + main log)
 
@@ -556,7 +548,7 @@ class StrategyRunner:
                 f"Stake: {stake}"
             )
             self.log(msg)
-            self.notify(msg)
+            self.client.send_telegram(msg)
             return True
 
         self.log("Scan done: nothing matched the strategy right now.")
@@ -620,7 +612,7 @@ class StrategyRunner:
 
                 msg = (f"💰 Cashed Out [{self.name}]\nEvent: {bet['event_name']}\n"
                        f"Locked in profit (equal both ways): {equal_profit}")
-                self.notify(msg)
+                self.client.send_telegram(msg)
 
         self.active_bets = [b for b in self.active_bets if not b.get("cashed_out")]
         self._save()
@@ -700,7 +692,7 @@ class StrategyRunner:
                     f"Balance: {self.balance} (target {self.compound_target})"
                 )
                 self.log(settle_msg)
-                self.notify(settle_msg)
+                self.client.send_telegram(settle_msg)
 
                 if self.balance <= 0:
                     if self.auto_restart:
@@ -745,17 +737,17 @@ class StrategyRunner:
                             self.balance = self.starting_bankroll
                             settle_msg += f"\nAuto-restart: reset to {self.starting_bankroll}"
                             self.log(settle_msg)
-                            self.notify(settle_msg)
+                            self.client.send_telegram(settle_msg)
                             continue
                         else:
                             self.log(settle_msg)
-                            self.notify(settle_msg)
+                            self.client.send_telegram(settle_msg)
                             self.log(f"🛑 Bankroll hit {self.balance}, at/below stop-loss ({stop_at}). Disabling.")
                             await disable_strategy(self.name, "bankroll stop-loss hit")
                             continue
 
                 self.log(settle_msg)
-                self.notify(settle_msg)
+                self.client.send_telegram(settle_msg)
 
         self.active_bets = still_open
         self._save()

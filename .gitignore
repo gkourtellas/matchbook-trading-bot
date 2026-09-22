@@ -5,3 +5,5 @@ logs/
 __pycache__/
 *.pyc
 config/liquidity_log.csv
+config/skips.db
+config/backups/

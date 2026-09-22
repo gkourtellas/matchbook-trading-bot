@@ -34,7 +34,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("DASHBOARD_SECRET_KEY", "change-me-please")
 app.permanent_session_lifetime = timedelta(days=30)
 
-BUILD_VERSION = "v13"
+BUILD_VERSION = "v14"
 
 
 @app.route("/api/build_version")
@@ -241,6 +241,13 @@ def validate_strategies(strategies):
 
         if market != "Both Teams To Score" and s.get("btts_direction"):
             return f"Strategy '{s['name']}': btts_direction is set but market isn't 'Both Teams To Score'."
+
+        runner_side = s.get("runner_side")
+        if runner_side not in (None, "", "home", "away"):
+            return f"Strategy '{s['name']}': runner_side must be 'home' or 'away'."
+        if runner_side and (market not in ("Match Odds", "Moneyline") or bet_mode != "normal" or bet_side != "back"):
+            return (f"Strategy '{s['name']}': runner_side only works for Match Odds/Moneyline, "
+                    f"normal mode, back side.")
 
         spread_cap = s.get("spread_cap_percent")
         if spread_cap is not None and spread_cap <= 0:
@@ -1395,6 +1402,14 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
             <option value="No">No</option>
           </select>
         </div>
+        <div class="field">
+          <label>Win side <span style="color:var(--muted); text-transform:none;">(Match Odds / Moneyline only)</span></label>
+          <select id="f_runner_side">
+            <option value="">— either —</option>
+            <option value="home">Home only</option>
+            <option value="away">Away only</option>
+          </select>
+        </div>
         <div class="field full">
           <label>Strategy type</label>
           <select id="f_strategy_type" onchange="onStrategyTypeChange()">
@@ -1717,7 +1732,7 @@ function renderList() {
     } else {
       const sport = s.sport_name || (s.sport_names || [])[0] || '?';
       const market = s.market_name || (s.market_names || [])[0] || '?';
-      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''}${s.btts_direction ? ' BTTS: ' + s.btts_direction : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${s.spread_cap_percent ? ' · spread cap ' + s.spread_cap_percent + '%' : ''}${s.min_field_size ? ' · min field ' + s.min_field_size : ''}${liveTag}${fsTag}${arTag}${tgTag}${groupTag}${leagueTag}`;
+      metaLine = `${sport} · ${market}${s.bet_mode === 'double_chance' ? ' → Double Chance' : ''}${s.bet_side === 'lay' ? ' (LAY opponent)' : ''}${s.total_direction ? ' ' + s.total_direction + ' ' + s.total_range : ''}${s.btts_direction ? ' BTTS: ' + s.btts_direction : ''}${s.runner_side ? ' · ' + s.runner_side.toUpperCase() + ' only' : ''} · odds ${s.min_back_odds}-${s.max_back_odds}${s.cash_out_at_percent ? ' · cash out @ ' + s.cash_out_at_percent + '%' : ''}${s.spread_cap_percent ? ' · spread cap ' + s.spread_cap_percent + '%' : ''}${s.min_field_size ? ' · min field ' + s.min_field_size : ''}${liveTag}${fsTag}${arTag}${tgTag}${groupTag}${leagueTag}`;
     }
     const editFn = isMulti ? `openMultiModal(${i})` : `openModal(${i})`;
     html += `<div class="card strat-row">
@@ -1835,6 +1850,7 @@ function openModal(index) {
   document.getElementById('f_total_range').value = s.total_range ?? '';
   document.getElementById('f_total_direction').value = s.total_direction ?? '';
   document.getElementById('f_btts_direction').value = s.btts_direction ?? '';
+  document.getElementById('f_runner_side').value = s.runner_side ?? '';
   const stratType = s.strategy_type || 'normal';
   document.getElementById('f_strategy_type').value = stratType;
   document.getElementById('f_staking_plan').value = (s.staking_plan || [0.1,0.3,0.9,2.7,8.1,24.3]).join(', ');
@@ -2228,6 +2244,11 @@ function saveStrategy() {
   const totalRange = document.getElementById('f_total_range').value.trim();
   const totalDirection = document.getElementById('f_total_direction').value;
   const bttsDirection = document.getElementById('f_btts_direction').value;
+  const runnerSide = document.getElementById('f_runner_side').value;
+  if (runnerSide && ((market !== 'Match Odds' && market !== 'Moneyline') || betMode !== 'normal' || betSide !== 'back')) {
+    showError('Win side (Home/Away) only works for Match Odds / Moneyline, normal mode, back side.');
+    return;
+  }
 
   if (betMode === 'double_chance') {
     if (market !== 'Match Odds') {
@@ -2307,6 +2328,7 @@ function saveStrategy() {
     total_range: market === 'Total' ? totalRange : null,
     total_direction: market === 'Total' ? totalDirection : null,
     btts_direction: market === 'Both Teams To Score' ? bttsDirection : null,
+    runner_side: runnerSide || null,
     description: existing.description || '',
   };
 
