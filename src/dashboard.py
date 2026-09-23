@@ -102,6 +102,8 @@ SPORTS = [
     {"name": "Tennis", "id": 9},
     {"name": "Volleyball", "id": 1939998342510016},
     {"name": "eSports", "id": 123},
+    {"name": "Horse Racing", "id": 24735152712200},
+    {"name": "Greyhound Racing", "id": 241798357140019},
 ]
 _SPORT_ID_BY_NAME = {s["name"]: s["id"] for s in SPORTS}
 
