@@ -31,10 +31,13 @@ toggle off = never favorite; toggle on = favorite once current_step is
 at or above favorite_min_step (compound strategies always favorite
 when the toggle is on, since they don't have "steps").
 
-Skip-record removal (2026-09-22): skips.db grew to 268MB and blocked
-git pushes. Removed the skip_records import and the per-skip DB write.
-Skip lines still go to logs/skipped.log as before — just no more
-permanent per-skip SQLite storage.
+Race-wide favorite lock (added): for WIN market (racing) only, all
+strategies now share one race_lock so only ONE bet is placed per race,
+and only if the strategy's pick is still the true favorite when it
+tries to claim the race. Fixes the old bug where whichever racing
+strategy scanned first could lock in a non-favorite runner via
+overlap_group, since overlap_group only blocked by group, not by
+who's actually the favorite.
 """
 
 import asyncio
@@ -47,12 +50,14 @@ import market_lay_opponent
 import market_double_chance
 import market_racing_favorite
 import overlap_tracker
+import race_lock
 import flashscore_client
 from state_store import load_state, save_state
 from log_util import setup_skip_logging
 
 _skip_logger = setup_skip_logging()
 from bet_records import record_bet_placed, record_bet_settled, record_bet_cashed_out
+from skip_records import record_skip
 from league_tracker import record_league
 from strategy_loader import disable_strategy
 
@@ -166,6 +171,12 @@ class StrategyRunner:
         line = f"[{ts}] [{self.name}] {msg}"
         if msg.startswith("Skipped"):
             _skip_logger.info(line)  # goes to logs/skipped.log only
+            try:
+                rest = msg[len("Skipped "):]
+                event_name, _, reason = rest.partition(" — ")
+                record_skip(self.name, event_name.strip(), reason.strip() or event_name.strip())
+            except Exception:
+                pass  # never let recording a skip break the bot
         else:
             print(line)  # goes to logs/bot.log (console + main log)
 
@@ -465,6 +476,14 @@ class StrategyRunner:
                 self.log(f"Skipped {event_name} — already has an active {market_type} bet from a different overlap group")
                 continue
 
+            # Race-wide favorite lock: for racing (WIN market), only one
+            # bet total per race, and it must be the true favorite at the
+            # moment we claim it. Shared across ALL racing strategies.
+            if market_type == "WIN":
+                if not await race_lock.try_lock_race(event_id):
+                    self.log(f"Skipped {event_name} — another strategy already locked the favorite for this race")
+                    continue
+
             bet_side = matched_cfg.get("bet_side", self.bet_side)
             stake = self.stake_for_step()
 
@@ -482,6 +501,8 @@ class StrategyRunner:
             if not odds_ok:
                 if self.overlap_group:
                     await overlap_tracker.unregister(event_id, self.overlap_group, market_type)
+                if market_type == "WIN":
+                    await race_lock.unlock_race(event_id)
                 continue
             odds = confirmed_odds
 
@@ -497,6 +518,8 @@ class StrategyRunner:
                 self.log("⚠️ Bet was rejected.")
                 if self.overlap_group:
                     await overlap_tracker.unregister(event_id, self.overlap_group, market_type)
+                if market_type == "WIN":
+                    await race_lock.unlock_race(event_id)
                 continue
 
             sport = matched_cfg.get("sport_name") or self.cfg.get("sport_name") or (self.cfg.get("sport_names") or ["?"])[0]
@@ -666,6 +689,8 @@ class StrategyRunner:
                 continue
 
             await overlap_tracker.unregister(bet.get("event_id"), self.overlap_group, bet.get("market_type"))
+            if bet.get("market_type") == "WIN":
+                await race_lock.unlock_race(bet.get("event_id"))
 
             result_label = {"won": "Won", "lost": "Lost", "push": "Push (void)"}[outcome]
             result_icon = {"won": "✅", "lost": "❌", "push": "➖"}[outcome]
