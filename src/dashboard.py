@@ -34,7 +34,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("DASHBOARD_SECRET_KEY", "change-me-please")
 app.permanent_session_lifetime = timedelta(days=30)
 
-BUILD_VERSION = "v14"
+BUILD_VERSION = "v16"
 
 
 @app.route("/api/build_version")
@@ -488,12 +488,13 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
       <a class="nav-btn secondary" href="logs">Logs</a>
       <a class="nav-btn secondary" href="league_skips">League Skips</a>
       <button class="nav-btn" style="background: var(--pending); color: #1a1300;" onclick="restartBot()">⟲ Restart Bot</button>
+      <button class="nav-btn" onclick="location.reload()">⟳ Refresh</button>
     </div>
   </div>
 
   <div class="saving-banner" id="restartBanner" style="border-color: var(--accent); color: var(--accent); background: rgba(91,141,239,0.12); display:none;">Restarting the bot…</div>
 
-  <h1>Open Positions <span style="font-weight:400; text-transform:none; letter-spacing:0;">— currently pending</span></h1>
+  <h1>Open Positions <span id="openCount" style="font-weight:400; text-transform:none; letter-spacing:0;">— currently pending</span></h1>
   <div class="card"><div id="pending"></div></div>
 
   <h1 style="display:flex; align-items:center; justify-content:space-between;">
@@ -692,6 +693,7 @@ function loadLeagueBreakdown() {
 loadLeagueBreakdown();
 
 fetch('api/pending').then(r => r.json()).then(data => {
+  document.getElementById('openCount').textContent = `(${data.length}) — currently pending`;
   if (!data.length) {
     document.getElementById('pending').innerHTML = '<p class="small">No open positions right now.</p>';
     return;
@@ -849,6 +851,7 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
       <a class="nav-btn secondary" href="categories">Leagues</a>
       <a class="nav-btn secondary" href="logs">Logs</a>
       <a class="nav-btn secondary" href="league_skips">League Skips</a>
+      <button class="nav-btn" onclick="location.reload()">⟳ Refresh</button>
     </div>
   </div>
 
@@ -1072,6 +1075,7 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
       <a class="nav-btn secondary" href="analytics">Analytics</a>
       <a class="nav-btn secondary" href="logs">Logs</a>
       <a class="nav-btn secondary" href="league_skips">League Skips</a>
+      <button class="nav-btn" onclick="location.reload()">⟳ Refresh</button>
     </div>
   </div>
 
@@ -1346,6 +1350,7 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
       <a class="nav-btn secondary" href="logs">Logs</a>
       <a class="nav-btn secondary" href="league_skips">League Skips</a>
       <button class="nav-btn" style="background: var(--pending); color: #1a1300;" onclick="restartBot()">⟲ Restart Bot</button>
+      <button class="nav-btn" onclick="location.reload()">⟳ Refresh</button>
     </div>
   </div>
 
@@ -3005,6 +3010,7 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
       <a class="nav-btn secondary" href="categories">Leagues</a>
       <a class="nav-btn secondary" href="analytics">Analytics</a>
       <a class="nav-btn secondary" href="league_skips">League Skips</a>
+      <button class="nav-btn" onclick="location.reload()">⟳ Refresh</button>
     </div>
   </div>
 
@@ -3177,6 +3183,7 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
       <a class="nav-btn secondary" href="categories">Leagues</a>
       <a class="nav-btn secondary" href="analytics">Analytics</a>
       <a class="nav-btn secondary" href="logs">Logs</a>
+      <button class="nav-btn" onclick="location.reload()">⟳ Refresh</button>
     </div>
   </div>
 

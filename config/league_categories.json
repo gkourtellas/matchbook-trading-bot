@@ -1,4 +1,21 @@
 {
+  "Football_GG_Test_Fix_Filtered": [
+    "England EFL Trophy",
+    "England National League",
+    "Mexico Liga Expansion MX",
+    "US USL Championship"
+  ],
+  "Football_Over2.5_Test_Fix_Filtered": [
+    "US USL Championship"
+  ],
+  "Football_Under3.5_Fix_Filtered": [
+    "Brazil Serie B"
+  ],
+  "Horses": [
+    "Ireland",
+    "South Africa",
+    "UK"
+  ],
   "Kyriakos More": [
     "Bolivia Primera Division",
     "China League One",
@@ -126,13 +143,13 @@
     "Turkey 1. Lig",
     "Turkey Super Lig",
     "UAE Pro League",
+    "UEFA Champions League",
     "UEFA Europa Conference League Qualification",
     "UEFA Europa League Qualification",
     "Uruguay Primera Divisi\u00f3n",
     "Uruguay Segunda Divisi\u00f3n",
     "US Major League Soccer",
-    "Wales Premier League",
-    "UEFA Champions League"
+    "Wales Premier League"
   ],
   "Leagues For Win Strategies": [
     "Argentina Primera Nacional",

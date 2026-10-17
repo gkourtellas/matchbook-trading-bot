@@ -2,7 +2,7 @@ services:
   trading-bot:
     build: .
     container_name: matchbook_trading_bot
-    restart: "no"
+    restart: "always"
     env_file:
       - .env
     environment:
@@ -20,7 +20,7 @@ services:
   dashboard:
     build: .
     container_name: matchbook_dashboard
-    restart: "no"
+    restart: "always"
     command: ["python", "-u", "src/dashboard.py"]
     env_file:
       - .env

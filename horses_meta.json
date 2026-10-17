@@ -1,0 +1,4432 @@
+Got 10 event(s). Showing meta-tags for each:
+
+================================================================================
+Event: 07:30 Moe
+meta-tags:
+[
+  {
+    "id": 24735152712200,
+    "name": "Horse Racing",
+    "type": "SPORT",
+    "url-name": "horse-racing"
+  },
+  {
+    "id": 319515298390018,
+    "name": "Australia",
+    "type": "COUNTRY",
+    "url-name": "australia"
+  },
+  {
+    "id": 1507508846270003,
+    "name": "International",
+    "type": "OTHER",
+    "url-name": "international"
+  },
+  {
+    "id": 2363007228740008,
+    "name": "Moe",
+    "type": "LOCATION",
+    "url-name": "moe"
+  }
+]
+================================================================================
+Event: 08:00 Moe
+meta-tags:
+[
+  {
+    "id": 24735152712200,
+    "name": "Horse Racing",
+    "type": "SPORT",
+    "url-name": "horse-racing"
+  },
+  {
+    "id": 319515298390018,
+    "name": "Australia",
+    "type": "COUNTRY",
+    "url-name": "australia"
+  },
+  {
+    "id": 1507508846270003,
+    "name": "International",
+    "type": "OTHER",
+    "url-name": "international"
+  },
+  {
+    "id": 2363007228740008,
+    "name": "Moe",
+    "type": "LOCATION",
+    "url-name": "moe"
+  }
+]
+================================================================================
+Event: 12:07 Greyville
+meta-tags:
+[
+  {
+    "id": 24735152712200,
+    "name": "Horse Racing",
+    "type": "SPORT",
+    "url-name": "horse-racing"
+  },
+  {
+    "id": 502569166270009,
+    "name": "Greyville",
+    "type": "LOCATION",
+    "url-name": "greyville"
+  },
+  {
+    "id": 526958528560009,
+    "name": "South Africa",
+    "type": "COUNTRY",
+    "url-name": "south-africa"
+  },
+  {
+    "id": 1507508846270003,
+    "name": "International",
+    "type": "OTHER",
+    "url-name": "international"
+  }
+]
+================================================================================
+Event: 12:45 Greyville
+meta-tags:
+[
+  {
+    "id": 24735152712200,
+    "name": "Horse Racing",
+    "type": "SPORT",
+    "url-name": "horse-racing"
+  },
+  {
+    "id": 502569166270009,
+    "name": "Greyville",
+    "type": "LOCATION",
+    "url-name": "greyville"
+  },
+  {
+    "id": 526958528560009,
+    "name": "South Africa",
+    "type": "COUNTRY",
+    "url-name": "south-africa"
+  },
+  {
+    "id": 1507508846270003,
+    "name": "International",
+    "type": "OTHER",
+    "url-name": "international"
+  }
+]
+================================================================================
+Event: 13:15 Newmarket
+meta-tags:
+[
+  {
+    "id": 10812638253700,
+    "name": "UK",
+    "type": "COUNTRY",
+    "url-name": "uk"
+  },
+  {
+    "id": 24735152712200,
+    "name": "Horse Racing",
+    "type": "SPORT",
+    "url-name": "horse-racing"
+  },
+  {
+    "id": 241441255817800,
+    "name": "Newmarket",
+    "type": "LOCATION",
+    "url-name": "newmarket"
+  },
+  {
+    "id": 410468520880009,
+    "name": "Live Betting",
+    "type": "OTHER",
+    "url-name": "live-betting"
+  },
+  {
+    "id": 1507462493830003,
+    "name": "UK Ireland",
+    "type": "OTHER",
+    "url-name": "uk-ireland"
+  }
+]
+================================================================================
+Event: 13:20 Greyville
+meta-tags:
+[
+  {
+    "id": 24735152712200,
+    "name": "Horse Racing",
+    "type": "SPORT",
+    "url-name": "horse-racing"
+  },
+  {
+    "id": 502569166270009,
+    "name": "Greyville",
+    "type": "LOCATION",
+    "url-name": "greyville"
+  },
+  {
+    "id": 526958528560009,
+    "name": "South Africa",
+    "type": "COUNTRY",
+    "url-name": "south-africa"
+  },
+  {
+    "id": 1507508846270003,
+    "name": "International",
+    "type": "OTHER",
+    "url-name": "international"
+  }
+]
+================================================================================
+Event: 13:32 Pontefract
+meta-tags:
+[
+  {
+    "id": 10812638253700,
+    "name": "UK",
+    "type": "COUNTRY",
+    "url-name": "uk"
+  },
+  {
+    "id": 24735152712200,
+    "name": "Horse Racing",
+    "type": "SPORT",
+    "url-name": "horse-racing"
+  },
+  {
+    "id": 149298731020023,
+    "name": "Pontefract",
+    "type": "LOCATION",
+    "url-name": "pontefract"
+  },
+  {
+    "id": 410468520880009,
+    "name": "Live Betting",
+    "type": "OTHER",
+    "url-name": "live-betting"
+  },
+  {
+    "id": 1507462493830003,
+    "name": "UK Ireland",
+    "type": "OTHER",
+    "url-name": "uk-ireland"
+  }
+]
+================================================================================
+Event: 13:39 Perth
+meta-tags:
+[
+  {
+    "id": 10812638253700,
+    "name": "UK",
+    "type": "COUNTRY",
+    "url-name": "uk"
+  },
+  {
+    "id": 24735152712200,
+    "name": "Horse Racing",
+    "type": "SPORT",
+    "url-name": "horse-racing"
+  },
+  {
+    "id": 151036532940023,
+    "name": "Perth",
+    "type": "LOCATION",
+    "url-name": "perth"
+  },
+  {
+    "id": 410468520880009,
+    "name": "Live Betting",
+    "type": "OTHER",
+    "url-name": "live-betting"
+  },
+  {
+    "id": 1507462493830003,
+    "name": "UK Ireland",
+    "type": "OTHER",
+    "url-name": "uk-ireland"
+  }
+]
+================================================================================
+Event: 13:50 Newmarket
+meta-tags:
+[
+  {
+    "id": 10812638253700,
+    "name": "UK",
+    "type": "COUNTRY",
+    "url-name": "uk"
+  },
+  {
+    "id": 24735152712200,
+    "name": "Horse Racing",
+    "type": "SPORT",
+    "url-name": "horse-racing"
+  },
+  {
+    "id": 241441255817800,
+    "name": "Newmarket",
+    "type": "LOCATION",
+    "url-name": "newmarket"
+  },
+  {
+    "id": 410468520880009,
+    "name": "Live Betting",
+    "type": "OTHER",
+    "url-name": "live-betting"
+  },
+  {
+    "id": 1507462493830003,
+    "name": "UK Ireland",
+    "type": "OTHER",
+    "url-name": "uk-ireland"
+  }
+]
+================================================================================
+Event: 13:55 Greyville
+meta-tags:
+[
+  {
+    "id": 24735152712200,
+    "name": "Horse Racing",
+    "type": "SPORT",
+    "url-name": "horse-racing"
+  },
+  {
+    "id": 502569166270009,
+    "name": "Greyville",
+    "type": "LOCATION",
+    "url-name": "greyville"
+  },
+  {
+    "id": 526958528560009,
+    "name": "South Africa",
+    "type": "COUNTRY",
+    "url-name": "south-africa"
+  },
+  {
+    "id": 1507508846270003,
+    "name": "International",
+    "type": "OTHER",
+    "url-name": "international"
+  }
+]
+
+================================================================================
+Full raw data for the FIRST event (in case country isn't in meta-tags):
+{
+  "id": 34408103662802081,
+  "name": "07:30 Moe",
+  "sport-id": 24735152712200,
+  "start": "2026-09-24T06:30:00.000Z",
+  "in-running-flag": false,
+  "allow-live-betting": false,
+  "category-id": [
+    24735152712200,
+    319515298390018,
+    1507508846270003,
+    2363007228740008
+  ],
+  "status": "open",
+  "volume": 266.35825,
+  "markets": [
+    {
+      "live": false,
+      "event-id": 34408103662802081,
+      "id": 34408103776501023,
+      "name": "WIN",
+      "product": "EXCHANGE",
+      "start": "2026-09-24T06:30:00.000Z",
+      "status": "open",
+      "market-type": "outright_ded_fact",
+      "type": "multirunner",
+      "in-running-flag": false,
+      "allow-live-betting": false,
+      "volume": 260.48778,
+      "back-overround": 103.57014,
+      "lay-overround": 96.63344,
+      "number-of-winners": 1,
+      "runners": [
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.4,
+              "decimal-odds": 4.4,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.88476,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.3,
+              "decimal-odds": 4.3,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 24.14817,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.2,
+              "decimal-odds": 4.2,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 3.16392,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.5,
+              "decimal-odds": 4.5,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 16.7967,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.7,
+              "decimal-odds": 4.7,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 17.62258,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.9,
+              "decimal-odds": 4.9,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:30.484Z",
+          "event-id": 34408103662802081,
+          "id": 34408103778212023,
+          "market-id": 34408103776501023,
+          "name": "7 Dirty Diana",
+          "status": "open",
+          "volume": 150.56334,
+          "event-participant-id": 34408103759201081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 7.398,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 5.2,
+              "decimal-odds": 5.2,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 5.0,
+              "decimal-odds": 5.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.67788,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.9,
+              "decimal-odds": 4.9,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 5.6,
+              "decimal-odds": 5.6,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.51468,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 5.8,
+              "decimal-odds": 5.8,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 5.9,
+              "decimal-odds": 5.9,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:14.830Z",
+          "event-id": 34408103662802081,
+          "id": 34408103777813023,
+          "market-id": 34408103776501023,
+          "name": "5 Marilyn's Edge",
+          "status": "open",
+          "volume": 28.50002,
+          "event-participant-id": 34408103758802081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 2.91964,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 13.0,
+              "decimal-odds": 13.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 18.68566,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 12.5,
+              "decimal-odds": 12.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.76304,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 12.0,
+              "decimal-odds": 12.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 3.78042,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 14.0,
+              "decimal-odds": 14.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.35563,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 14.5,
+              "decimal-odds": 14.5,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.02541,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 16.0,
+              "decimal-odds": 16.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:11:53.052Z",
+          "event-id": 34408103662802081,
+          "id": 34408103778605023,
+          "market-id": 34408103776501023,
+          "name": "9 Elonia",
+          "status": "open",
+          "volume": 81.42442,
+          "event-participant-id": 34408103759502081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 5.38565,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 3.8,
+              "decimal-odds": 3.8,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 13.38851,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 3.75,
+              "decimal-odds": 3.75,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 11.74839,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 3.65,
+              "decimal-odds": 3.65,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 1.86113,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 3.9,
+              "decimal-odds": 3.9,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 5.30422,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 3.95,
+              "decimal-odds": 3.95,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 56.72959,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.0,
+              "decimal-odds": 4.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:30.086Z",
+          "event-id": 34408103662802081,
+          "id": 34408103777311023,
+          "market-id": 34408103776501023,
+          "name": "2 Midnight Devil",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103758202081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 8.57893,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 10.0,
+              "decimal-odds": 10.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 5.57573,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 9.8,
+              "decimal-odds": 9.8,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 17.58768,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 9.6,
+              "decimal-odds": 9.6,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 4.19918,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 11.0,
+              "decimal-odds": 11.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 4.46672,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 11.5,
+              "decimal-odds": 11.5,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.60701,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 13.5,
+              "decimal-odds": 13.5,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:31.202Z",
+          "event-id": 34408103662802081,
+          "id": 34408103777708023,
+          "market-id": 34408103776501023,
+          "name": "4 Ballistic Blue",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103758602081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 10.5,
+              "decimal-odds": 10.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 1.5587,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 10.0,
+              "decimal-odds": 10.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 3.26861,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 9.8,
+              "decimal-odds": 9.8,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 4.68772,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 11.0,
+              "decimal-odds": 11.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 4.43182,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 11.5,
+              "decimal-odds": 11.5,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 12.0,
+              "decimal-odds": 12.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:30.206Z",
+          "event-id": 34408103662802081,
+          "id": 34408103778016023,
+          "market-id": 34408103776501023,
+          "name": "6 Ruby Avenue",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103759001081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 5.00179,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 17.0,
+              "decimal-odds": 17.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 20.01879,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 16.5,
+              "decimal-odds": 16.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 5.23443,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 16.0,
+              "decimal-odds": 16.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.43111,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 23.0,
+              "decimal-odds": 23.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.18933,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 24.0,
+              "decimal-odds": 24.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 3.0127,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 26.0,
+              "decimal-odds": 26.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:31.082Z",
+          "event-id": 34408103662802081,
+          "id": 34408103778409023,
+          "market-id": 34408103776501023,
+          "name": "8 Sleeping Tiger",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103759302081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 70.0,
+              "decimal-odds": 70.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 5.93236,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 65.0,
+              "decimal-odds": 65.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 60.0,
+              "decimal-odds": 60.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 140.0,
+              "decimal-odds": 140.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 7.10062,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 600.0,
+              "decimal-odds": 600.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33968,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 920.0,
+              "decimal-odds": 920.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:19.333Z",
+          "event-id": 34408103662802081,
+          "id": 34408103778804023,
+          "market-id": 34408103776501023,
+          "name": "10 Free To Play",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103759701081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 130.0,
+              "decimal-odds": 130.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 120.0,
+              "decimal-odds": 120.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.49531,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 110.0,
+              "decimal-odds": 110.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 190.0,
+              "decimal-odds": 190.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 270.0,
+              "decimal-odds": 270.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 300.0,
+              "decimal-odds": 300.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:13.559Z",
+          "event-id": 34408103662802081,
+          "id": 34408103779109023,
+          "market-id": 34408103776501023,
+          "name": "12 Tartan Queen",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103760002081
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103777105023,
+          "market-id": 34408103776501023,
+          "name": "1 Mr Tickles",
+          "status": "paid",
+          "volume": 0.0,
+          "event-participant-id": 34408103758000081
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "last-price-update-time": "2026-09-23T21:18:25.690Z",
+          "event-id": 34408103662802081,
+          "id": 34408103777515023,
+          "market-id": 34408103776501023,
+          "name": "3 Kentahten",
+          "status": "paid",
+          "volume": 0.0,
+          "event-participant-id": 34408103758402081
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103779003023,
+          "market-id": 34408103776501023,
+          "name": "11 Moonlight Rustler",
+          "status": "paid",
+          "volume": 0.0,
+          "event-participant-id": 34408103759802081
+        }
+      ]
+    },
+    {
+      "live": false,
+      "event-id": 34408103662802081,
+      "id": 34408103782202023,
+      "name": "Place (3)",
+      "product": "EXCHANGE",
+      "start": "2026-09-24T06:30:00.000Z",
+      "status": "open",
+      "market-type": "place_ded_fact",
+      "type": "multirunner",
+      "in-running-flag": false,
+      "allow-live-betting": false,
+      "volume": 5.87047,
+      "back-overround": 330.55268,
+      "lay-overround": 217.72195,
+      "number-of-winners": 3,
+      "runners": [
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 5.19954,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.66,
+              "decimal-odds": 1.66,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.55,
+              "decimal-odds": 1.55,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.53,
+              "decimal-odds": 1.53,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 5.45544,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.22,
+              "decimal-odds": 2.22,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 16.32612,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.28,
+              "decimal-odds": 2.28,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 14.00501,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.6,
+              "decimal-odds": 2.6,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:24.945Z",
+          "event-id": 34408103662802081,
+          "id": 34408103783807023,
+          "market-id": 34408103782202023,
+          "name": "7 Dirty Diana",
+          "status": "open",
+          "volume": 5.87047,
+          "event-participant-id": 34408103759201081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 6.95598,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.58,
+              "decimal-odds": 1.58,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.95598,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.5,
+              "decimal-odds": 1.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 3.86184,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.48,
+              "decimal-odds": 1.48,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 48.8429,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.2,
+              "decimal-odds": 2.2,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 13.91195,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.86,
+              "decimal-odds": 2.86,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 11.58553,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 3.05,
+              "decimal-odds": 3.05,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:03.707Z",
+          "event-id": 34408103662802081,
+          "id": 34408103783011023,
+          "market-id": 34408103782202023,
+          "name": "2 Midnight Devil",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103758202081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 3.14289,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.62,
+              "decimal-odds": 2.62,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.82659,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.48,
+              "decimal-odds": 2.48,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.91009,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.44,
+              "decimal-odds": 2.44,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 3.8,
+              "decimal-odds": 3.8,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 16.80865,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 3.85,
+              "decimal-odds": 3.85,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.6,
+              "decimal-odds": 4.6,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:35.351Z",
+          "event-id": 34408103662802081,
+          "id": 34408103783311023,
+          "market-id": 34408103782202023,
+          "name": "4 Ballistic Blue",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103758602081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.83,
+              "decimal-odds": 1.83,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.8,
+              "decimal-odds": 1.8,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 5.20324,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.7,
+              "decimal-odds": 1.7,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.86,
+              "decimal-odds": 2.86,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 15.13922,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 3.9,
+              "decimal-odds": 3.9,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 19.99552,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.0,
+              "decimal-odds": 4.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:30.798Z",
+          "event-id": 34408103662802081,
+          "id": 34408103783505023,
+          "market-id": 34408103782202023,
+          "name": "5 Marilyn's Edge",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103758802081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 14.9472,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.56,
+              "decimal-odds": 2.56,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 5.16464,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.54,
+              "decimal-odds": 2.54,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.52,
+              "decimal-odds": 2.52,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33971,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 3.0,
+              "decimal-odds": 3.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.65096,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.6,
+              "decimal-odds": 4.6,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 18.70603,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 5.2,
+              "decimal-odds": 5.2,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:25.625Z",
+          "event-id": 34408103662802081,
+          "id": 34408103783612023,
+          "market-id": 34408103782202023,
+          "name": "6 Ruby Avenue",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103759001081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 3.7,
+              "decimal-odds": 3.7,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.42162,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 3.65,
+              "decimal-odds": 3.65,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 5.5136,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 3.6,
+              "decimal-odds": 3.6,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 6.4,
+              "decimal-odds": 6.4,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 6.8,
+              "decimal-odds": 6.8,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.41843,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 12.0,
+              "decimal-odds": 12.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:14.653Z",
+          "event-id": 34408103662802081,
+          "id": 34408103783911023,
+          "market-id": 34408103782202023,
+          "name": "8 Sleeping Tiger",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103759302081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 8.17734,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 3.2,
+              "decimal-odds": 3.2,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 5.10846,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.8,
+              "decimal-odds": 2.8,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 18.18092,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.68,
+              "decimal-odds": 2.68,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 7.4,
+              "decimal-odds": 7.4,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 14.29128,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 7.6,
+              "decimal-odds": 7.6,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.94192,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 8.8,
+              "decimal-odds": 8.8,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:11:14.001Z",
+          "event-id": 34408103662802081,
+          "id": 34408103784111023,
+          "market-id": 34408103782202023,
+          "name": "9 Elonia",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103759502081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 9.6,
+              "decimal-odds": 9.6,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 9.4,
+              "decimal-odds": 9.4,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 5.1879,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 7.8,
+              "decimal-odds": 7.8,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.94798,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 250.0,
+              "decimal-odds": 250.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.94872,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 600.0,
+              "decimal-odds": 600.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:25.528Z",
+          "event-id": 34408103662802081,
+          "id": 34408103784306023,
+          "market-id": 34408103782202023,
+          "name": "10 Free To Play",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103759701081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 5.57573,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 15.5,
+              "decimal-odds": 15.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32807,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 15.0,
+              "decimal-odds": 15.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 4.17591,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 14.5,
+              "decimal-odds": 14.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.31171,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 250.0,
+              "decimal-odds": 250.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 7.64709,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 600.0,
+              "decimal-odds": 600.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:25.722Z",
+          "event-id": 34408103662802081,
+          "id": 34408103784618023,
+          "market-id": 34408103782202023,
+          "name": "12 Tartan Queen",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103760002081
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103782905023,
+          "market-id": 34408103782202023,
+          "name": "1 Mr Tickles",
+          "status": "paid",
+          "volume": 0.0,
+          "event-participant-id": 34408103758000081
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "last-price-update-time": "2026-09-23T21:18:25.781Z",
+          "event-id": 34408103662802081,
+          "id": 34408103783203023,
+          "market-id": 34408103782202023,
+          "name": "3 Kentahten",
+          "status": "paid",
+          "volume": 0.0,
+          "event-participant-id": 34408103758402081
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103784504023,
+          "market-id": 34408103782202023,
+          "name": "11 Moonlight Rustler",
+          "status": "paid",
+          "volume": 0.0,
+          "event-participant-id": 34408103759802081
+        }
+      ]
+    },
+    {
+      "live": false,
+      "event-id": 34408103662802081,
+      "id": 34408103784810023,
+      "name": "Place (4)",
+      "product": "EXCHANGE",
+      "start": "2026-09-24T06:30:00.000Z",
+      "status": "open",
+      "market-type": "place_ded_fact",
+      "type": "multirunner",
+      "in-running-flag": false,
+      "allow-live-betting": false,
+      "volume": 0.0,
+      "back-overround": 512.98367,
+      "lay-overround": 129.82884,
+      "number-of-winners": 4,
+      "runners": [
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 4.73762,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.15,
+              "decimal-odds": 1.15,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.83596,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.14,
+              "decimal-odds": 1.14,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 4.16724,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.12,
+              "decimal-odds": 1.12,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.54495,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.5,
+              "decimal-odds": 4.5,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 11.0,
+              "decimal-odds": 11.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33952,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 250.0,
+              "decimal-odds": 250.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:15.418Z",
+          "event-id": 34408103662802081,
+          "id": 34408103785610023,
+          "market-id": 34408103784810023,
+          "name": "2 Midnight Devil",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103758202081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 5.29636,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.86,
+              "decimal-odds": 1.86,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 16.56399,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.85,
+              "decimal-odds": 1.85,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 4.16724,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.83,
+              "decimal-odds": 1.83,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 5.14137,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 8.0,
+              "decimal-odds": 8.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 7.13381,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 8.2,
+              "decimal-odds": 8.2,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.47546,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 250.0,
+              "decimal-odds": 250.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:08:50.013Z",
+          "event-id": 34408103662802081,
+          "id": 34408103786001023,
+          "market-id": 34408103784810023,
+          "name": "4 Ballistic Blue",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103758602081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 4.91223,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.12,
+              "decimal-odds": 1.12,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.76506,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.11,
+              "decimal-odds": 1.11,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 4.16724,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.09,
+              "decimal-odds": 1.09,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 17.21607,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.94,
+              "decimal-odds": 2.94,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 7.83395,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.5,
+              "decimal-odds": 4.5,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.47546,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 250.0,
+              "decimal-odds": 250.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T05:55:22.039Z",
+          "event-id": 34408103662802081,
+          "id": 34408103786116023,
+          "market-id": 34408103784810023,
+          "name": "5 Marilyn's Edge",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103758802081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 3.85021,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.63,
+              "decimal-odds": 1.63,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 4.18755,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.61,
+              "decimal-odds": 1.61,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 4.22244,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.59,
+              "decimal-odds": 1.59,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.40927,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 5.0,
+              "decimal-odds": 5.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 4.66446,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 5.6,
+              "decimal-odds": 5.6,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.00791,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 250.0,
+              "decimal-odds": 250.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:11:41.907Z",
+          "event-id": 34408103662802081,
+          "id": 34408103786312023,
+          "market-id": 34408103784810023,
+          "name": "6 Ruby Avenue",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103759001081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 11.59362,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.02,
+              "decimal-odds": 1.02,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.72072,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1.01,
+              "decimal-odds": 1.01,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 12.09415,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 3.9,
+              "decimal-odds": 3.9,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 9.4,
+              "decimal-odds": 9.4,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33896,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 250.0,
+              "decimal-odds": 250.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:29.985Z",
+          "event-id": 34408103662802081,
+          "id": 34408103786509023,
+          "market-id": 34408103784810023,
+          "name": "7 Dirty Diana",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103759201081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 4.91223,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.68,
+              "decimal-odds": 2.68,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 5.14503,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.64,
+              "decimal-odds": 2.64,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 4.19053,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.6,
+              "decimal-odds": 2.6,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33805,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 19.5,
+              "decimal-odds": 19.5,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32807,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 60.0,
+              "decimal-odds": 60.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.94872,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 250.0,
+              "decimal-odds": 250.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:11:24.886Z",
+          "event-id": 34408103662802081,
+          "id": 34408103786708023,
+          "market-id": 34408103784810023,
+          "name": "8 Sleeping Tiger",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103759302081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 2.33971,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.18,
+              "decimal-odds": 2.18,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 12.8042,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.16,
+              "decimal-odds": 2.16,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 4.16724,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 2.12,
+              "decimal-odds": 2.12,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33968,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 10.5,
+              "decimal-odds": 10.5,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 4.66772,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 11.0,
+              "decimal-odds": 11.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.04382,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 250.0,
+              "decimal-odds": 250.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:01.615Z",
+          "event-id": 34408103662802081,
+          "id": 34408103786905023,
+          "market-id": 34408103784810023,
+          "name": "9 Elonia",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103759502081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 4.77255,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.5,
+              "decimal-odds": 4.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 4.16724,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.3,
+              "decimal-odds": 4.3,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 4.16724,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.1,
+              "decimal-odds": 4.1,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.98364,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 250.0,
+              "decimal-odds": 250.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.98364,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 600.0,
+              "decimal-odds": 600.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:09:56.806Z",
+          "event-id": 34408103662802081,
+          "id": 34408103787013023,
+          "market-id": 34408103784810023,
+          "name": "10 Free To Play",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103759701081
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 2.33971,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 5.5,
+              "decimal-odds": 5.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 12.8975,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.5,
+              "decimal-odds": 4.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.33971,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.2,
+              "decimal-odds": 4.2,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.38037,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 250.0,
+              "decimal-odds": 250.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32803,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 370.0,
+              "decimal-odds": 370.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 12.59383,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 600.0,
+              "decimal-odds": 600.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:02:47.229Z",
+          "event-id": 34408103662802081,
+          "id": 34408103787405023,
+          "market-id": 34408103784810023,
+          "name": "12 Tartan Queen",
+          "status": "open",
+          "volume": 0.0,
+          "event-participant-id": 34408103760002081
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103785411023,
+          "market-id": 34408103784810023,
+          "name": "1 Mr Tickles",
+          "status": "paid",
+          "volume": 0.0,
+          "event-participant-id": 34408103758000081
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103785808023,
+          "market-id": 34408103784810023,
+          "name": "3 Kentahten",
+          "status": "paid",
+          "volume": 0.0,
+          "event-participant-id": 34408103758402081
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103787207023,
+          "market-id": 34408103784810023,
+          "name": "11 Moonlight Rustler",
+          "status": "paid",
+          "volume": 0.0,
+          "event-participant-id": 34408103759802081
+        }
+      ]
+    },
+    {
+      "live": false,
+      "event-id": 34408103662802081,
+      "id": 34408103787606023,
+      "name": "Reverse Forecast",
+      "product": "EXCHANGE",
+      "start": "2026-09-24T06:30:00.000Z",
+      "status": "open",
+      "market-type": "reverse_forecast",
+      "type": "multirunner",
+      "in-running-flag": false,
+      "allow-live-betting": false,
+      "volume": 0.0,
+      "back-overround": 189.91679,
+      "number-of-winners": 1,
+      "runners": [
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 9.30565,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 9.8,
+              "decimal-odds": 9.8,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.90594,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 9.6,
+              "decimal-odds": 9.6,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 8.6,
+              "decimal-odds": 8.6,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 7.52594,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 160.0,
+              "decimal-odds": 160.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.3472,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 170.0,
+              "decimal-odds": 170.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:11:35.751Z",
+          "event-id": 34408103662802081,
+          "id": 34408103790304023,
+          "market-id": 34408103787606023,
+          "name": "2. Midnight Devil | 4. Ballistic Blue",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 6.02541,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 6.2,
+              "decimal-odds": 6.2,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.23622,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 6.0,
+              "decimal-odds": 6.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.4209,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 22.0,
+              "decimal-odds": 22.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.35218,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 24.0,
+              "decimal-odds": 24.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32807,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 25.0,
+              "decimal-odds": 25.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:02.248Z",
+          "event-id": 34408103662802081,
+          "id": 34408103790417023,
+          "market-id": 34408103787606023,
+          "name": "2. Midnight Devil | 5. Marilyn's Edge",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 8.35182,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 10.0,
+              "decimal-odds": 10.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.96581,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 9.8,
+              "decimal-odds": 9.8,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.60329,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 36.0,
+              "decimal-odds": 36.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.48796,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 40.0,
+              "decimal-odds": 40.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:01.892Z",
+          "event-id": 34408103662802081,
+          "id": 34408103790607023,
+          "market-id": 34408103787606023,
+          "name": "2. Midnight Devil | 6. Ruby Avenue",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 10.57354,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.3,
+              "decimal-odds": 4.3,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 13.23729,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.2,
+              "decimal-odds": 4.2,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.37437,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 10.5,
+              "decimal-odds": 10.5,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 11.5,
+              "decimal-odds": 11.5,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.54204,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 12.0,
+              "decimal-odds": 12.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:07.996Z",
+          "event-id": 34408103662802081,
+          "id": 34408103790803023,
+          "market-id": 34408103787606023,
+          "name": "2. Midnight Devil | 7. Dirty Diana",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 6.19989,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 18.5,
+              "decimal-odds": 18.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.10755,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 17.5,
+              "decimal-odds": 17.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 17.0,
+              "decimal-odds": 17.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.98031,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 250.0,
+              "decimal-odds": 250.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.58518,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 270.0,
+              "decimal-odds": 270.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:22.121Z",
+          "event-id": 34408103662802081,
+          "id": 34408103790912023,
+          "market-id": 34408103787606023,
+          "name": "2. Midnight Devil | 8. Sleeping Tiger",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 5.8393,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 14.0,
+              "decimal-odds": 14.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.22316,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 13.5,
+              "decimal-odds": 13.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 12.5,
+              "decimal-odds": 12.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.20061,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 170.0,
+              "decimal-odds": 170.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 190.0,
+              "decimal-odds": 190.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.63135,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 200.0,
+              "decimal-odds": 200.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:32.120Z",
+          "event-id": 34408103662802081,
+          "id": 34408103791112023,
+          "market-id": 34408103787606023,
+          "name": "2. Midnight Devil | 9. Elonia",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 9.63135,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 60.0,
+              "decimal-odds": 60.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.28441,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 55.0,
+              "decimal-odds": 55.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32807,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 660.0,
+              "decimal-odds": 660.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:09.555Z",
+          "event-id": 34408103662802081,
+          "id": 34408103791311023,
+          "market-id": 34408103787606023,
+          "name": "2. Midnight Devil | 10. Free To Play",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 6.56049,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 100.0,
+              "decimal-odds": 100.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.91757,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 95.0,
+              "decimal-odds": 95.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 720.0,
+              "decimal-odds": 720.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:22.132Z",
+          "event-id": 34408103662802081,
+          "id": 34408103791702023,
+          "market-id": 34408103787606023,
+          "name": "2. Midnight Devil | 12. Tartan Queen",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 7.08393,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 15.5,
+              "decimal-odds": 15.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 7.50269,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 14.5,
+              "decimal-odds": 14.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 14.0,
+              "decimal-odds": 14.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 5.92072,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 40.0,
+              "decimal-odds": 40.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 12.73712,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 44.0,
+              "decimal-odds": 44.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:22.109Z",
+          "event-id": 34408103662802081,
+          "id": 34408103793401023,
+          "market-id": 34408103787606023,
+          "name": "4. Ballistic Blue | 5. Marilyn's Edge",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 8.10755,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 27.0,
+              "decimal-odds": 27.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 12.49284,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 25.0,
+              "decimal-odds": 25.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 7.42126,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 290.0,
+              "decimal-odds": 290.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 12.78364,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 320.0,
+              "decimal-odds": 320.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:22.124Z",
+          "event-id": 34408103662802081,
+          "id": 34408103793601023,
+          "market-id": 34408103787606023,
+          "name": "4. Ballistic Blue | 6. Ruby Avenue",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 6.50233,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 10.5,
+              "decimal-odds": 10.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.67753,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 9.8,
+              "decimal-odds": 9.8,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.4907,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 27.0,
+              "decimal-odds": 27.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.78257,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 29.0,
+              "decimal-odds": 29.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:09.566Z",
+          "event-id": 34408103662802081,
+          "id": 34408103793801023,
+          "market-id": 34408103787606023,
+          "name": "4. Ballistic Blue | 7. Dirty Diana",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 7.80511,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 30.0,
+              "decimal-odds": 30.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.67753,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 28.0,
+              "decimal-odds": 28.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32807,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 560.0,
+              "decimal-odds": 560.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.27076,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 740.0,
+              "decimal-odds": 740.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.96832,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 760.0,
+              "decimal-odds": 760.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:32.116Z",
+          "event-id": 34408103662802081,
+          "id": 34408103793906023,
+          "market-id": 34408103787606023,
+          "name": "4. Ballistic Blue | 8. Sleeping Tiger",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 8.61937,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 30.0,
+              "decimal-odds": 30.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.06462,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 28.0,
+              "decimal-odds": 28.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 27.0,
+              "decimal-odds": 27.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32807,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 430.0,
+              "decimal-odds": 430.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.09592,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 500.0,
+              "decimal-odds": 500.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.84037,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 520.0,
+              "decimal-odds": 520.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:22.128Z",
+          "event-id": 34408103662802081,
+          "id": 34408103794105023,
+          "market-id": 34408103787606023,
+          "name": "4. Ballistic Blue | 9. Elonia",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 7.6888,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 120.0,
+              "decimal-odds": 120.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 110.0,
+              "decimal-odds": 110.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.24136,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 95.0,
+              "decimal-odds": 95.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32807,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 830.0,
+              "decimal-odds": 830.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:09:42.584Z",
+          "event-id": 34408103662802081,
+          "id": 34408103794301023,
+          "market-id": 34408103787606023,
+          "name": "4. Ballistic Blue | 10. Free To Play",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 7.0025,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 190.0,
+              "decimal-odds": 190.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 12.13224,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 170.0,
+              "decimal-odds": 170.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:09:54.514Z",
+          "event-id": 34408103662802081,
+          "id": 34408103794608023,
+          "market-id": 34408103787606023,
+          "name": "4. Ballistic Blue | 12. Tartan Queen",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 6.93271,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 12.0,
+              "decimal-odds": 12.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.07338,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 11.0,
+              "decimal-odds": 11.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.11847,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 38.0,
+              "decimal-odds": 38.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 7.77022,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 42.0,
+              "decimal-odds": 42.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 46.0,
+              "decimal-odds": 46.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:22.105Z",
+          "event-id": 34408103662802081,
+          "id": 34408103794804023,
+          "market-id": 34408103787606023,
+          "name": "5. Marilyn's Edge | 6. Ruby Avenue",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 9.65461,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 5.0,
+              "decimal-odds": 5.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.9,
+              "decimal-odds": 4.9,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.92179,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 4.7,
+              "decimal-odds": 4.7,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.16607,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 16.5,
+              "decimal-odds": 16.5,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.43396,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 17.0,
+              "decimal-odds": 17.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 18.0,
+              "decimal-odds": 18.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:02.251Z",
+          "event-id": 34408103662802081,
+          "id": 34408103795001023,
+          "market-id": 34408103787606023,
+          "name": "5. Marilyn's Edge | 7. Dirty Diana",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 9.7593,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 22.0,
+              "decimal-odds": 22.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 12.74875,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 20.0,
+              "decimal-odds": 20.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.37437,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 280.0,
+              "decimal-odds": 280.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 11.74839,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 310.0,
+              "decimal-odds": 310.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:22.130Z",
+          "event-id": 34408103662802081,
+          "id": 34408103795105023,
+          "market-id": 34408103787606023,
+          "name": "5. Marilyn's Edge | 8. Sleeping Tiger",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 9.23586,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 17.5,
+              "decimal-odds": 17.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 17.0,
+              "decimal-odds": 17.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.17955,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 16.0,
+              "decimal-odds": 16.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 7.67717,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 190.0,
+              "decimal-odds": 190.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 12.18745,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 210.0,
+              "decimal-odds": 210.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:32.118Z",
+          "event-id": 34408103662802081,
+          "id": 34408103795305023,
+          "market-id": 34408103787606023,
+          "name": "5. Marilyn's Edge | 9. Elonia",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 9.12603,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 70.0,
+              "decimal-odds": 70.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.19695,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 60.0,
+              "decimal-odds": 60.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32807,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 640.0,
+              "decimal-odds": 640.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:11:58.092Z",
+          "event-id": 34408103662802081,
+          "id": 34408103795501023,
+          "market-id": 34408103787606023,
+          "name": "5. Marilyn's Edge | 10. Free To Play",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 7.27004,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 120.0,
+              "decimal-odds": 120.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 110.0,
+              "decimal-odds": 110.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 5.89746,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 95.0,
+              "decimal-odds": 95.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32807,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 820.0,
+              "decimal-odds": 820.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:01.908Z",
+          "event-id": 34408103662802081,
+          "id": 34408103795806023,
+          "market-id": 34408103787606023,
+          "name": "5. Marilyn's Edge | 12. Tartan Queen",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 8.39835,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 6.6,
+              "decimal-odds": 6.6,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.51539,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 6.2,
+              "decimal-odds": 6.2,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 7.84559,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 32.0,
+              "decimal-odds": 32.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 34.0,
+              "decimal-odds": 34.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.61937,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 36.0,
+              "decimal-odds": 36.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:10.196Z",
+          "event-id": 34408103662802081,
+          "id": 34408103796004023,
+          "market-id": 34408103787606023,
+          "name": "6. Ruby Avenue | 7. Dirty Diana",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 8.08428,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 23.0,
+              "decimal-odds": 23.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.9567,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 21.0,
+              "decimal-odds": 21.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 500.0,
+              "decimal-odds": 500.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 7.04904,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 530.0,
+              "decimal-odds": 530.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.72441,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 560.0,
+              "decimal-odds": 560.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:22.118Z",
+          "event-id": 34408103662802081,
+          "id": 34408103796201023,
+          "market-id": 34408103787606023,
+          "name": "6. Ruby Avenue | 8. Sleeping Tiger",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 8.23551,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 32.0,
+              "decimal-odds": 32.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.88726,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 30.0,
+              "decimal-odds": 30.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.85129,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 29.0,
+              "decimal-odds": 29.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 7.6539,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 360.0,
+              "decimal-odds": 360.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 370.0,
+              "decimal-odds": 370.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.92215,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 390.0,
+              "decimal-odds": 390.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:32.119Z",
+          "event-id": 34408103662802081,
+          "id": 34408103796305023,
+          "market-id": 34408103787606023,
+          "name": "6. Ruby Avenue | 9. Elonia",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 6.02541,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 110.0,
+              "decimal-odds": 110.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.90019,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 95.0,
+              "decimal-odds": 95.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32807,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 710.0,
+              "decimal-odds": 710.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:11:04.456Z",
+          "event-id": 34408103662802081,
+          "id": 34408103796505023,
+          "market-id": 34408103787606023,
+          "name": "6. Ruby Avenue | 10. Free To Play",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 9.24749,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 190.0,
+              "decimal-odds": 190.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 180.0,
+              "decimal-odds": 180.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.17366,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 160.0,
+              "decimal-odds": 160.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32807,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1000.0,
+              "decimal-odds": 1000.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:02.254Z",
+          "event-id": 34408103662802081,
+          "id": 34408103796804023,
+          "market-id": 34408103787606023,
+          "name": "6. Ruby Avenue | 12. Tartan Queen",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 9.70114,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 15.0,
+              "decimal-odds": 15.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.16608,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 14.0,
+              "decimal-odds": 14.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.51468,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 190.0,
+              "decimal-odds": 190.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 200.0,
+              "decimal-odds": 200.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.32927,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 220.0,
+              "decimal-odds": 220.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:19.557Z",
+          "event-id": 34408103662802081,
+          "id": 34408103797006023,
+          "market-id": 34408103787606023,
+          "name": "7. Dirty Diana | 8. Sleeping Tiger",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 10.31764,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 14.0,
+              "decimal-odds": 14.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 13.5,
+              "decimal-odds": 13.5,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.03847,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 13.0,
+              "decimal-odds": 13.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.72333,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 36.0,
+              "decimal-odds": 36.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 12.13923,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 38.0,
+              "decimal-odds": 38.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:32.115Z",
+          "event-id": 34408103662802081,
+          "id": 34408103797206023,
+          "market-id": 34408103787606023,
+          "name": "7. Dirty Diana | 9. Elonia",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 6.31621,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 50.0,
+              "decimal-odds": 50.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 11.318,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 46.0,
+              "decimal-odds": 46.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 6.635,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 42.0,
+              "decimal-odds": 42.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 570.0,
+              "decimal-odds": 570.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.00358,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 700.0,
+              "decimal-odds": 700.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.0152,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 730.0,
+              "decimal-odds": 730.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:32.117Z",
+          "event-id": 34408103662802081,
+          "id": 34408103797403023,
+          "market-id": 34408103787606023,
+          "name": "7. Dirty Diana | 10. Free To Play",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 8.17734,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 85.0,
+              "decimal-odds": 85.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 12.2951,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 75.0,
+              "decimal-odds": 75.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32807,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 720.0,
+              "decimal-odds": 720.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:12.697Z",
+          "event-id": 34408103662802081,
+          "id": 34408103797708023,
+          "market-id": 34408103787606023,
+          "name": "7. Dirty Diana | 12. Tartan Queen",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 5.96725,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 46.0,
+              "decimal-odds": 46.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 11.87634,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 42.0,
+              "decimal-odds": 42.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32807,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 650.0,
+              "decimal-odds": 650.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 7.56084,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 910.0,
+              "decimal-odds": 910.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.84037,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 930.0,
+              "decimal-odds": 930.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:32.112Z",
+          "event-id": 34408103662802081,
+          "id": 34408103797908023,
+          "market-id": 34408103787606023,
+          "name": "8. Sleeping Tiger | 9. Elonia",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 7.18862,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 170.0,
+              "decimal-odds": 170.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 9.18933,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 150.0,
+              "decimal-odds": 150.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32807,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 140.0,
+              "decimal-odds": 140.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1000.0,
+              "decimal-odds": 1000.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:12:09.562Z",
+          "event-id": 34408103662802081,
+          "id": 34408103798107023,
+          "market-id": 34408103787606023,
+          "name": "8. Sleeping Tiger | 10. Free To Play",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 8.32856,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 190.0,
+              "decimal-odds": 190.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 12.64406,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 170.0,
+              "decimal-odds": 170.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:09:54.505Z",
+          "event-id": 34408103662802081,
+          "id": 34408103798411023,
+          "market-id": 34408103787606023,
+          "name": "8. Sleeping Tiger | 12. Tartan Queen",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 5.99051,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 85.0,
+              "decimal-odds": 85.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 10.87209,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 80.0,
+              "decimal-odds": 80.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 2.32807,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 1000.0,
+              "decimal-odds": 1000.0,
+              "side": "lay",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:09:40.369Z",
+          "event-id": 34408103662802081,
+          "id": 34408103798612023,
+          "market-id": 34408103787606023,
+          "name": "9. Elonia | 10. Free To Play",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 6.90945,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 240.0,
+              "decimal-odds": 240.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 11.29474,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 220.0,
+              "decimal-odds": 220.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:09:54.512Z",
+          "event-id": 34408103662802081,
+          "id": 34408103799007023,
+          "market-id": 34408103787606023,
+          "name": "9. Elonia | 12. Tartan Queen",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": false,
+          "prices": [
+            {
+              "available-amount": 2.32642,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 160.0,
+              "decimal-odds": 160.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.09592,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 110.0,
+              "decimal-odds": 110.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            },
+            {
+              "available-amount": 8.58447,
+              "currency": "EUR",
+              "odds-type": "DECIMAL",
+              "odds": 95.0,
+              "decimal-odds": 95.0,
+              "side": "back",
+              "exchange-type": "back-lay"
+            }
+          ],
+          "last-price-update-time": "2026-09-24T06:09:54.509Z",
+          "event-id": 34408103662802081,
+          "id": 34408103799404023,
+          "market-id": 34408103787606023,
+          "name": "10. Free To Play | 12. Tartan Queen",
+          "status": "open",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103788307023,
+          "market-id": 34408103787606023,
+          "name": "1. Mr Tickles | 2. Midnight Devil",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103788502023,
+          "market-id": 34408103787606023,
+          "name": "1. Mr Tickles | 3. Kentahten",
+          "status": "closed",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103788613023,
+          "market-id": 34408103787606023,
+          "name": "1. Mr Tickles | 4. Ballistic Blue",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103788813023,
+          "market-id": 34408103787606023,
+          "name": "1. Mr Tickles | 5. Marilyn's Edge",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103789005023,
+          "market-id": 34408103787606023,
+          "name": "1. Mr Tickles | 6. Ruby Avenue",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103789106023,
+          "market-id": 34408103787606023,
+          "name": "1. Mr Tickles | 7. Dirty Diana",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103789305023,
+          "market-id": 34408103787606023,
+          "name": "1. Mr Tickles | 8. Sleeping Tiger",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103789503023,
+          "market-id": 34408103787606023,
+          "name": "1. Mr Tickles | 9. Elonia",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103789606023,
+          "market-id": 34408103787606023,
+          "name": "1. Mr Tickles | 10. Free To Play",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103789804023,
+          "market-id": 34408103787606023,
+          "name": "1. Mr Tickles | 11. Moonlight Rustler",
+          "status": "closed",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103790003023,
+          "market-id": 34408103787606023,
+          "name": "1. Mr Tickles | 12. Tartan Queen",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103790108023,
+          "market-id": 34408103787606023,
+          "name": "2. Midnight Devil | 3. Kentahten",
+          "status": "closed",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103791508023,
+          "market-id": 34408103787606023,
+          "name": "2. Midnight Devil | 11. Moonlight Rustler",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103791816023,
+          "market-id": 34408103787606023,
+          "name": "3. Kentahten | 4. Ballistic Blue",
+          "status": "closed",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103792011023,
+          "market-id": 34408103787606023,
+          "name": "3. Kentahten | 5. Marilyn's Edge",
+          "status": "closed",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103792202023,
+          "market-id": 34408103787606023,
+          "name": "3. Kentahten | 6. Ruby Avenue",
+          "status": "closed",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103792306023,
+          "market-id": 34408103787606023,
+          "name": "3. Kentahten | 7. Dirty Diana",
+          "status": "closed",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103792507023,
+          "market-id": 34408103787606023,
+          "name": "3. Kentahten | 8. Sleeping Tiger",
+          "status": "closed",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103792702023,
+          "market-id": 34408103787606023,
+          "name": "3. Kentahten | 9. Elonia",
+          "status": "closed",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103792816023,
+          "market-id": 34408103787606023,
+          "name": "3. Kentahten | 10. Free To Play",
+          "status": "closed",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103793011023,
+          "market-id": 34408103787606023,
+          "name": "3. Kentahten | 11. Moonlight Rustler",
+          "status": "closed",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103793204023,
+          "market-id": 34408103787606023,
+          "name": "3. Kentahten | 12. Tartan Queen",
+          "status": "closed",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103794408023,
+          "market-id": 34408103787606023,
+          "name": "4. Ballistic Blue | 11. Moonlight Rustler",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103795606023,
+          "market-id": 34408103787606023,
+          "name": "5. Marilyn's Edge | 11. Moonlight Rustler",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103796705023,
+          "market-id": 34408103787606023,
+          "name": "6. Ruby Avenue | 11. Moonlight Rustler",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103797601023,
+          "market-id": 34408103787606023,
+          "name": "7. Dirty Diana | 11. Moonlight Rustler",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103798302023,
+          "market-id": 34408103787606023,
+          "name": "8. Sleeping Tiger | 11. Moonlight Rustler",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103798807023,
+          "market-id": 34408103787606023,
+          "name": "9. Elonia | 11. Moonlight Rustler",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103799205023,
+          "market-id": 34408103787606023,
+          "name": "10. Free To Play | 11. Moonlight Rustler",
+          "status": "paid",
+          "volume": 0.0
+        },
+        {
+          "withdrawn": true,
+          "prices": [],
+          "event-id": 34408103662802081,
+          "id": 34408103799601023,
+          "market-id": 34408103787606023,
+          "name": "11. Moonlight Rustler | 12. Tartan Queen",
+          "status": "paid",
+          "volume": 0.0
+        }
+      ]
+    }
+  ],
+  "meta-tags": [
+    {
+      "id": 24735152712200,
+      "name": "Horse Racing",
+      "type": "SPORT",
+      "url-name": "horse-racing"
+    },
+    {
+      "id": 319515298390018,
+      "name": "Australia",
+      "type": "COUNTRY",
+      "url-name": "australia"
+    },
+    {
+      "id": 1507508846270003,
+      "name": "International",
+      "type": "OTHER",
+      "url-name": "international"
+    },
+    {
+      "id": 2363007228740008,
+      "name": "Moe",
+      "type": "LOCATION",
+      "url-name": "moe"
+    }
+  ],
+  "race-length": "1000m",
+  "race-type": "Benchmark Handicap Race 56"
+}
