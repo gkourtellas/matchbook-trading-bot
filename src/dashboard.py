@@ -16,6 +16,7 @@ import sqlite3
 import subprocess
 import shutil
 import time
+import threading
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from functools import wraps
@@ -30,11 +31,24 @@ CATEGORIES_FILE = os.path.join(os.path.dirname(__file__), "..", "config", "leagu
 STATE_DIR = os.path.join(os.path.dirname(__file__), "..", "config", "state")
 DASHBOARD_PASSWORD = os.environ.get("DASHBOARD_PASSWORD")
 
+# All timestamps are stored as naive UTC. The dashboard shows them in Athens
+# time, so per-day grouping has to use the same zone or days will not line up
+# with what the user sees elsewhere.
+UTC_TZ = ZoneInfo("UTC")
+ATHENS_TZ = ZoneInfo("Europe/Athens")
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("DASHBOARD_SECRET_KEY", "change-me-please")
 app.permanent_session_lifetime = timedelta(days=30)
 
-BUILD_VERSION = "v16"
+BUILD_VERSION = "v24"
+
+# Matchbook account balance is cached server-side: reading it needs a
+# session, and the exchange rate-limits aggressively, so the dashboard
+# polls the cache instead of the API on every page load.
+BALANCE_TTL = 60
+_balance_cache = {"data": None, "at": 0.0}
+_balance_lock = threading.Lock()
 
 
 @app.route("/api/build_version")
@@ -425,6 +439,41 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
     margin: 36px 0 12px;
   }
   h1:first-of-type { margin-top: 0; }
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    margin: 36px 0 12px;
+    gap: 10px;
+  }
+  .section-header:first-of-type { margin-top: 0; }
+  .section-header h1 { margin: 0; flex: 1; }
+  .section-toggle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+  }
+  .section-content.collapsed { display: none; }
+  .count-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 12px;
+    color: var(--text);
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .count-chip .count { color: var(--pending); font-weight: 700; }
   table { border-collapse: collapse; width: 100%; }
   th, td {
     padding: 10px 14px;
@@ -458,6 +507,7 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
   }
   .hero-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
   .hero-value { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; }
+  .hero-sub { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--muted); margin-top: 6px; }
   .sub-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
   .sub-tab {
     font-family: 'JetBrains Mono', monospace;
@@ -494,61 +544,63 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
 
   <div class="saving-banner" id="restartBanner" style="border-color: var(--accent); color: var(--accent); background: rgba(91,141,239,0.12); display:none;">Restarting the bot…</div>
 
-  <h1>Open Positions <span id="openCount" style="font-weight:400; text-transform:none; letter-spacing:0;">— currently pending</span></h1>
-  <div class="card"><div id="pending"></div></div>
+  <div class="hero-row">
+    <div class="hero-card">
+      <div class="hero-label">Matchbook Balance</div>
+      <div class="hero-value" id="balanceValue">—</div>
+      <div class="hero-sub" id="balanceSub">loading…</div>
+    </div>
+  </div>
 
-  <h1 style="display:flex; align-items:center; justify-content:space-between;">
-    Strategy Performance
-    <label style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted); display:flex; align-items:center; gap:6px; cursor:pointer;">
+  <div class="section-header" onclick="toggleSection(this)" style="margin-top:0;">
+    <h1>Open Positions <span id="openCount" style="font-weight:400; text-transform:none; letter-spacing:0;">— currently pending</span></h1>
+    <span class="section-toggle">▾</span>
+  </div>
+  <div class="section-content">
+    <div class="card">
+      <div id="pendingStrategyCounts" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;"></div>
+      <div id="pending"></div>
+    </div>
+  </div>
+
+  <div class="section-header" onclick="toggleSection(this)">
+    <h1>Strategy Performance</h1>
+    <label onclick="event.stopPropagation()" style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:400; text-transform:none; letter-spacing:0; color:var(--muted); display:flex; align-items:center; gap:6px; cursor:pointer;">
       <input type="checkbox" id="hideInactive" checked onchange="renderSummary()"> hide inactive
     </label>
-  </h1>
-  <div class="card"><div id="summary"></div></div>
+    <span class="section-toggle">▾</span>
+  </div>
+  <div class="section-content">
+    <div class="card"><div id="summary"></div></div>
+  </div>
 
-  <h1>Profit</h1>
-  <div class="card" style="padding: 16px;">
-    <div class="sub-tabs">
-      <div class="sub-tab active" data-period="daily">Daily (7d)</div>
-      <div class="sub-tab" data-period="monthly">Monthly</div>
-      <div class="sub-tab" data-period="yearly">Yearly</div>
+  <div class="section-header" onclick="toggleSection(this)">
+    <h1>Profit</h1>
+    <span class="section-toggle">▾</span>
+  </div>
+  <div class="section-content">
+    <div class="card" style="padding: 16px;">
+      <div class="sub-tabs">
+        <div class="sub-tab active" data-period="daily">Daily (7d)</div>
+        <div class="sub-tab" data-period="monthly">Monthly</div>
+        <div class="sub-tab" data-period="yearly">Yearly</div>
+      </div>
+      <canvas id="profitChart" height="90"></canvas>
     </div>
-    <canvas id="profitChart" height="90"></canvas>
   </div>
 
-  <h1 id="lbHeading">Win Rate by League <span style="font-weight:400; text-transform:none; letter-spacing:0;">— per strategy</span></h1>
-  <div class="card">
-    <div style="display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap; align-items:center;">
-      <label style="font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--muted); display:flex; align-items:center; gap:6px; cursor:pointer;">
-        <input type="checkbox" id="lbGroupToggle" onchange="loadLeagueBreakdown()"> Group by strategy type (Win / GG / Total)
-      </label>
-      <select id="lbStrategyFilter" onchange="renderLeagueBreakdown()" style="background:var(--card2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:'JetBrains Mono', monospace; font-size:12px;">
-        <option value="">All strategies</option>
-      </select>
-      <select id="lbLeagueFilter" onchange="renderLeagueBreakdown()" style="background:var(--card2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:'JetBrains Mono', monospace; font-size:12px;">
-        <option value="">All leagues</option>
-      </select>
-    </div>
-    <div id="leagueBreakdown"></div>
+  <div class="section-header" onclick="toggleSection(this)" style="margin-top:26px;">
+    <h1>Today's Bets</h1>
+    <span class="section-toggle">▾</span>
   </div>
-
-  <h1 style="margin-top:26px;">More</h1>
-  <div class="sub-tabs" style="margin-bottom:14px;">
-    <div class="sub-tab active" data-maintab="steps">Step Frequency</div>
-    <div class="sub-tab" data-maintab="recent">Recent Bets</div>
-  </div>
-
-  <div class="maintab-panel" data-maintab-panel="steps">
-    <div class="card"><div id="steps"></div></div>
-  </div>
-
-  <div class="maintab-panel" data-maintab-panel="recent" style="display:none;">
+  <div class="section-content">
     <div class="card">
-      <div style="display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
-        <select id="recentStrategyFilter" onchange="renderRecent()" style="background:var(--card2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:'JetBrains Mono', monospace; font-size:12px;">
+      <div style="display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap;" onclick="event.stopPropagation()">
+        <select id="todayStrategyFilter" onchange="renderToday()" style="background:var(--card2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-family:'JetBrains Mono', monospace; font-size:12px;">
           <option value="">All strategies</option>
         </select>
       </div>
-      <div id="recent"></div>
+      <div id="today"></div>
     </div>
   </div>
 
@@ -556,21 +608,60 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <script>
 function toggleNav() { document.getElementById('navLinks').classList.toggle('open'); }
+function toggleSection(header) {
+  const content = header.nextElementSibling;
+  const toggle = header.querySelector('.section-toggle');
+  if (content && content.classList.contains('section-content')) {
+    content.classList.toggle('collapsed');
+    if (toggle) toggle.textContent = content.classList.contains('collapsed') ? '▸' : '▾';
+    if (!content.classList.contains('collapsed')) {
+      window.dispatchEvent(new Event('resize'));
+    }
+    try { localStorage.setItem('dash_sec_' + header.querySelector('h1')?.textContent.substring(0,20).replace(/\\s+/g,'_'), content.classList.contains('collapsed') ? '1' : '0'); } catch (e) {}
+  }
+}
+function restoreSections() {
+  document.querySelectorAll('.section-header').forEach(header => {
+    const h1 = header.querySelector('h1');
+    const key = h1 ? 'dash_sec_' + h1.textContent.substring(0,20).replace(/\\s+/g,'_') : null;
+    if (!key) return;
+    try {
+      const state = localStorage.getItem(key);
+      if (state === '1') {
+        const content = header.nextElementSibling;
+        const toggle = header.querySelector('.section-toggle');
+        if (content) content.classList.add('collapsed');
+        if (toggle) toggle.textContent = '▸';
+      }
+    } catch (e) {}
+  });
+}
+restoreSections();
 if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/service-worker.js').catch(() => {}); }
 
 function fmt(n) { return (n >= 0 ? '+' : '') + n.toFixed(2); }
 function cls(n) { return n >= 0 ? 'profit' : 'loss'; }
 
-document.querySelectorAll('.sub-tab[data-maintab]').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.sub-tab[data-maintab]').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    const target = tab.dataset.maintab;
-    document.querySelectorAll('.maintab-panel').forEach(p => {
-      p.style.display = p.dataset.maintabPanel === target ? '' : 'none';
-    });
+function loadBalance() {
+  fetch('api/balance').then(r => r.json()).then(d => {
+    const valEl = document.getElementById('balanceValue');
+    const subEl = document.getElementById('balanceSub');
+    if (!d.ok) {
+      valEl.textContent = '—';
+      subEl.textContent = d.error || 'unavailable';
+      return;
+    }
+    const cur = d.currency || '';
+    valEl.textContent = Number(d.balance).toFixed(2) + (cur ? ' ' + cur : '');
+    const parts = ['available ' + Number(d.available).toFixed(2)];
+    if (d.exposure) parts.push('exposure ' + Number(d.exposure).toFixed(2));
+    subEl.textContent = parts.join(' · ');
+  }).catch(() => {
+    document.getElementById('balanceValue').textContent = '—';
+    document.getElementById('balanceSub').textContent = 'unavailable';
   });
-});
+}
+loadBalance();
 
 function restartBot() {
   document.getElementById('restartBanner').style.display = 'block';
@@ -591,12 +682,15 @@ let _summaryData = [];
 
 function renderSummary() {
   const hideInactive = document.getElementById('hideInactive').checked;
-    let html = '<table><tr><th>Strategy</th><th>Bets</th><th>Won</th><th>Lost</th><th>Pending</th><th>Avg Odds</th><th>Implied Win %</th><th>Win %</th><th>Profit</th></tr>';
+  let html = '<table><tr><th>Strategy</th><th>Bets</th><th>Won</th><th>Lost</th><th>Pending</th><th>Avg Odds</th><th>Implied Win %</th><th>Win %</th><th>Profit</th><th>ROI</th></tr>';
+  let tot = { total: 0, won: 0, lost: 0, pending: 0, profit: 0, staked: 0 };
   _summaryData.forEach(s => {
     if (hideInactive && !s.enabled) return;
     const rowStyle = s.enabled ? '' : ' style="opacity:0.45;"';
     const nameLabel = s.enabled ? s.strategy_name : `${s.strategy_name} (inactive)`;
-        html += `<tr${rowStyle}>
+    tot.total += s.total; tot.won += s.won; tot.lost += s.lost;
+    tot.pending += s.pending; tot.profit += s.profit; tot.staked += s.staked || 0;
+    html += `<tr${rowStyle}>
       <td>${nameLabel}</td>
       <td>${s.total}</td>
       <td>${s.won}</td>
@@ -606,8 +700,24 @@ function renderSummary() {
       <td>${s.implied_win_rate}%</td>
       <td>${s.win_rate}%</td>
       <td class="${cls(s.profit)}">${fmt(s.profit)}</td>
+      <td class="${cls(s.roi)}">${fmt(s.roi)}%</td>
     </tr>`;
   });
+  if (tot.staked > 0) {
+    const roi = 100 * tot.profit / tot.staked;
+    html += `<tr class="strategy-block" style="font-weight:700;">
+      <td>Total</td>
+      <td>${tot.total}</td>
+      <td>${tot.won}</td>
+      <td>${tot.lost}</td>
+      <td class="pending">${tot.pending}</td>
+      <td>—</td>
+      <td>—</td>
+      <td>${tot.won + tot.lost ? (100 * tot.won / (tot.won + tot.lost)).toFixed(1) : '0.0'}%</td>
+      <td class="${cls(tot.profit)}">${fmt(tot.profit)}</td>
+      <td class="${cls(roi)}">${fmt(roi)}%</td>
+    </tr>`;
+  }
   html += '</table>';
   document.getElementById('summary').innerHTML = html;
 }
@@ -617,80 +727,14 @@ fetch('api/summary').then(r => r.json()).then(data => {
   renderSummary();
 });
 
-fetch('api/steps').then(r => r.json()).then(data => {
-  if (!data.length) {
-    document.getElementById('steps').innerHTML = '<p class="small">No multi-step strategies with bets yet.</p>';
-    return;
-  }
-  let html = '<table><tr><th>Strategy</th><th>Step</th><th>Times Reached</th></tr>';
-  let lastStrategy = null;
-  data.forEach(s => {
-    const newBlock = lastStrategy !== null && lastStrategy !== s.strategy_name;
-    html += `<tr class="${newBlock ? 'strategy-block' : ''}"><td>${s.strategy_name}</td><td>${s.step}</td><td>${s.count}</td></tr>`;
-    lastStrategy = s.strategy_name;
-  });
-  html += '</table>';
-  document.getElementById('steps').innerHTML = html;
-});
-
-let _leagueBreakdownData = [];
-let _lbGrouped = false;
-
-function renderLeagueBreakdown() {
-  const nameKey = _lbGrouped ? 'group_name' : 'strategy_name';
-  const stratVal = document.getElementById('lbStrategyFilter').value;
-  const leagueVal = document.getElementById('lbLeagueFilter').value;
-  let rows = _leagueBreakdownData;
-  if (stratVal) rows = rows.filter(r => r[nameKey] === stratVal);
-  if (leagueVal) rows = rows.filter(r => r.league === leagueVal);
-
-  if (!rows.length) {
-    document.getElementById('leagueBreakdown').innerHTML = '<p class="small">No settled bets with a captured league yet.</p>';
-    return;
-  }
-  const colLabel = _lbGrouped ? 'Group' : 'Strategy';
-  let html = `<table><tr><th>${colLabel}</th><th>League</th><th>Bets</th><th>Won</th><th>Lost</th><th>Win %</th><th>Profit</th></tr>`;
-  let lastName = null;
-  rows.forEach(r => {
-    const newBlock = lastName !== null && lastName !== r[nameKey];
-    html += `<tr class="${newBlock ? 'strategy-block' : ''}">
-      <td>${r[nameKey]}</td>
-      <td>${r.league}</td>
-      <td>${r.total}</td>
-      <td>${r.won}</td>
-      <td>${r.lost}</td>
-      <td>${r.win_rate}%</td>
-      <td class="${cls(r.profit)}">${fmt(r.profit)}</td>
-    </tr>`;
-    lastName = r[nameKey];
-  });
-  html += '</table>';
-  document.getElementById('leagueBreakdown').innerHTML = html;
-}
-
-function loadLeagueBreakdown() {
-  _lbGrouped = document.getElementById('lbGroupToggle').checked;
-  const endpoint = _lbGrouped ? 'api/group_league_breakdown' : 'api/strategy_league_breakdown';
-  const nameKey = _lbGrouped ? 'group_name' : 'strategy_name';
-  const heading = _lbGrouped ? 'grouped by strategy type' : 'per strategy';
-  document.getElementById('lbHeading').innerHTML =
-    `Win Rate by League <span style="font-weight:400; text-transform:none; letter-spacing:0;">— ${heading}</span>`;
-
-  fetch(endpoint).then(r => r.json()).then(data => {
-    _leagueBreakdownData = data;
-    const names = [...new Set(data.map(r => r[nameKey]))].sort();
-    const leagues = [...new Set(data.map(r => r.league))].sort();
-    const stratSel = document.getElementById('lbStrategyFilter');
-    const leagueSel = document.getElementById('lbLeagueFilter');
-    stratSel.innerHTML = `<option value="">All ${_lbGrouped ? 'groups' : 'strategies'}</option>`;
-    leagueSel.innerHTML = '<option value="">All leagues</option>';
-    names.forEach(s => stratSel.insertAdjacentHTML('beforeend', `<option value="${s}">${s}</option>`));
-    leagues.forEach(l => leagueSel.insertAdjacentHTML('beforeend', `<option value="${l}">${l}</option>`));
-    renderLeagueBreakdown();
-  });
-}
-
-loadLeagueBreakdown();
+fetch('api/pending_by_strategy').then(r => r.json()).then(rows => {
+  const box = document.getElementById('pendingStrategyCounts');
+  if (!box) return;
+  if (!rows.length) { box.innerHTML = ''; return; }
+  box.innerHTML = rows.map(r =>
+    `<span class="count-chip">${r.strategy} <span class="count">${r.count}</span></span>`
+  ).join('');
+}).catch(() => {});
 
 fetch('api/pending').then(r => r.json()).then(data => {
   document.getElementById('openCount').textContent = `(${data.length}) — currently pending`;
@@ -719,13 +763,17 @@ fetch('api/pending').then(r => r.json()).then(data => {
   document.getElementById('pending').innerHTML = html;
 });
 
-let _recentData = [];
-function renderRecent() {
-  const filterVal = document.getElementById('recentStrategyFilter').value;
-  const rows = filterVal ? _recentData.filter(b => b.strategy_name === filterVal) : _recentData;
+let _todayData = [];
+function renderToday() {
+  const filterVal = document.getElementById('todayStrategyFilter').value;
+  const rows = filterVal ? _todayData.filter(b => b.strategy_name === filterVal) : _todayData;
+  if (!rows.length) {
+    document.getElementById('today').innerHTML = '<p class="small">No bets placed today.</p>';
+    return;
+  }
   let html = '<table><tr><th>Time</th><th>Strategy</th><th>League</th><th>Match</th><th>Selection</th><th>Odds</th><th>Stake</th><th>Step</th><th>Result</th><th>Profit</th></tr>';
   rows.forEach(b => {
-    const resultClass = b.result === 'won' ? 'profit' : 'loss';
+    const resultClass = b.result === 'won' ? 'profit' : (b.result === 'lost' ? 'loss' : '');
     html += `<tr>
       <td>${(b.placed_at || '').replace('T', ' ').slice(0, 16)}</td>
       <td>${b.strategy_name}</td>
@@ -735,19 +783,19 @@ function renderRecent() {
       <td>${b.odds}</td>
       <td>${b.stake}</td>
       <td>${b.step}</td>
-      <td class="${resultClass}">${b.result}</td>
-      <td class="${cls(b.profit || 0)}">${fmt(b.profit)}</td>
+      <td class="${resultClass}">${b.result || 'pending'}</td>
+      <td class="${b.result ? cls(b.profit || 0) : ''}">${b.result ? fmt(b.profit || 0) : '-'}</td>
     </tr>`;
   });
   html += '</table>';
-  document.getElementById('recent').innerHTML = html;
+  document.getElementById('today').innerHTML = html;
 }
-fetch('api/recent').then(r => r.json()).then(data => {
-  _recentData = data;
+fetch('api/today_bets').then(r => r.json()).then(data => {
+  _todayData = data;
   const strategies = [...new Set(data.map(b => b.strategy_name))].sort();
-  const sel = document.getElementById('recentStrategyFilter');
+  const sel = document.getElementById('todayStrategyFilter');
   strategies.forEach(s => sel.insertAdjacentHTML('beforeend', `<option value="${s}">${s}</option>`));
-  renderRecent();
+  renderToday();
 });
 
 let profitChart = null;
@@ -836,9 +884,55 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
   @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
   .full { grid-column: 1 / -1; }
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
-  .card h2 { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; }
+  .card h2 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .card h2 .section-toggle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+  }
+  .card-body.collapsed { display: none; }
   canvas { max-width: 100%; }
   .empty { color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 30px 0; text-align: center; }
+  .card-controls { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .sub-tabs { display: flex; gap: 4px; background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 3px; flex-wrap: wrap; }
+  .sub-tab { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); padding: 5px 10px; border-radius: 6px; cursor: pointer; user-select: none; white-space: nowrap; }
+  .sub-tab:hover { color: var(--text); }
+  .sub-tab.active { background: var(--accent); color: #0a0e14; font-weight: 700; }
+  select.control { background: var(--card2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; max-width: 260px; }
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .stat { background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; min-width: 0; }
+  .stat-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: var(--text); }
+  .stat-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .pos { color: var(--win); }
+  .neg { color: var(--loss); }
+  .table-wrap { max-height: 360px; overflow-y: auto; margin-top: 18px; border: 1px solid var(--border); border-radius: 8px; }
+  table.tbl { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  table.tbl th { position: sticky; top: 0; background: var(--card2); color: var(--muted); font-weight: 600; text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--border); cursor: pointer; white-space: nowrap; z-index: 1; }
+  table.tbl th:first-child, table.tbl td:first-child { text-align: left; }
+  table.tbl th:hover { color: var(--text); }
+  table.tbl th.sorted { color: var(--accent); }
+  table.tbl td { padding: 7px 10px; text-align: right; border-bottom: 1px solid var(--border); color: var(--text); white-space: nowrap; }
+  table.tbl tbody tr:last-child td { border-bottom: none; }
+  table.tbl tbody tr:hover { background: rgba(91, 141, 239, 0.06); }
+  .note { color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-top: 12px; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -857,23 +951,119 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
 
   <div class="grid">
     <div class="card full">
-      <h2>Cumulative Profit Over Time</h2>
-      <canvas id="cumulativeChart" height="70"></canvas>
+      <h2 onclick="toggleCard(this)">Performance by Day of Week <span style="font-weight:400; text-transform:none; letter-spacing:0;">— Mon to Sun, Europe/Athens</span> <span class="section-toggle">▾</span></h2>
+      <div class="card-body">
+        <div class="card-controls">
+          <div class="sub-tabs" id="weekdayMetricTabs">
+            <div class="sub-tab active" data-metric="profit">Total Profit</div>
+            <div class="sub-tab" data-metric="avg_profit">Avg / Day</div>
+            <div class="sub-tab" data-metric="bets">Bets</div>
+            <div class="sub-tab" data-metric="win_rate">Win Rate</div>
+            <div class="sub-tab" data-metric="roi">ROI</div>
+          </div>
+          <select class="control" id="weekdayStrategyFilter"><option value="">All strategies</option></select>
+        </div>
+        <div class="stat-row" id="weekdayStats"></div>
+        <div id="weekdayChartWrap">
+          <canvas id="weekdayChart" height="90"></canvas>
+          <div class="empty" id="weekdayChartEmpty" style="display:none;">No settled bets yet</div>
+        </div>
+        <div class="table-wrap" id="weekdayTableWrap">
+          <table class="tbl" id="weekdayTable">
+            <thead><tr>
+              <th data-sort="weekday" data-label="Weekday">Weekday</th>
+              <th data-sort="days" data-label="Days">Days</th>
+              <th data-sort="bets" data-label="Bets">Bets</th>
+              <th data-sort="won" data-label="Won">Won</th>
+              <th data-sort="lost" data-label="Lost">Lost</th>
+              <th data-sort="cashed_out" data-label="Cash-out">Cash-out</th>
+              <th data-sort="win_rate" data-label="Win %">Win %</th>
+              <th data-sort="staked" data-label="Staked">Staked</th>
+              <th data-sort="profit" data-label="Profit">Profit</th>
+              <th data-sort="avg_profit" data-label="Avg / Day">Avg / Day</th>
+              <th data-sort="roi" data-label="ROI %">ROI %</th>
+              <th data-sort="avg_odds" data-label="Avg Odds">Avg Odds</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="note" id="weekdayNote"></div>
+      </div>
+    </div>
+
+    <div class="card full">
+      <h2 onclick="toggleCard(this)">Performance per Day <span style="font-weight:400; text-transform:none; letter-spacing:0;">— settled, Europe/Athens</span> <span class="section-toggle">▾</span></h2>
+      <div class="card-body">
+        <div class="card-controls">
+          <div class="sub-tabs" id="rangeTabs">
+            <div class="sub-tab" data-days="7">7D</div>
+            <div class="sub-tab active" data-days="30">30D</div>
+            <div class="sub-tab" data-days="90">90D</div>
+            <div class="sub-tab" data-days="0">All</div>
+          </div>
+          <select class="control" id="strategyFilter"><option value="">All strategies</option></select>
+        </div>
+        <div class="card-controls">
+          <div class="sub-tabs" id="metricTabs">
+            <div class="sub-tab active" data-metric="profit">Profit</div>
+            <div class="sub-tab" data-metric="bets">Bets</div>
+            <div class="sub-tab" data-metric="win_rate">Win Rate</div>
+            <div class="sub-tab" data-metric="roi">ROI</div>
+            <div class="sub-tab" data-metric="staked">Staked</div>
+          </div>
+        </div>
+        <div class="stat-row" id="dailyStats"></div>
+        <div id="dailyChartWrap">
+          <canvas id="dailyPerformanceChart" height="90"></canvas>
+          <div class="empty" id="dailyChartEmpty" style="display:none;">No settled bets in this range</div>
+        </div>
+        <div class="table-wrap" id="dailyTableWrap">
+          <table class="tbl" id="dailyTable">
+            <thead><tr>
+              <th data-sort="date" data-label="Date">Date</th>
+              <th data-sort="bets" data-label="Bets">Bets</th>
+              <th data-sort="won" data-label="Won">Won</th>
+              <th data-sort="lost" data-label="Lost">Lost</th>
+              <th data-sort="cashed_out" data-label="Cash-out">Cash-out</th>
+              <th data-sort="win_rate" data-label="Win %">Win %</th>
+              <th data-sort="staked" data-label="Staked">Staked</th>
+              <th data-sort="profit" data-label="Profit">Profit</th>
+              <th data-sort="roi" data-label="ROI %">ROI %</th>
+              <th data-sort="avg_odds" data-label="Avg Odds">Avg Odds</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="note" id="dailyNote"></div>
+      </div>
+    </div>
+
+    <div class="card full">
+      <h2 onclick="toggleCard(this)">Cumulative Profit Over Time <span class="section-toggle">▾</span></h2>
+      <div class="card-body">
+        <canvas id="cumulativeChart" height="70"></canvas>
+      </div>
     </div>
 
     <div class="card">
-      <h2>Stake vs Profit</h2>
-      <canvas id="scatterChart" height="160"></canvas>
+      <h2 onclick="toggleCard(this)">Stake vs Profit <span class="section-toggle">▾</span></h2>
+      <div class="card-body">
+        <canvas id="scatterChart" height="160"></canvas>
+      </div>
     </div>
 
     <div class="card full">
-      <h2>Profit per Strategy</h2>
-      <canvas id="profitPerStrategyChart" height="90"></canvas>
+      <h2 onclick="toggleCard(this)">Profit per Strategy <span class="section-toggle">▾</span></h2>
+      <div class="card-body">
+        <canvas id="profitPerStrategyChart" height="90"></canvas>
+      </div>
     </div>
 
     <div class="card full">
-      <h2>Profit per League <span style="font-weight:400; text-transform:none; letter-spacing:0;">— worst to best</span></h2>
-      <canvas id="profitPerLeagueChart" height="120"></canvas>
+      <h2 onclick="toggleCard(this)">Profit per League <span style="font-weight:400; text-transform:none; letter-spacing:0;">— worst to best</span> <span class="section-toggle">▾</span></h2>
+      <div class="card-body">
+        <canvas id="profitPerLeagueChart" height="120"></canvas>
+      </div>
     </div>
   </div>
 
@@ -881,6 +1071,32 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <script>
 function toggleNav() { document.getElementById('navLinks').classList.toggle('open'); }
+function toggleCard(h2) {
+  const body = h2.nextElementSibling;
+  const toggle = h2.querySelector('.section-toggle');
+  if (!body || !body.classList.contains('card-body')) return;
+  body.classList.toggle('collapsed');
+  if (toggle) toggle.textContent = body.classList.contains('collapsed') ? '▸' : '▾';
+  if (!body.classList.contains('collapsed')) {
+    // let Chart.js re-measure canvases that were hidden
+    window.dispatchEvent(new Event('resize'));
+  }
+  try {
+    const key = 'dash_card_' + h2.textContent.replace(/\\s+/g,'_').substring(0,24);
+    localStorage.setItem(key, body.classList.contains('collapsed') ? '1' : '0');
+  } catch (e) {}
+}
+document.querySelectorAll('.card h2').forEach(h2 => {
+  const key = 'dash_card_' + h2.textContent.replace(/\\s+/g,'_').substring(0,24);
+  try {
+    if (localStorage.getItem(key) === '1') {
+      const body = h2.nextElementSibling;
+      const toggle = h2.querySelector('.section-toggle');
+      if (body) body.classList.add('collapsed');
+      if (toggle) toggle.textContent = '▸';
+    }
+  } catch (e) {}
+});
 if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/service-worker.js').catch(() => {}); }
 if (window.ChartDataLabels) { Chart.register(window.ChartDataLabels); }
 const muted = '#7a8699';
@@ -998,6 +1214,426 @@ fetch('api/chart_data').then(r => r.json()).then(data => {
     document.getElementById('profitPerLeagueChart').outerHTML = '<div class="empty">No league data yet — leagues are captured as new bets are placed</div>';
   }
 });
+
+// ---------------------------------------------------------------------------
+// Performance by Day of Week report
+// ---------------------------------------------------------------------------
+const weekdayMetrics = {
+  profit:     { label: 'Profit',    get: w => w.profit,     signed: true,  color: w => w.profit >= 0 ? win : loss },
+  avg_profit: { label: 'Avg / day', get: w => w.avg_profit, signed: true,  color: w => w.avg_profit >= 0 ? win : loss },
+  bets:       { label: 'Bets',      get: w => w.bets,       signed: false, color: () => accent },
+  win_rate:   { label: 'Win rate',  get: w => w.win_rate,   signed: false, color: () => accent },
+  roi:        { label: 'ROI',       get: w => w.roi,        signed: true,  color: w => w.roi >= 0 ? win : loss }
+};
+
+let weekdayChart = null;
+let weekdayData = { weekdays: [], summary: {} };
+let weekdaySort = { key: 'weekday', dir: 'asc' };
+
+function renderWeekdayStats(s) {
+  const d = Object.assign({
+    profit: 0, staked: 0, bets: 0, won: 0, lost: 0, cashed_out: 0,
+    win_rate: 0, roi: 0, avg_profit: 0, trading_days: 0
+  }, s || {});
+  const best = d.best_day, worst = d.worst_day, busy = d.busiest;
+  const tiles = [
+    { label: 'Best weekday', value: best ? best.name : '—', cls: 'pos', sub: best ? signed(best.avg_profit, 2) + ' / day' : '' },
+    { label: 'Worst weekday', value: worst ? worst.name : '—', cls: 'neg', sub: worst ? signed(worst.avg_profit, 2) + ' / day' : '' },
+    { label: 'Busiest', value: busy ? busy.name : '—', sub: busy ? busy.bets + ' bets' : '' },
+    { label: 'Net profit', value: signed(d.profit, 2), cls: d.profit >= 0 ? 'pos' : 'neg', sub: d.trading_days + ' trading days' },
+    { label: 'Win rate', value: Number(d.win_rate).toFixed(1) + '%', sub: 'incl. ' + d.cashed_out + ' cash-outs' },
+    { label: 'ROI', value: signed(d.roi, 1) + '%', cls: d.roi >= 0 ? 'pos' : 'neg' },
+    { label: 'Staked', value: Number(d.staked).toFixed(2), sub: d.bets + ' bets' },
+    { label: 'Avg / trading day', value: signed(d.avg_profit, 2), cls: d.avg_profit >= 0 ? 'pos' : 'neg' }
+  ];
+  document.getElementById('weekdayStats').innerHTML = tiles.map(t =>
+    '<div class="stat">' +
+      '<div class="stat-label">' + t.label + '</div>' +
+      '<div class="stat-value ' + (t.cls || '') + '">' + t.value + '</div>' +
+      (t.sub ? '<div class="stat-sub">' + t.sub + '</div>' : '') +
+    '</div>'
+  ).join('');
+}
+
+function drawWeekdayChart() {
+  const canvas = document.getElementById('weekdayChart');
+  const empty = document.getElementById('weekdayChartEmpty');
+  if (!canvas) return;
+  const rows = weekdayData.weekdays || [];
+  if (!rows.length || !rows.some(r => r.bets > 0)) {
+    if (weekdayChart) { weekdayChart.destroy(); weekdayChart = null; }
+    canvas.style.display = 'none';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  canvas.style.display = '';
+  if (empty) empty.style.display = 'none';
+
+  const activeTab = document.querySelector('#weekdayMetricTabs .sub-tab.active');
+  const metric = activeTab ? activeTab.dataset.metric : 'profit';
+  const cfg = weekdayMetrics[metric] || weekdayMetrics.profit;
+  const values = rows.map(cfg.get);
+  const colors = rows.map(cfg.color);
+
+  if (weekdayChart) { weekdayChart.destroy(); weekdayChart = null; }
+  weekdayChart = new Chart(canvas, {
+    type: 'bar',
+    data: { labels: rows.map(w => w.name), datasets: [{ data: values, backgroundColor: colors, borderRadius: 4 }] },
+    options: {
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          color: '#e4e7ec',
+          font: { family: 'JetBrains Mono', size: 11, weight: '600' },
+          anchor: 'end',
+          align: 'end',
+          formatter: v => cfg.signed ? signed(v, 2) : (metric === 'bets' ? String(v) : Number(v).toFixed(1))
+        },
+        tooltip: {
+          callbacks: {
+            label: item => {
+              const w = rows[item.dataIndex];
+              return [
+                'Profit: ' + signed(w.profit, 2) + '  (' + signed(w.avg_profit, 2) + ' / day)',
+                'Bets: ' + w.bets + '  (' + w.won + 'W / ' + w.lost + 'L)',
+                'Cash-outs: ' + w.cashed_out,
+                'Win rate: ' + Number(w.win_rate).toFixed(1) + '%',
+                'ROI: ' + signed(w.roi, 1) + '%',
+                'Trading days: ' + w.days
+              ];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: baseGrid, ticks: { ...baseTicks, maxRotation: 0 } },
+        y: { grid: baseGrid, ticks: baseTicks }
+      }
+    }
+  });
+}
+
+function renderWeekdayTable() {
+  const tbody = document.querySelector('#weekdayTable tbody');
+  if (!tbody) return;
+  const rows = (weekdayData.weekdays || []).slice();
+  const key = weekdaySort.key;
+  const dir = weekdaySort.dir === 'asc' ? 1 : -1;
+  rows.sort((a, b) => {
+    const av = a[key], bv = b[key];
+    if (typeof av === 'string' || typeof bv === 'string') {
+      return dir * (av < bv ? -1 : (av > bv ? 1 : 0));
+    }
+    return dir * (av - bv);
+  });
+  tbody.innerHTML = rows.map(w =>
+    '<tr>' +
+      '<td>' + w.name + '</td>' +
+      '<td>' + w.days + '</td>' +
+      '<td>' + w.bets + '</td>' +
+      '<td>' + w.won + '</td>' +
+      '<td>' + w.lost + '</td>' +
+      '<td>' + w.cashed_out + '</td>' +
+      '<td>' + Number(w.win_rate).toFixed(1) + '%</td>' +
+      '<td>' + Number(w.staked).toFixed(2) + '</td>' +
+      '<td class="' + (w.profit >= 0 ? 'pos' : 'neg') + '">' + signed(w.profit, 2) + '</td>' +
+      '<td class="' + (w.avg_profit >= 0 ? 'pos' : 'neg') + '">' + signed(w.avg_profit, 2) + '</td>' +
+      '<td class="' + (w.roi >= 0 ? 'pos' : 'neg') + '">' + signed(w.roi, 1) + '%</td>' +
+      '<td>' + Number(w.avg_odds).toFixed(2) + '</td>' +
+    '</tr>'
+  ).join('');
+
+  document.querySelectorAll('#weekdayTable th[data-sort]').forEach(th => {
+    const on = th.dataset.sort === key;
+    th.classList.toggle('sorted', on);
+    const base = th.dataset.label || th.dataset.sort;
+    th.textContent = base + (on ? (weekdaySort.dir === 'asc' ? ' ▲' : ' ▼') : '');
+  });
+}
+
+function loadWeekday() {
+  const sel = document.getElementById('weekdayStrategyFilter');
+  const strategy = sel ? sel.value : '';
+  const note = document.getElementById('weekdayNote');
+  if (note) note.textContent = 'Loading…';
+
+  fetch('api/weekday_performance?strategy=' + encodeURIComponent(strategy))
+    .then(r => r.json())
+    .then(data => {
+      weekdayData = data || { weekdays: [] };
+      fillStrategyFilter(data.strategies, 'weekdayStrategyFilter');
+      renderWeekdayStats(data.summary || {});
+      drawWeekdayChart();
+      renderWeekdayTable();
+      if (note) {
+        note.textContent =
+          'A weekday bucket spans many weeks, so totals alone favour the weekdays that happened to occur most often.'
+          + ' Avg / Day divides by the trading days in the Days column.'
+          + ' Days are Europe/Athens calendar days in which bets settled.'
+          + (strategy ? ' Filtered to "' + strategy + '".' : '')
+          + ' Cash-outs count as wins. Click a column header to sort.';
+      }
+    })
+    .catch(e => {
+      if (note) note.textContent = 'Could not load weekday performance: ' + e;
+    });
+}
+
+document.querySelectorAll('#weekdayMetricTabs .sub-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('#weekdayMetricTabs .sub-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    drawWeekdayChart();
+  });
+});
+
+document.querySelectorAll('#weekdayTable th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    if (weekdaySort.key === key) {
+      weekdaySort.dir = weekdaySort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      weekdaySort.key = key;
+      weekdaySort.dir = 'asc';
+    }
+    renderWeekdayTable();
+  });
+});
+
+const weekdaySelect = document.getElementById('weekdayStrategyFilter');
+if (weekdaySelect) weekdaySelect.addEventListener('change', loadWeekday);
+
+loadWeekday();
+
+// ---------------------------------------------------------------------------
+// Performance per Day report
+// ---------------------------------------------------------------------------
+const dailyMetrics = {
+  profit:   { label: 'Profit',   get: r => r.profit,   signed: true,  color: r => r.profit >= 0 ? win : loss },
+  bets:     { label: 'Bets',     get: r => r.bets,     signed: false, color: () => accent },
+  win_rate: { label: 'Win rate', get: r => r.win_rate, signed: false, color: () => accent },
+  roi:      { label: 'ROI',      get: r => r.roi,      signed: true,  color: r => r.roi >= 0 ? win : loss },
+  staked:   { label: 'Staked',   get: r => r.staked,   signed: false, color: () => accent }
+};
+
+let dailyChart = null;
+let dailyData = { days: [], summary: {}, range: {} };
+let dailySort = { key: 'date', dir: 'desc' };
+
+function signed(n, dp) {
+  const d = dp === undefined ? 2 : dp;
+  return (Number(n) >= 0 ? '+' : '') + Number(n).toFixed(d);
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function renderDailyStats(s) {
+  const d = Object.assign({
+    profit: 0, staked: 0, bets: 0, won: 0, lost: 0, cashed_out: 0,
+    win_rate: 0, roi: 0, avg_daily_profit: 0, active_days: 0,
+    profitable_days: 0, losing_days: 0, flat_days: 0, win_streak: 0, lose_streak: 0
+  }, s || {});
+  const tiles = [
+    { label: 'Net profit', value: signed(d.profit, 2), cls: d.profit >= 0 ? 'pos' : 'neg', sub: 'staked ' + Number(d.staked).toFixed(2) },
+    { label: 'Bets settled', value: String(d.bets), sub: d.won + 'W / ' + d.lost + 'L' },
+    { label: 'Win rate', value: Number(d.win_rate).toFixed(1) + '%', sub: 'incl. ' + d.cashed_out + ' cash-outs' },
+    { label: 'ROI', value: signed(d.roi, 1) + '%', cls: d.roi >= 0 ? 'pos' : 'neg' },
+    { label: 'Staked', value: Number(d.staked).toFixed(2), sub: 'avg ' + (d.staked / (d.bets || 1)).toFixed(2) + ' / bet' },
+    { label: 'Best day', value: d.best_day ? signed(d.best_day.profit, 2) : '—', cls: 'pos', sub: d.best_day ? d.best_day.date : '' },
+    { label: 'Worst day', value: d.worst_day ? signed(d.worst_day.profit, 2) : '—', cls: 'neg', sub: d.worst_day ? d.worst_day.date : '' },
+    { label: 'Avg / active day', value: signed(d.avg_daily_profit, 2), cls: d.avg_daily_profit >= 0 ? 'pos' : 'neg', sub: d.active_days + ' active days' },
+    { label: 'Profitable days', value: d.profitable_days + ' / ' + d.active_days, sub: d.losing_days + ' losing, ' + d.flat_days + ' flat' },
+    { label: 'Longest streak', value: d.win_streak + 'W / ' + d.lose_streak + 'L', sub: 'consecutive days' }
+  ];
+  document.getElementById('dailyStats').innerHTML = tiles.map(t =>
+    '<div class="stat">' +
+      '<div class="stat-label">' + t.label + '</div>' +
+      '<div class="stat-value ' + (t.cls || '') + '">' + t.value + '</div>' +
+      (t.sub ? '<div class="stat-sub">' + t.sub + '</div>' : '') +
+    '</div>'
+  ).join('');
+}
+
+function drawDailyChart() {
+  const canvas = document.getElementById('dailyPerformanceChart');
+  const empty = document.getElementById('dailyChartEmpty');
+  if (!canvas) return;
+  const rows = dailyData.days || [];
+  if (!rows.length) {
+    if (dailyChart) { dailyChart.destroy(); dailyChart = null; }
+    canvas.style.display = 'none';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  canvas.style.display = '';
+  if (empty) empty.style.display = 'none';
+  const activeTab = document.querySelector('#metricTabs .sub-tab.active');
+  const metric = activeTab ? activeTab.dataset.metric : 'profit';
+  const cfg = dailyMetrics[metric] || dailyMetrics.profit;
+  const values = rows.map(cfg.get);
+  const colors = rows.map(cfg.color);
+
+  if (dailyChart) { dailyChart.destroy(); dailyChart = null; }
+  dailyChart = new Chart(canvas, {
+    type: 'bar',
+    data: { labels: rows.map(r => r.date.slice(5)), datasets: [{ data: values, backgroundColor: colors, borderRadius: 4 }] },
+    options: {
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          display: ctx => rows.length <= 31,
+          color: '#e4e7ec',
+          font: { family: 'JetBrains Mono', size: 10, weight: '600' },
+          anchor: 'end',
+          align: 'end',
+          formatter: v => cfg.signed ? signed(v, 2) : (metric === 'bets' ? String(v) : Number(v).toFixed(1))
+        },
+        tooltip: {
+          callbacks: {
+            title: items => rows[items[0].dataIndex].date,
+            label: item => {
+              const r = rows[item.dataIndex];
+              return [
+                'Profit: ' + signed(r.profit, 2),
+                'Bets: ' + r.bets + '  (' + r.won + 'W / ' + r.lost + 'L)',
+                'Cash-outs: ' + r.cashed_out,
+                'Win rate: ' + Number(r.win_rate).toFixed(1) + '%',
+                'ROI: ' + signed(r.roi, 1) + '%',
+                'Staked: ' + Number(r.staked).toFixed(2)
+              ];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: baseGrid, ticks: { ...baseTicks, maxTicksLimit: 12, maxRotation: 0, autoSkip: true } },
+        y: { grid: baseGrid, ticks: baseTicks }
+      }
+    }
+  });
+}
+
+function renderDailyTable() {
+  const tbody = document.querySelector('#dailyTable tbody');
+  if (!tbody) return;
+  const rows = (dailyData.days || []).slice();
+  const key = dailySort.key;
+  const dir = dailySort.dir === 'asc' ? 1 : -1;
+  rows.sort((a, b) => {
+    const av = a[key], bv = b[key];
+    if (typeof av === 'string' || typeof bv === 'string') {
+      // plain comparison, not localeCompare — ISO dates must sort as strings
+      return dir * (av < bv ? -1 : (av > bv ? 1 : 0));
+    }
+    return dir * (av - bv);
+  });
+  tbody.innerHTML = rows.map(r =>
+    '<tr>' +
+      '<td>' + r.date + '</td>' +
+      '<td>' + r.bets + '</td>' +
+      '<td>' + r.won + '</td>' +
+      '<td>' + r.lost + '</td>' +
+      '<td>' + r.cashed_out + '</td>' +
+      '<td>' + Number(r.win_rate).toFixed(1) + '%</td>' +
+      '<td>' + Number(r.staked).toFixed(2) + '</td>' +
+      '<td class="' + (r.profit >= 0 ? 'pos' : 'neg') + '">' + signed(r.profit, 2) + '</td>' +
+      '<td class="' + (r.roi >= 0 ? 'pos' : 'neg') + '">' + signed(r.roi, 1) + '%</td>' +
+      '<td>' + Number(r.avg_odds).toFixed(2) + '</td>' +
+    '</tr>'
+  ).join('');
+
+  document.querySelectorAll('#dailyTable th[data-sort]').forEach(th => {
+    const on = th.dataset.sort === key;
+    th.classList.toggle('sorted', on);
+    const base = th.dataset.label || th.dataset.sort;
+    th.textContent = base + (on ? (dailySort.dir === 'asc' ? ' ▲' : ' ▼') : '');
+  });
+}
+
+function fillStrategyFilter(list, selId) {
+  const sel = document.getElementById(selId || 'strategyFilter');
+  if (!sel || !list || !list.length) return;
+  const current = sel.value;
+  if (sel.dataset.filled === '1' && sel.options.length === list.length + 1) return;
+  sel.innerHTML = '<option value="">All strategies</option>' +
+    list.map(s => '<option value="' + escHtml(s) + '">' + escHtml(s) + '</option>').join('');
+  sel.value = current;
+  sel.dataset.filled = '1';
+}
+
+function loadDaily() {
+  const activeTab = document.querySelector('#rangeTabs .sub-tab.active');
+  const days = activeTab ? activeTab.dataset.days : '30';
+  const sel = document.getElementById('strategyFilter');
+  const strategy = sel ? sel.value : '';
+  const note = document.getElementById('dailyNote');
+  if (note) note.textContent = 'Loading…';
+
+  fetch('api/daily_performance?days=' + encodeURIComponent(days) + '&strategy=' + encodeURIComponent(strategy))
+    .then(r => r.json())
+    .then(data => {
+      dailyData = data || { days: [] };
+      fillStrategyFilter(data.strategies);
+      renderDailyStats(data.summary || {});
+      drawDailyChart();
+      renderDailyTable();
+      const s = data.summary || {};
+      const rg = data.range || {};
+      if (note) {
+        note.textContent =
+          'Days are Europe/Athens calendar days in which bets settled'
+          + (rg.from ? ' — ' + rg.from + ' to ' + rg.to : '')
+          + (strategy ? ' — filtered to "' + strategy + '"' : '')
+          + '. Cash-outs count as wins and their profit is included in totals. Click a column header to sort.';
+      }
+      if (s.bets === 0 && note) {
+        note.textContent += ' No settled bets in this range.';
+      }
+    })
+    .catch(e => {
+      if (note) note.textContent = 'Could not load daily performance: ' + e;
+    });
+}
+
+document.querySelectorAll('#rangeTabs .sub-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('#rangeTabs .sub-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    loadDaily();
+  });
+});
+
+document.querySelectorAll('#metricTabs .sub-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('#metricTabs .sub-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    drawDailyChart();
+  });
+});
+
+document.querySelectorAll('#dailyTable th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    if (dailySort.key === key) {
+      dailySort.dir = dailySort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      dailySort.key = key;
+      dailySort.dir = 'desc';
+    }
+    renderDailyTable();
+  });
+});
+
+const strategySelect = document.getElementById('strategyFilter');
+if (strategySelect) strategySelect.addEventListener('change', loadDaily);
+
+loadDaily();
 </script>
 </body>
 </html>
@@ -1084,6 +1720,8 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
     <input type="text" id="newCatName" placeholder="New category name (e.g. Top Leagues)">
     <button class="btn" onclick="addCategory()">+ Add category</button>
   </div>
+
+  <p class="small" style="color:var(--muted); font-size:12px; margin:-6px 0 16px;">The same category can be used either way: pick it in a strategy's <b>“Which leagues can this strategy bet?”</b> to limit it to those leagues, or in <b>“Which leagues must this strategy never bet on?”</b> to exclude them.</p>
 
   <div class="layout">
     <div class="card">
@@ -1221,7 +1859,7 @@ function addCategory() {
 }
 
 function deleteCategory(name) {
-  if (!confirm('Delete category "' + name + '"? Strategies using it will stop filtering by it.')) return;
+  if (!confirm('Delete category "' + name + '"? Strategies using it will stop filtering or excluding by it.')) return;
   delete categories[name];
   persist();
 }
@@ -1472,6 +2110,15 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
           <div id="f_tab_categories" class="subtab-pane active"></div>
           <div id="f_tab_leagues" class="subtab-pane"></div>
         </div>
+        <div class="field full">
+          <label>Which leagues must this strategy never bet on? <span style="color:var(--muted); text-transform:none;">— the opposite filter: anything picked here is skipped even if it's allowed above. Leave everything unchecked to exclude nothing.</span></label>
+          <div class="subtabs">
+            <div class="subtab-btn active" data-tab="f_tab_ex_categories" onclick="switchTab('f', 'f_tab_ex_categories')">Categories</div>
+            <div class="subtab-btn" data-tab="f_tab_ex_leagues" onclick="switchTab('f', 'f_tab_ex_leagues')">Individual leagues (fallback)</div>
+          </div>
+          <div id="f_tab_ex_categories" class="subtab-pane active"></div>
+          <div id="f_tab_ex_leagues" class="subtab-pane"></div>
+        </div>
         <div class="field">
           <label>Betting timing</label>
           <select id="f_live_mode">
@@ -1610,6 +2257,15 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
           <div id="mf_tab_leagues" class="subtab-pane"></div>
         </div>
         <div class="field full">
+          <label>Which leagues must this strategy never bet on? <span style="color:var(--muted); text-transform:none;">— anything picked here is skipped even if it's allowed above.</span></label>
+          <div class="subtabs">
+            <div class="subtab-btn active" data-tab="mf_tab_ex_categories" onclick="switchTab('mf', 'mf_tab_ex_categories')">Categories</div>
+            <div class="subtab-btn" data-tab="mf_tab_ex_leagues" onclick="switchTab('mf', 'mf_tab_ex_leagues')">Individual leagues (fallback)</div>
+          </div>
+          <div id="mf_tab_ex_categories" class="subtab-pane active"></div>
+          <div id="mf_tab_ex_leagues" class="subtab-pane"></div>
+        </div>
+        <div class="field full">
           <div class="checkbox-row"><input type="checkbox" id="mf_enabled" checked><label style="margin:0;">Enabled</label></div>
         </div>
         <div class="field full">
@@ -1648,7 +2304,7 @@ function fetchLeagues() {
 function switchTab(prefix, tabId) {
   document.querySelectorAll(`.subtab-btn[data-tab^="${prefix}_tab_"]`).forEach(b => b.classList.remove('active'));
   document.querySelector(`.subtab-btn[data-tab="${tabId}"]`).classList.add('active');
-  document.querySelectorAll(`#${prefix}_tab_categories, #${prefix}_tab_leagues`).forEach(p => p.classList.remove('active'));
+  document.querySelectorAll(`[id^="${prefix}_tab_"]`).forEach(p => p.classList.remove('active'));
   document.getElementById(tabId).classList.add('active');
 }
 
@@ -1725,12 +2381,20 @@ function renderList() {
     const groupTag = s.overlap_group ? ` · Group: ${s.overlap_group}` : '';
     const cats = s.included_categories || [];
     const leaguesFallback = s.included_leagues || [];
+    const exCats = s.excluded_categories || [];
+    const exLeaguesFallback = s.excluded_leagues || [];
     let leagueTag = '';
     if (cats.length || leaguesFallback.length) {
       const parts = [];
       if (cats.length) parts.push(cats.join(', '));
       if (leaguesFallback.length) parts.push(leaguesFallback.length + ' individual league(s)');
       leagueTag = ' · leagues: ' + parts.join(' + ');
+    }
+    if (exCats.length || exLeaguesFallback.length) {
+      const parts = [];
+      if (exCats.length) parts.push(exCats.join(', '));
+      if (exLeaguesFallback.length) parts.push(exLeaguesFallback.length + ' individual league(s)');
+      leagueTag += ' · never bet: ' + parts.join(' + ');
     }
     let metaLine;
     if (isMulti) {
@@ -1883,6 +2547,8 @@ function openModal(index) {
 
   renderCategoryCheckboxes('f_tab_categories', s.included_categories || []);
   renderLeagueCheckboxes('f_tab_leagues', s.included_leagues || []);
+  renderCategoryCheckboxes('f_tab_ex_categories', s.excluded_categories || []);
+  renderLeagueCheckboxes('f_tab_ex_leagues', s.excluded_leagues || []);
   switchTab('f', 'f_tab_categories');
 
   document.getElementById('f_live_mode').value = s.live_mode || 'pre';
@@ -2040,6 +2706,8 @@ function openMultiModal(index) {
 
   renderCategoryCheckboxes('mf_tab_categories', s.included_categories || []);
   renderLeagueCheckboxes('mf_tab_leagues', s.included_leagues || []);
+  renderCategoryCheckboxes('mf_tab_ex_categories', s.excluded_categories || []);
+  renderLeagueCheckboxes('mf_tab_ex_leagues', s.excluded_leagues || []);
   switchTab('mf', 'mf_tab_categories');
 
   onMultiStrategyTypeChange();
@@ -2117,6 +2785,8 @@ function saveMultiStrategy() {
   const existing = editingMultiIndex === null ? {} : strategies[editingMultiIndex];
   const checkedCategories = getCheckedCategories('mf_tab_categories');
   const checkedLeagues = getCheckedLeagues('mf_tab_leagues');
+  const checkedExcludedCategories = getCheckedCategories('mf_tab_ex_categories');
+  const checkedExcludedLeagues = getCheckedLeagues('mf_tab_ex_leagues');
 
   const updated = {
     ...existing,
@@ -2159,6 +2829,8 @@ function saveMultiStrategy() {
     autoRestart: document.getElementById('mf_autorestart').checked,
     included_categories: checkedCategories,
     included_leagues: checkedLeagues,
+    excluded_categories: checkedExcludedCategories,
+    excluded_leagues: checkedExcludedLeagues,
     keep_in_play: existing.keep_in_play ?? false,
     bet_side: sportRows[0].bet_side,
     bet_mode: sportRows[0].bet_mode,
@@ -2288,6 +2960,8 @@ function saveStrategy() {
 
   const checkedCategories = getCheckedCategories('f_tab_categories');
   const checkedLeagues = getCheckedLeagues('f_tab_leagues');
+  const checkedExcludedCategories = getCheckedCategories('f_tab_ex_categories');
+  const checkedExcludedLeagues = getCheckedLeagues('f_tab_ex_leagues');
 
   const updated = {
     ...existing,
@@ -2330,6 +3004,8 @@ function saveStrategy() {
     bet_mode: betMode,
     included_categories: checkedCategories,
     included_leagues: checkedLeagues,
+    excluded_categories: checkedExcludedCategories,
+    excluded_leagues: checkedExcludedLeagues,
     keep_in_play: existing.keep_in_play ?? false,
     autoRestart: document.getElementById('f_autorestart').checked,
     total_range: market === 'Total' ? totalRange : null,
@@ -2413,10 +3089,65 @@ def _to_athens(iso_str):
         return iso_str
     try:
         dt = datetime.fromisoformat(iso_str)
-        dt = dt.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Europe/Athens"))
+        dt = dt.replace(tzinfo=UTC_TZ).astimezone(ATHENS_TZ)
         return dt.strftime("%Y-%m-%dT%H:%M:%S")
     except Exception:
         return iso_str
+
+
+def _local_day(iso_str):
+    """Naive-UTC ISO timestamp -> local calendar day (Europe/Athens).
+
+    Returns a 'YYYY-MM-DD' string, or None when the value is unusable.
+    """
+    if not iso_str:
+        return None
+    try:
+        dt = datetime.fromisoformat(iso_str)
+    except (TypeError, ValueError):
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC_TZ)
+    return dt.astimezone(ATHENS_TZ).strftime("%Y-%m-%d")
+
+
+def _ensure_bets_schema():
+    """Creates the bets table and migrates older schemas.
+
+    bet_records.py owns this schema, but the dashboard can be the first
+    process to touch a fresh database — keep the two in sync so a query
+    never fails on a missing column.
+    """
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS bets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                strategy_name TEXT,
+                event_name TEXT,
+                selection_name TEXT,
+                odds REAL,
+                stake REAL,
+                step INTEGER,
+                placed_at TEXT,
+                settled_at TEXT,
+                result TEXT,
+                profit REAL,
+                result_type TEXT,
+                league TEXT,
+                offer_id TEXT,
+                start_time TEXT
+            )
+        """)
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(bets)").fetchall()}
+        for col in ("result_type", "league", "offer_id", "start_time"):
+            if col not in cols:
+                conn.execute(f"ALTER TABLE bets ADD COLUMN {col} TEXT")
+        conn.commit()
+    except Exception as e:
+        print(f"[dashboard] bets schema check failed: {e}")
+    finally:
+        conn.close()
 
 
 def query(sql, params=()):
@@ -2433,13 +3164,20 @@ def query(sql, params=()):
             placed_at TEXT,
             settled_at TEXT,
             result TEXT,
-            profit REAL
+            profit REAL,
+            result_type TEXT,
+            league TEXT,
+            offer_id TEXT,
+            start_time TEXT
         )
     """)
     conn.row_factory = sqlite3.Row
     rows = conn.execute(sql, params).fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+_ensure_bets_schema()
 
 
 @app.route("/")
@@ -2460,6 +3198,36 @@ def categories_page():
     return render_template_string(CATEGORIES_PAGE, build=BUILD_VERSION)
 
 
+@app.route("/api/balance")
+@require_password
+def api_balance():
+    """Matchbook account balance (live from the exchange).
+
+    Cached for BALANCE_TTL seconds so a page reload doesn't log in and
+    hit the rate-limited API every time. Failures return ok=False with
+    the reason, so the tile on the dashboard can just show a dash.
+    """
+    now = time.time()
+    with _balance_lock:
+        cached = _balance_cache.get("data")
+        if cached is not None and now - _balance_cache.get("at", 0) < BALANCE_TTL:
+            return jsonify(cached)
+
+    if not os.environ.get("MATCHBOOK_USERNAME") or not os.environ.get("MATCHBOOK_PASSWORD"):
+        data = {"ok": False, "error": "Matchbook credentials not configured for the dashboard."}
+    else:
+        bal = MatchbookClient().get_account_balance()
+        if bal:
+            data = {"ok": True, **bal, "fetched_at": datetime.utcnow().isoformat() + "Z"}
+        else:
+            data = {"ok": False, "error": "Could not read the Matchbook account."}
+
+    with _balance_lock:
+        _balance_cache["data"] = data
+        _balance_cache["at"] = now
+    return jsonify(data)
+
+
 @app.route("/api/summary")
 @require_password
 def summary():
@@ -2470,6 +3238,7 @@ def summary():
                SUM(CASE WHEN result = 'lost' THEN 1 ELSE 0 END) as lost,
                SUM(CASE WHEN result IS NULL THEN 1 ELSE 0 END) as pending,
                COALESCE(SUM(profit), 0) as profit,
+               COALESCE(SUM(CASE WHEN result IS NOT NULL THEN stake ELSE 0 END), 0) as staked,
                COALESCE(AVG(odds), 0) as avg_odds
         FROM bets
         GROUP BY strategy_name
@@ -2482,6 +3251,9 @@ def summary():
         r["enabled"] = True if enabled_names is None else (r["strategy_name"] in enabled_names)
         r["avg_odds"] = round(r["avg_odds"], 2)
         r["implied_win_rate"] = round(100 / r["avg_odds"], 1) if r["avg_odds"] else 0
+        r["staked"] = round(r["staked"], 2)
+        # ROI is measured on settled bets only: profit / staked * 100.
+        r["roi"] = round(100 * r["profit"] / r["staked"], 1) if r["staked"] else 0
 
     rows.sort(key=lambda r: (not r["enabled"], r["strategy_name"]))
     return jsonify(rows)
@@ -2520,148 +3292,339 @@ def _read_balance_for_strategy(name):
     return None, False
 
 
-def _strategy_group_map():
-    """Maps each strategy name to a market-type group: Win, GG, Total
-    (further split into Total Over / Total Under), Double Chance, or
-    Other. Used to merge many similar strategies (e.g. '3 Step Win',
-    '3 Step Win_group2') into one combined view.
-    """
-    mapping = {}
-    if not os.path.isfile(STRATEGIES_FILE):
-        return mapping
-    try:
-        with open(STRATEGIES_FILE, encoding="utf-8") as f:
-            all_strategies = json.load(f).get("strategies", [])
-    except Exception:
-        return mapping
-
-    for s in all_strategies:
-        name = s.get("name")
-        if not name:
-            continue
-        bet_mode = s.get("bet_mode", "normal")
-        market = s.get("market_name") or (s.get("market_names") or [None])[0]
-
-        if bet_mode == "double_chance":
-            group = "Double Chance"
-        elif market in ("Match Odds", "Moneyline", "WIN"):
-            group = "Win"
-        elif market == "Both Teams To Score":
-            group = "GG"
-        elif market == "Total":
-            direction = (s.get("total_direction") or "").strip().lower()
-            if direction == "over":
-                group = "Total Over"
-            elif direction == "under":
-                group = "Total Under"
-            else:
-                group = "Total"
-        else:
-            group = market or "Other"
-
-        mapping[name] = group
-
-    return mapping
-
-
-@app.route("/api/strategy_league_breakdown")
-@require_password
-def strategy_league_breakdown():
-    rows = query("""
-        SELECT strategy_name, league,
-               COUNT(*) as total,
-               SUM(CASE WHEN result = 'won' THEN 1 ELSE 0 END) as won,
-               SUM(CASE WHEN result = 'lost' THEN 1 ELSE 0 END) as lost,
-               COALESCE(SUM(profit), 0) as profit
-        FROM bets
-        WHERE result IS NOT NULL AND league IS NOT NULL
-        GROUP BY strategy_name, league
-        ORDER BY strategy_name, profit ASC
-    """)
-    for r in rows:
-        r["win_rate"] = round(100 * r["won"] / r["total"], 1) if r["total"] else 0
-    return jsonify(rows)
-
-
-@app.route("/api/group_league_breakdown")
-@require_password
-def group_league_breakdown():
-    """Same data as /api/strategy_league_breakdown, but merged across
-    all strategies that share the same market-type group (Win, GG,
-    Total Over, Total Under, Double Chance), so you see one combined
-    per-league picture instead of one row per individual strategy.
-    """
-    rows = query("""
-        SELECT strategy_name, league,
-               COUNT(*) as total,
-               SUM(CASE WHEN result = 'won' THEN 1 ELSE 0 END) as won,
-               SUM(CASE WHEN result = 'lost' THEN 1 ELSE 0 END) as lost,
-               COALESCE(SUM(profit), 0) as profit
-        FROM bets
-        WHERE result IS NOT NULL AND league IS NOT NULL
-        GROUP BY strategy_name, league
-    """)
-
-    group_map = _strategy_group_map()
-    merged = {}
-    for r in rows:
-        group = group_map.get(r["strategy_name"], "Other")
-        key = (group, r["league"])
-        if key not in merged:
-            merged[key] = {"group_name": group, "league": r["league"], "total": 0, "won": 0, "lost": 0, "profit": 0.0}
-        merged[key]["total"] += r["total"]
-        merged[key]["won"] += r["won"]
-        merged[key]["lost"] += r["lost"]
-        merged[key]["profit"] += r["profit"]
-
-    result = list(merged.values())
-    for r in result:
-        r["win_rate"] = round(100 * r["won"] / r["total"], 1) if r["total"] else 0
-        r["profit"] = round(r["profit"], 2)
-    result.sort(key=lambda r: (r["group_name"], r["profit"]))
-    return jsonify(result)
-
-
-@app.route("/api/steps")
-@require_password
-def steps():
-    rows = query("""
-        SELECT strategy_name, step, COUNT(*) as count
-        FROM bets
-        WHERE strategy_name IN (
-            SELECT strategy_name FROM bets GROUP BY strategy_name HAVING MAX(step) > 1
-        )
-        GROUP BY strategy_name, step
-        ORDER BY strategy_name, step
-    """)
-    return jsonify(rows)
-
-
 @app.route("/api/profit_periods")
 @require_password
 def profit_periods():
-    daily = query("""
-        SELECT date(settled_at) as period, COALESCE(SUM(profit), 0) as profit
+    """Profit per day / month / year.
+
+    Bucketed by the day the bet was PLACED, in Athens time - the same basis
+    as the Today's Bets table, so the two always add up.
+    """
+    rows = query("""
+        SELECT placed_at, profit
         FROM bets
-        WHERE result IS NOT NULL AND date(settled_at) >= date('now', '-6 days')
-        GROUP BY period
-        ORDER BY period
+        WHERE result IS NOT NULL AND placed_at IS NOT NULL
     """)
-    monthly = query("""
-        SELECT strftime('%Y-%m', settled_at) as period, COALESCE(SUM(profit), 0) as profit
+
+    daily, monthly, yearly = {}, {}, {}
+    for r in rows:
+        day = _local_day(r["placed_at"])
+        if not day:
+            continue
+        profit = float(r["profit"] or 0)
+        daily[day] = daily.get(day, 0.0) + profit
+        monthly[day[:7]] = monthly.get(day[:7], 0.0) + profit
+        yearly[day[:4]] = yearly.get(day[:4], 0.0) + profit
+
+    cutoff = (datetime.now(ATHENS_TZ).date() - timedelta(days=6)).isoformat()
+    return jsonify({
+        "daily": [{"period": d, "profit": round(p, 4)} for d, p in sorted(daily.items()) if d >= cutoff],
+        "monthly": [{"period": m, "profit": round(p, 4)} for m, p in sorted(monthly.items())],
+        "yearly": [{"period": y, "profit": round(p, 4)} for y, p in sorted(yearly.items())],
+    })
+
+
+WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def _empty_weekday_bucket(wd):
+    return {
+        "weekday": wd,
+        "name": WEEKDAY_NAMES[wd],
+        "bets": 0,
+        "won": 0,
+        "lost": 0,
+        "push": 0,
+        "cashed_out": 0,
+        "profit": 0.0,
+        "staked": 0.0,
+        "odds_sum": 0.0,
+        "odds_count": 0,
+        "dates": set(),
+    }
+
+
+def _empty_day_bucket(day):
+    return {
+        "date": day,
+        "bets": 0,
+        "won": 0,
+        "lost": 0,
+        "push": 0,
+        "cashed_out": 0,
+        "profit": 0.0,
+        "staked": 0.0,
+        "odds_sum": 0.0,
+        "odds_count": 0,
+    }
+
+
+def _day_metrics(bucket):
+    """Derived per-day metrics. Win rate and ROI follow the same formulas
+    used on the dashboard home page (ROI on settled stakes only).
+    """
+    decided = bucket["won"] + bucket["lost"]
+    bucket["win_rate"] = round(100 * bucket["won"] / decided, 1) if decided else 0.0
+    bucket["roi"] = round(100 * bucket["profit"] / bucket["staked"], 1) if bucket["staked"] else 0.0
+    bucket["avg_odds"] = round(bucket["odds_sum"] / bucket["odds_count"], 2) if bucket["odds_count"] else 0.0
+    bucket["profit"] = round(bucket["profit"], 4)
+    bucket["staked"] = round(bucket["staked"], 4)
+    return bucket
+
+
+@app.route("/api/weekday_performance")
+@require_password
+def weekday_performance():
+    """Performance broken down by day of the week (Mon..Sun).
+
+    A weekday bucket spans many weeks, so the raw total is misleading: a
+    weekday that happened to fall on more trading days shows more profit.
+    Both the total and the average per occurrence are reported.
+    """
+    strategy = (request.args.get("strategy") or "").strip()
+
+    sql = """
+        SELECT settled_at, strategy_name, odds, stake, result, result_type, profit
         FROM bets
         WHERE result IS NOT NULL
-        GROUP BY period
-        ORDER BY period
-    """)
-    yearly = query("""
-        SELECT strftime('%Y', settled_at) as period, COALESCE(SUM(profit), 0) as profit
+    """
+    params = []
+    if strategy:
+        sql += " AND strategy_name = ?"
+        params.append(strategy)
+    rows = query(sql, tuple(params))
+
+    buckets = {i: _empty_weekday_bucket(i) for i in range(7)}
+    for r in rows:
+        day = _local_day(r["settled_at"])
+        if not day:
+            continue
+        b = buckets[datetime.fromisoformat(day).weekday()]  # 0=Mon .. 6=Sun
+        b["bets"] += 1
+        b["dates"].add(day)
+        if (r["result_type"] or "") == "cashed_out":
+            b["cashed_out"] += 1
+            b["won"] += 1          # cash-out is a strategy win
+        elif r["result"] == "won":
+            b["won"] += 1
+        elif r["result"] == "lost":
+            b["lost"] += 1
+        elif r["result"] == "push":
+            b["push"] += 1
+        b["profit"] += float(r["profit"] or 0)
+        b["staked"] += float(r["stake"] or 0)
+        if r["odds"] is not None:
+            b["odds_sum"] += float(r["odds"])
+            b["odds_count"] += 1
+
+    weekdays = []
+    for wd in range(7):
+        b = buckets[wd]
+        days = len(b["dates"])
+        b["days"] = days
+        del b["dates"]
+        decided = b["won"] + b["lost"]
+        b["win_rate"] = round(100 * b["won"] / decided, 1) if decided else 0.0
+        b["roi"] = round(100 * b["profit"] / b["staked"], 1) if b["staked"] else 0.0
+        b["avg_odds"] = round(b["odds_sum"] / b["odds_count"], 2) if b["odds_count"] else 0.0
+        b["profit"] = round(b["profit"], 4)
+        b["staked"] = round(b["staked"], 4)
+        b["avg_profit"] = round(b["profit"] / days, 4) if days else 0.0
+        b["avg_bets"] = round(b["bets"] / days, 1) if days else 0.0
+        weekdays.append(b)
+
+    active = [w for w in weekdays if w["days"] > 0]
+    total_profit = round(sum(w["profit"] for w in weekdays), 4)
+    total_staked = round(sum(w["staked"] for w in weekdays), 4)
+    total_bets = sum(w["bets"] for w in weekdays)
+    total_won = sum(w["won"] for w in weekdays)
+    total_lost = sum(w["lost"] for w in weekdays)
+    total_days = sum(w["days"] for w in weekdays)
+
+    best = max(active, key=lambda w: w["avg_profit"]) if active else None
+    worst = min(active, key=lambda w: w["avg_profit"]) if active else None
+    busiest = max(active, key=lambda w: w["bets"]) if active else None
+
+    strategies = [r["strategy_name"] for r in query("""
+        SELECT DISTINCT strategy_name FROM bets
+        WHERE strategy_name IS NOT NULL
+        ORDER BY strategy_name
+    """)]
+
+    return jsonify({
+        "weekdays": weekdays,
+        "summary": {
+            "profit": total_profit,
+            "staked": total_staked,
+            "bets": total_bets,
+            "won": total_won,
+            "lost": total_lost,
+            "cashed_out": sum(w["cashed_out"] for w in weekdays),
+            "win_rate": round(100 * total_won / (total_won + total_lost), 1) if (total_won + total_lost) else 0.0,
+            "roi": round(100 * total_profit / total_staked, 1) if total_staked else 0.0,
+            "avg_profit": round(total_profit / total_days, 4) if total_days else 0.0,
+            "trading_days": total_days,
+            "best_day": best,
+            "worst_day": worst,
+            "busiest": busiest,
+        },
+        "strategy": strategy,
+        "strategies": strategies,
+        "timezone": "Europe/Athens",
+    })
+
+
+@app.route("/api/daily_performance")
+@require_password
+def daily_performance():
+    """Per-day performance report.
+
+    A "day" is a Europe/Athens calendar day in which bets settled, so the
+    dates line up with the rest of the dashboard. Cash-outs are tracked
+    separately but still count as wins: they are a deliberate part of the
+    strategy that locks in a profit, so the win rate includes them.
+    """
+    try:
+        days = int(request.args.get("days", "30"))
+    except (TypeError, ValueError):
+        days = 30
+    strategy = (request.args.get("strategy") or "").strip()
+
+    today = datetime.now(ATHENS_TZ).date()
+    if days > 0:
+        cutoff = today - timedelta(days=days - 1)
+    else:
+        cutoff = None
+
+    sql = """
+        SELECT settled_at, strategy_name, odds, stake, result, result_type, profit
         FROM bets
         WHERE result IS NOT NULL
-        GROUP BY period
-        ORDER BY period
-    """)
-    return jsonify({"daily": daily, "monthly": monthly, "yearly": yearly})
+    """
+    params = []
+    if strategy:
+        sql += " AND strategy_name = ?"
+        params.append(strategy)
+    rows = query(sql, tuple(params))
+
+    buckets = {}
+    for r in rows:
+        day = _local_day(r["settled_at"])
+        if not day:
+            continue
+        if cutoff and day < cutoff.isoformat():
+            continue
+        b = buckets.get(day)
+        if b is None:
+            b = buckets[day] = _empty_day_bucket(day)
+        b["bets"] += 1
+        cashed = (r["result_type"] or "") == "cashed_out"
+        if cashed:
+            b["cashed_out"] += 1
+            b["won"] += 1          # cash-out is a strategy win
+        elif r["result"] == "won":
+            b["won"] += 1
+        elif r["result"] == "lost":
+            b["lost"] += 1
+        elif r["result"] == "push":
+            b["push"] += 1
+        b["profit"] += float(r["profit"] or 0)
+        b["staked"] += float(r["stake"] or 0)
+        if r["odds"] is not None:
+            b["odds_sum"] += float(r["odds"])
+            b["odds_count"] += 1
+
+    # Build the calendar so quiet days still show up as zero-profit days.
+    day_keys = set(buckets)
+    if cutoff:
+        end = today
+        if day_keys:
+            latest = datetime.fromisoformat(max(day_keys)).date()
+            if latest > end:
+                end = latest
+        d = cutoff
+        while d <= end:
+            day_keys.add(d.isoformat())
+            d += timedelta(days=1)
+    elif day_keys:
+        d = datetime.fromisoformat(min(day_keys)).date()
+        end = datetime.fromisoformat(max(day_keys)).date()
+        if end < today:
+            end = today
+        while d <= end:
+            day_keys.add(d.isoformat())
+            d += timedelta(days=1)
+
+    day_rows = sorted(
+        (_day_metrics(buckets.get(k) or _empty_day_bucket(k)) for k in day_keys),
+        key=lambda x: x["date"],
+    )
+
+    active = [d for d in day_rows if d["bets"] > 0]
+    total_profit = round(sum(d["profit"] for d in day_rows), 4)
+    total_staked = round(sum(d["staked"] for d in day_rows), 4)
+    total_won = sum(d["won"] for d in active)
+    total_lost = sum(d["lost"] for d in active)
+    total_cash = sum(d["cashed_out"] for d in active)
+    total_bets = sum(d["bets"] for d in active)
+
+    best = max(active, key=lambda d: d["profit"]) if active else None
+    worst = min(active, key=lambda d: d["profit"]) if active else None
+
+    # Streaks run over consecutive calendar days; a day without bets breaks them.
+    win_streak = lose_streak = 0
+    cur_win = cur_lose = 0
+    for d in day_rows:
+        if d["bets"] == 0:
+            cur_win = cur_lose = 0
+        elif d["profit"] > 0:
+            cur_win = cur_win + 1 if cur_win > 0 else 1
+            cur_lose = 0
+        elif d["profit"] < 0:
+            cur_lose = cur_lose + 1 if cur_lose > 0 else 1
+            cur_win = 0
+        else:
+            cur_win = cur_lose = 0
+        win_streak = max(win_streak, cur_win)
+        lose_streak = max(lose_streak, cur_lose)
+
+    strategies = [r["strategy_name"] for r in query("""
+        SELECT DISTINCT strategy_name FROM bets
+        WHERE strategy_name IS NOT NULL
+        ORDER BY strategy_name
+    """)]
+
+    return jsonify({
+        "days": day_rows,
+        "summary": {
+            "profit": total_profit,
+            "staked": total_staked,
+            "bets": total_bets,
+            "won": total_won,
+            "lost": total_lost,
+            "cashed_out": total_cash,
+            "win_rate": round(100 * total_won / (total_won + total_lost), 1) if (total_won + total_lost) else 0.0,
+            "roi": round(100 * total_profit / total_staked, 1) if total_staked else 0.0,
+            "avg_daily_profit": round(total_profit / len(active), 4) if active else 0.0,
+            "best_day": best,
+            "worst_day": worst,
+            "profitable_days": len([d for d in active if d["profit"] > 0]),
+            "losing_days": len([d for d in active if d["profit"] < 0]),
+            "flat_days": len([d for d in active if d["profit"] == 0]),
+            "active_days": len(active),
+            "calendar_days": len(day_rows),
+            "win_streak": win_streak,
+            "lose_streak": lose_streak,
+        },
+        "range": {
+            "days": days,
+            "from": day_rows[0]["date"] if day_rows else None,
+            "to": day_rows[-1]["date"] if day_rows else None,
+        },
+        "strategy": strategy,
+        "strategies": strategies,
+        "timezone": "Europe/Athens",
+    })
 
 
 @app.route("/api/chart_data")
@@ -2761,15 +3724,36 @@ def pending():
     return jsonify(rows)
 
 
-@app.route("/api/recent")
+@app.route("/api/pending_by_strategy")
 @require_password
-def recent():
+def pending_by_strategy():
+    """Counts pending (open) bets grouped by strategy."""
+    rows = query("""
+        SELECT strategy_name, COUNT(*) AS n
+        FROM bets
+        WHERE result IS NULL
+        GROUP BY strategy_name
+        ORDER BY n DESC, strategy_name
+    """)
+    return jsonify([
+        {"strategy": r["strategy_name"], "count": r["n"]}
+        for r in rows
+    ])
+
+
+@app.route("/api/today_bets")
+@require_password
+def today_bets():
+    """The bets placed today (Athens day), settled or still open."""
+    start_local = datetime.now(ATHENS_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+    start_utc = start_local.astimezone(UTC_TZ).strftime("%Y-%m-%dT%H:%M:%S")
     rows = query("""
         SELECT * FROM bets
-        WHERE result IS NOT NULL
+        WHERE placed_at >= ?
         ORDER BY placed_at DESC
-        LIMIT 50
-    """)
+    """, (start_utc,))
+    for r in rows:
+        r["placed_at"] = _to_athens(r.get("placed_at"))
     return jsonify(rows)
 
 
@@ -3092,9 +4076,10 @@ def logs_page():
 @app.route("/api/league_skips")
 @require_password
 def api_league_skips():
-    """Parses skipped.log for 'league not allowed' skips and counts
-    them per league. Optional ?category=Name filters to only strategies
-    that use that category (via strategies.json included_categories).
+    """Parses skipped.log for league filter skips and counts them per
+    league. Optional ?category=Name filters to only strategies that use
+    that category — either as a filter (included_categories) or as an
+    exclusion (excluded_categories).
     """
     category = request.args.get("category", "").strip()
 
@@ -3102,29 +4087,42 @@ def api_league_skips():
     try:
         with open(STRATEGIES_FILE, encoding="utf-8") as f:
             for s in json.load(f).get("strategies", []):
-                strategy_categories[s.get("name")] = s.get("included_categories") or []
+                strategy_categories[s.get("name")] = (
+                    (s.get("included_categories") or []) + (s.get("excluded_categories") or [])
+                )
     except Exception:
         pass
 
     path = os.path.join(LOGS_DIR, "skipped.log")
     counts = {}
     if os.path.isfile(path):
-        pattern = re.compile(r"\[([^\]]+)\] Skipped .* league '([^']+)' is not in this strategy's allowed leagues")
+        pattern = re.compile(
+            r"\[([^\]]+)\] Skipped .* league '([^']+)' "
+            r"(is not in this strategy's allowed leagues|is excluded for this strategy)"
+        )
+        reasons = {
+            "is not in this strategy's allowed leagues": "Not in this strategy's allowed leagues",
+            "is excluded for this strategy": "In this strategy's excluded leagues",
+        }
         try:
             with open(path, encoding="utf-8", errors="replace") as f:
                 for line in f:
                     m = pattern.search(line)
                     if not m:
                         continue
-                    strategy_name, league = m.group(1), m.group(2)
+                    strategy_name, league, reason_key = m.group(1), m.group(2), m.group(3)
                     if category and category not in strategy_categories.get(strategy_name, []):
                         continue
-                    counts[league] = counts.get(league, 0) + 1
+                    key = (league, reason_key)
+                    counts[key] = counts.get(key, 0) + 1
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    rows = [{"league": k, "count": v, "reason": "Not in this strategy's allowed leagues"} for k, v in counts.items()]
-    rows.sort(key=lambda r: r["league"])
+    rows = [
+        {"league": league, "count": count, "reason": reasons.get(reason_key, reason_key)}
+        for (league, reason_key), count in counts.items()
+    ]
+    rows.sort(key=lambda r: (r["league"], r["reason"]))
     return jsonify(rows)
 
 
@@ -3187,7 +4185,7 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
     </div>
   </div>
 
-  <p class="small" style="margin-bottom:14px;">Leagues that showed up but were skipped because they're not in a strategy's allowed league list.</p>
+  <p class="small" style="margin-bottom:14px;">Leagues that showed up but were skipped by a strategy's league filter — either not in its allowed leagues, or in its excluded ones.</p>
 
   <select id="categoryFilter" onchange="load()">
     <option value="">All categories</option>
