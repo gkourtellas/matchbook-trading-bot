@@ -7,3 +7,4 @@ __pycache__/
 config/liquidity_log.csv
 config/skips.db
 config/backups/
+data/backups/
