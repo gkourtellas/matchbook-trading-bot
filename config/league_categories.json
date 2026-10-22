@@ -1,15 +1,44 @@
 {
+  "Football_GG_Test_Fix_Excluded": [
+    "Germany 2.Bundesliga",
+    "Israel Liga Leumit",
+    "Japan J. League 3",
+    "Netherlands Eerste Divisie",
+    "Romania Liga II",
+    "UEFA Europa League",
+    "US Major League Soccer"
+  ],
   "Football_GG_Test_Fix_Filtered": [
     "England EFL Trophy",
     "England National League",
     "Mexico Liga Expansion MX",
     "US USL Championship"
   ],
+  "Football_Over2.5_Test_Fix_Excluded": [
+    "European Championship U21 Qualification",
+    "Germany 2.Bundesliga",
+    "US Major League Soccer"
+  ],
   "Football_Over2.5_Test_Fix_Filtered": [
     "US USL Championship"
   ],
+  "Football_Under2.5_Test_Fix_Excluded": [
+    "Argentina Liga Profesional de F\u00fatbol"
+  ],
+  "Football_Under3.5_Fix_Excluded": [
+    "Argentina Liga Profesional de F\u00fatbol Reserves",
+    "Guatemala Liga Nacional",
+    "International Friendlies",
+    "Italy Serie C Girone A",
+    "Italy Serie C Girone C",
+    "Paraguay Primera Division",
+    "Uruguay Cup"
+  ],
   "Football_Under3.5_Fix_Filtered": [
-    "Brazil Serie B"
+    "Brazil Serie B",
+    "Argentina Liga Profesional de F\u00fatbol",
+    "Colombia Categor\u00eda Primera A",
+    "Uruguay Primera Divisi\u00f3n"
   ],
   "Horses": [
     "Ireland",
