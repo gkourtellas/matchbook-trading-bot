@@ -4,9 +4,12 @@ Nothing in this file or the rest of the bot needs to change when you add
 a new strategy. Just edit config/strategies.json.
 
 Also loads config/league_categories.json, which lets strategies say
-"only bet these league categories" instead of listing leagues one by one.
-Categories are live-linked: edit the category on the dashboard and every
-strategy using it picks up the change on next restart.
+"only bet these league categories" instead of listing leagues one by one,
+or the opposite — "never bet these league categories" (excluded_categories).
+The same category can be used as an include filter on one strategy and as
+an exclusion on another. Categories are live-linked: edit the category on
+the dashboard and every strategy using it picks up the change on next
+restart.
 """
 
 import asyncio
@@ -54,6 +57,28 @@ def resolve_included_leagues(strategy):
         allowed.update(categories.get(cat_name, []))
 
     return allowed
+
+
+def resolve_excluded_leagues(strategy):
+    """Turns a strategy's excluded_categories (plus excluded_leagues as a
+    fallback for one-off leagues not in any category) into one flat set
+    of league names this strategy must never bet on.
+
+    Returns an empty set when nothing is excluded — the check in
+    strategy_runner is skipped entirely then.
+    """
+    excluded_categories = strategy.get("excluded_categories") or []
+    excluded_leagues = strategy.get("excluded_leagues") or []
+
+    if not excluded_categories and not excluded_leagues:
+        return set()
+
+    categories = load_categories()
+    blocked = set(excluded_leagues)
+    for cat_name in excluded_categories:
+        blocked.update(categories.get(cat_name, []))
+
+    return blocked
 
 
 async def disable_strategy(name, reason):
@@ -154,6 +179,9 @@ def load_strategies(client):
         # editing a category on the dashboard applies on next restart
         # without touching strategies.json.
         s["_allowed_leagues"] = resolve_included_leagues(s)
+        # Opposite filter: leagues/categories this strategy must never
+        # bet on. Empty set = no exclusions.
+        s["_blocked_leagues"] = resolve_excluded_leagues(s)
 
         if s.get("strategy_type") == "compound":
             missing = [k for k in ("compound_start", "compound_target", "min_back_odds", "max_back_odds")

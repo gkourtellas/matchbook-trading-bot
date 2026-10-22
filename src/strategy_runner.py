@@ -9,6 +9,11 @@ in strategy_loader.py as strategy["_allowed_leagues"]. If that's None,
 the strategy bets any league (no filter, old behavior). If it's a set,
 only events in one of those leagues are considered.
 
+Exclusion filter (the opposite): strategy["_blocked_leagues"] is a set of
+league names resolved from excluded_categories + excluded_leagues. Any
+event whose league is in that set is skipped, no matter what the
+allow-list says. Empty set = nothing excluded.
+
 Odds stability check (2026-07-26): before placing ANY bet, we re-check
 the same runner's price 2 more times, 5 seconds apart (3 checks total).
 If the odds move more than 5% across those checks, we skip the bet and
@@ -156,6 +161,7 @@ class StrategyRunner:
             self.cash_out_at_percent = requested_cash_out
 
         self.allowed_leagues = strategy.get("_allowed_leagues")
+        self.blocked_leagues = strategy.get("_blocked_leagues") or set()
         self.live_mode = strategy.get("live_mode", "pre")
         self.sport_configs = strategy.get("sport_configs")
         self.overlap_group = strategy.get("overlap_group") or None
@@ -403,6 +409,12 @@ class StrategyRunner:
                 league = self._extract_league(event)
                 if not league or league not in self.allowed_leagues:
                     self.log(f"Skipped {event_name_early} — league '{league}' is not in this strategy's allowed leagues")
+                    continue
+
+            if self.blocked_leagues:
+                league = self._extract_league(event)
+                if league and league in self.blocked_leagues:
+                    self.log(f"Skipped {event_name_early} — league '{league}' is excluded for this strategy")
                     continue
 
             start_str = event.get("start")
