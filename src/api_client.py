@@ -26,8 +26,12 @@ class MatchbookClient:
             "accept": "application/json"
         }
 
-    def login(self):
-        """Authenticates with Matchbook and stores the session token with rate-limit recovery."""
+    def login(self, notify=True):
+        """Authenticates with Matchbook and stores the session token with rate-limit recovery.
+
+        notify=False skips the Telegram messages — used by the dashboard,
+        which logs in just to read the balance and shouldn't spam alerts.
+        """
         payload = {
             "username": self.username,
             "password": self.password
@@ -45,7 +49,8 @@ class MatchbookClient:
                     self.session_token = data.get("session-token")
                     self.headers["session-token"] = self.session_token
                     self.last_login_time = datetime.utcnow()
-                    self.send_telegram("✅ Matchbook login successful. Session token acquired.", login=True)
+                    if notify:
+                        self.send_telegram("✅ Matchbook login successful. Session token acquired.", login=True)
                     return True
                 
                 elif response.status_code == 429:
@@ -56,24 +61,65 @@ class MatchbookClient:
                     continue
                     
                 else:
-                    self.send_telegram(f"❌ Login failed. Status: {response.status_code}", login=True)
+                    if notify:
+                        self.send_telegram(f"❌ Login failed. Status: {response.status_code}", login=True)
                     return False
                     
             except Exception as e:
-                self.send_telegram(f"❌ Login exception encountered: {str(e)}", login=True)
+                if notify:
+                    self.send_telegram(f"❌ Login exception encountered: {str(e)}", login=True)
                 return False
 
-    def ensure_valid_session(self):
+    def ensure_valid_session(self, notify=True):
         """Proactively checks if the current token is older than 4 hours and refreshes if needed."""
         if not self.last_login_time or not self.session_token:
             print("No active session token found. Initializing login...")
-            return self.login()
+            return self.login(notify=notify)
         
         # If token is older than 4 hours, force a proactive background refresh
         if datetime.utcnow() - self.last_login_time > timedelta(hours=4):
             print("🔄 Session token is older than 4 hours. Executing proactive background refresh...")
-            return self.login()
+            return self.login(notify=notify)
         return True
+
+    def get_account_balance(self):
+        """GET /account/balance — wallet balance, free funds and exposure.
+
+        Logs in silently (no Telegram) so the dashboard can poll this
+        without sending alerts. Returns a dict with balance / available /
+        exposure / currency, or None when the read fails.
+        """
+        self.ensure_valid_session(notify=False)
+        url = f"{self.base_url}/account/balance"
+        try:
+            response = requests.get(url, headers=self.headers)
+            if response.status_code == 401:
+                if self.login(notify=False):
+                    response = requests.get(url, headers=self.headers)
+            if response.status_code != 200:
+                return None
+            data = response.json() or {}
+
+            # /account/balance has no currency — it comes from /account.
+            currency = None
+            try:
+                acc = requests.get(f"{self.base_url}/account", headers=self.headers)
+                if acc.status_code == 200:
+                    currency = (acc.json() or {}).get("currency")
+            except Exception:
+                pass
+
+            return {
+                "balance": float(data.get("balance") or 0),
+                "available": float(data.get("free-funds") or 0),
+                "exposure": float(data.get("exposure") or 0),
+                "commission_reserve": float(data.get("commission-reserve") or 0),
+                "bonus_free_funds": float(data.get("bonus-free-funds") or 0),
+                "currency": currency,
+            }
+        except Exception as e:
+            print(f"Error fetching account balance: {str(e)}")
+            return None
 
     def get_navigation(self):
         """Retrieves the navigation hierarchy to locate sports and markets."""
@@ -113,33 +159,57 @@ class MatchbookClient:
             print(f"Error fetching runner prices: {str(e)}")
             return None
 
-    def get_live_events(self, sport_ids, per_page=20):
-        """Fetches active events, runners, and exchange market odds for specified sport IDs."""
+    def get_live_events(self, sport_ids, per_page=20, max_events=300):
+        """Fetches events page by page, up to max_events, so live games
+        cannot fill the list and hide upcoming games.
+        per_page is kept only so old callers still work.
+        """
         self.ensure_valid_session()
         url = f"{self.base_url}/events"
-        params = {
-            "sport-ids": sport_ids,
-            "states": "open",
-            "include-prices": "true",
-            "price-depth": 3,
-            "price-mode": "expanded",
-            "odds-type": "DECIMAL",
-            "exchange-type": "back-lay",
-            "per-page": per_page
-        }
-        try:
-            response = requests.get(url, params=params, headers=self.headers)
-            if response.status_code == 401:
-                print("⚠️ Received 401 Unauthorized on get_live_events. Attempting reactive session refresh...")
-                if self.login():
-                    response = requests.get(url, params=params, headers=self.headers)
-                    
-            if response.status_code == 200:
-                return response.json()
+        page_size = 100
+        all_events = []
+        last_data = None
+        offset = 0
+
+        while len(all_events) < max_events:
+            params = {
+                "sport-ids": sport_ids,
+                "states": "open",
+                "include-prices": "true",
+                "price-depth": 3,
+                "price-mode": "expanded",
+                "odds-type": "DECIMAL",
+                "exchange-type": "back-lay",
+                "per-page": page_size,
+                "offset": offset
+            }
+            try:
+                response = requests.get(url, params=params, headers=self.headers)
+                if response.status_code == 401:
+                    print("⚠️ Received 401 Unauthorized on get_live_events. Attempting reactive session refresh...")
+                    if self.login():
+                        response = requests.get(url, params=params, headers=self.headers)
+
+                if response.status_code != 200:
+                    break
+
+                data = response.json()
+                last_data = data
+                events = data.get("events", [])
+                all_events.extend(events)
+
+                total = data.get("total", 0)
+                offset += page_size
+                if not events or offset >= total:
+                    break
+            except Exception as e:
+                print(f"Error fetching live events: {str(e)}")
+                break
+
+        if last_data is None:
             return None
-        except Exception as e:
-            print(f"Error fetching live events: {str(e)}")
-            return None
+        last_data["events"] = all_events[:max_events]
+        return last_data
 
     def submit_order(self, runner_id, side, odds, stake):
         """Submits an exchange order for a specific selection runner ID."""
