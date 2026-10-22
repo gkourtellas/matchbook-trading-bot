@@ -21,7 +21,7 @@ import overlap_tracker
 # Bump this string every time main.py or strategy_runner.py changes.
 # Printed to logs and sent to Telegram on startup, so you can confirm
 # what's actually running without checking github or SSHing in.
-BOT_VERSION = "v5"
+BOT_VERSION = "v6"
 
 
 async def main():
