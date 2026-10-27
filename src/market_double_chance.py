@@ -44,34 +44,46 @@ def find_opportunity_in_event(event, strategy):
     if len(mo_runners) < 2 or len(dc_runners) < 3:
         return None
 
-    # Identify the Draw runner in Match Odds by name (not by index),
-    # so we know which two runners are the actual teams.
+    # Identify the Draw runner in Match Odds by name, so we know which two runners are the teams.
     team_runners = [r for r in mo_runners if (r.get("name") or "").strip().lower() != "draw"]
     if len(team_runners) < 2:
         return None
 
-    # Find whichever team runner's back odds fall in the strategy's range.
-    trigger_runner = None
+    # Determine which team is the Favorite (lower back odds in Match Odds).
+    team_with_odds = []
     for r in team_runners:
         odds = _best_back_odds(r)
-        if odds is not None and strategy["min_back_odds"] <= odds <= strategy["max_back_odds"]:
-            trigger_runner = r
-            break
+        if odds is not None and odds > 1.0:
+            team_with_odds.append((r, odds))
 
-    if trigger_runner is None:
+    if len(team_with_odds) < 2:
         return None
 
-    trigger_name = (trigger_runner.get("name") or "").strip()
-    if not trigger_name:
+    team_with_odds.sort(key=lambda t: t[1])
+    fav_runner, fav_mo_odds = team_with_odds[0]
+    dog_runner, dog_mo_odds = team_with_odds[1]
+
+    target_market = strategy.get("market_name", "Match Odds")
+    min_odds = strategy.get("min_back_odds")
+    max_odds = strategy.get("max_back_odds")
+
+    # If target market is Match Odds, verify favorite's MATCH ODDS fall in range
+    if target_market == "Match Odds":
+        if min_odds is not None and fav_mo_odds < min_odds:
+            return None
+        if max_odds is not None and fav_mo_odds > max_odds:
+            return None
+
+    fav_name = (fav_runner.get("name") or "").strip()
+    if not fav_name:
         return None
 
-    # Find the Double Chance runner that covers "<trigger team> or Draw".
-    # Match by NAME, not by position: it must contain the trigger team's
-    # name AND the word "Draw" (this excludes "TeamA or TeamB" runners).
+    # Find the Double Chance runner that covers "<favorite team> or Draw" (or "Draw or <favorite team>").
+    # Matches by team name and requires "draw" to exclude "TeamA or TeamB" selections.
     target_runner = None
     for dc in dc_runners:
         dc_name = (dc.get("name") or "")
-        if trigger_name in dc_name and "draw" in dc_name.lower():
+        if fav_name in dc_name and "draw" in dc_name.lower():
             target_runner = dc
             break
 
@@ -86,8 +98,15 @@ def find_opportunity_in_event(event, strategy):
     odds = best.get("odds")
     size_available = best.get("available-amount", best.get("available_amount"))
 
-    if odds is None:
+    if odds is None or odds <= 1.0:
         return None
+
+    # If target market is Double Chance, verify DOUBLE CHANCE odds fall in range
+    if target_market == "Double Chance":
+        if min_odds is not None and odds < min_odds:
+            return None
+        if max_odds is not None and odds > max_odds:
+            return None
 
     min_liquidity = strategy.get("minimum_liquidity")
     if min_liquidity and size_available is not None and size_available < min_liquidity:

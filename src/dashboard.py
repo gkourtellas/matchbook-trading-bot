@@ -41,7 +41,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("DASHBOARD_SECRET_KEY", "change-me-please")
 app.permanent_session_lifetime = timedelta(days=30)
 
-BUILD_VERSION = "v24"
+BUILD_VERSION = "v26"
 
 # Matchbook account balance is cached server-side: reading it needs a
 # session, and the exchange rate-limits aggressively, so the dashboard
@@ -121,40 +121,112 @@ SPORTS = [
 ]
 _SPORT_ID_BY_NAME = {s["name"]: s["id"] for s in SPORTS}
 
-_market_cache = {}  # sport_name -> (timestamp, [market names])
-_MARKET_CACHE_TTL = 3600  # 1 hour
-_mb_client = None
-
-
-def _get_mb_client():
-    global _mb_client
-    if _mb_client is None:
-        _mb_client = MatchbookClient()
-        _mb_client.login()
-    return _mb_client
+COMMON_MARKETS_BY_SPORT = {
+    "Soccer": [
+        "Match Odds",
+        "Double Chance",
+        "Total",
+        "Both Teams To Score",
+        "Half-Time Result",
+        "Draw No Bet",
+        "Both Teams To Score / Match Result",
+        "Correct Score",
+        "Handicap",
+        "First Half Goals",
+    ],
+    "Tennis": [
+        "Match Odds",
+        "Set Betting",
+        "Handicap",
+        "Total Games",
+    ],
+    "Basketball": [
+        "Moneyline",
+        "Match Odds",
+        "Point Spread",
+        "Total Points",
+        "Handicap",
+    ],
+    "American Football": [
+        "Moneyline",
+        "Point Spread",
+        "Total",
+    ],
+    "Baseball": [
+        "Moneyline",
+        "Run Line",
+        "Total",
+    ],
+    "Ice Hockey": [
+        "Moneyline",
+        "Puck Line",
+        "Total",
+    ],
+    "Horse Racing": [
+        "WIN",
+        "PLACE",
+    ],
+    "Greyhound Racing": [
+        "WIN",
+        "PLACE",
+    ],
+    "Cricket": [
+        "Match Odds",
+        "Toss Winner",
+    ],
+    "Rugby Union": [
+        "Match Odds",
+        "Handicap",
+        "Total",
+    ],
+    "Rugby League": [
+        "Match Odds",
+        "Handicap",
+        "Total",
+    ],
+    "Darts": [
+        "Match Odds",
+        "Most 180s",
+    ],
+    "Snooker": [
+        "Match Odds",
+    ],
+    "Boxing": [
+        "Match Odds",
+    ],
+    "MMA": [
+        "Match Odds",
+    ],
+    "Golf": [
+        "Tournament Winner",
+    ],
+    "Auto Racing": [
+        "Race Winner",
+    ],
+    "Formula 1": [
+        "Race Winner",
+    ],
+}
 
 
 def get_markets_for_sport(sport_name):
-    cached = _market_cache.get(sport_name)
-    if cached and time.time() - cached[0] < _MARKET_CACHE_TTL:
-        return cached[1]
-
-    sport_id = _SPORT_ID_BY_NAME.get(sport_name)
-    if not sport_id:
-        return []
-
-    client = _get_mb_client()
-    data = client.get_live_events(sport_id, per_page=50)
-    names = set()
-    if data:
-        for event in data.get("events", []):
-            for market in event.get("markets", []):
-                if market.get("name"):
-                    names.add(market["name"])
-
-    result = sorted(names)
-    _market_cache[sport_name] = (time.time(), result)
-    return result
+    markets = set(COMMON_MARKETS_BY_SPORT.get(sport_name, ["Match Odds", "Moneyline"]))
+    try:
+        if os.path.isfile(STRATEGIES_FILE):
+            with open(STRATEGIES_FILE, encoding="utf-8") as f:
+                data = json.load(f)
+            for s in data.get("strategies", []):
+                s_sport = s.get("sport_name") or (s.get("sport_names") or [None])[0]
+                if not sport_name or s_sport == sport_name:
+                    m = s.get("market_name")
+                    if m:
+                        markets.add(m)
+                    for mn in s.get("market_names") or []:
+                        if mn:
+                            markets.add(mn)
+    except Exception:
+        pass
+    return sorted(markets)
 
 
 def get_enabled_strategy_names():
@@ -176,7 +248,19 @@ def load_categories():
         return json.load(f)
 
 
+def backup_categories():
+    if os.path.isfile(CATEGORIES_FILE):
+        backup_dir = os.path.join(os.path.dirname(CATEGORIES_FILE), "backups")
+        os.makedirs(backup_dir, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = os.path.join(backup_dir, f"league_categories_{stamp}.json")
+        shutil.copy(CATEGORIES_FILE, backup_path)
+        return backup_path
+    return None
+
+
 def save_categories(data):
+    backup_categories()
     with open(CATEGORIES_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
@@ -236,9 +320,9 @@ def validate_strategies(strategies):
         bet_mode = s.get("bet_mode", "normal")
 
         if bet_mode == "double_chance":
-            if market != "Match Odds":
+            if market not in ("Match Odds", "Double Chance"):
                 return (f"Strategy '{s['name']}': bet_mode 'double_chance' requires "
-                        f"market_name 'Match Odds' (used as the trigger).")
+                        f"market_name 'Match Odds' or 'Double Chance'.")
             if bet_side == "lay":
                 return (f"Strategy '{s['name']}': bet_mode 'double_chance' only supports "
                         f"backing, not laying.")
@@ -533,7 +617,9 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
     <button class="hamburger" onclick="toggleNav()">☰</button>
     <div class="nav-links" id="navLinks">
       <a class="nav-btn secondary" href="strategies">⚙ Manage Strategies</a>
+      <a class="nav-btn secondary" href="filtered_stakes">⚡ Filtered Stakes</a>
       <a class="nav-btn secondary" href="categories">Leagues</a>
+      <a class="nav-btn secondary" href="league_review">🎯 League Review</a>
       <a class="nav-btn secondary" href="analytics">Analytics</a>
       <a class="nav-btn secondary" href="logs">Logs</a>
       <a class="nav-btn secondary" href="league_skips">League Skips</a>
@@ -943,6 +1029,7 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
       <a class="nav-btn secondary" href="">Dashboard</a>
       <a class="nav-btn secondary" href="strategies">⚙ Manage Strategies</a>
       <a class="nav-btn secondary" href="categories">Leagues</a>
+      <a class="nav-btn secondary" href="league_review">🎯 League Review</a>
       <a class="nav-btn secondary" href="logs">Logs</a>
       <a class="nav-btn secondary" href="league_skips">League Skips</a>
       <button class="nav-btn" onclick="location.reload()">⟳ Refresh</button>
@@ -1708,6 +1795,7 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
     <div class="nav-links" id="navLinks">
       <a class="nav-btn secondary" href="">Dashboard</a>
       <a class="nav-btn secondary" href="strategies">⚙ Manage Strategies</a>
+      <a class="nav-btn secondary" href="league_review">🎯 League Review</a>
       <a class="nav-btn secondary" href="analytics">Analytics</a>
       <a class="nav-btn secondary" href="logs">Logs</a>
       <a class="nav-btn secondary" href="league_skips">League Skips</a>
@@ -1983,7 +2071,9 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
     <button class="hamburger" onclick="toggleNav()">☰</button>
     <div class="nav-links" id="navLinks">
       <a class="nav-btn secondary" href="">Dashboard</a>
+      <a class="nav-btn secondary" href="filtered_stakes">⚡ Filtered Stakes</a>
       <a class="nav-btn secondary" href="categories">Leagues</a>
+      <a class="nav-btn secondary" href="league_review">🎯 League Review</a>
       <a class="nav-btn secondary" href="analytics">Analytics</a>
       <a class="nav-btn secondary" href="logs">Logs</a>
       <a class="nav-btn secondary" href="league_skips">League Skips</a>
@@ -2000,8 +2090,11 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
     Changes are saved immediately, but the bot doesn't pick them up until you click Restart Bot above.
   </p>
   <div id="strategyList"></div>
-  <button class="add-btn" onclick="openModal(null)">+ Add strategy (single sport)</button>
-  <button class="add-btn" onclick="openMultiModal(null)" style="margin-top:4px;">+ Add strategy (multi-sport)</button>
+  <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; align-items:center;">
+    <button class="add-btn" onclick="openModal(null)">+ Add strategy (single sport)</button>
+    <button class="add-btn" onclick="openMultiModal(null)">+ Add strategy (multi-sport)</button>
+    <a class="btn accent" href="filtered_stakes" style="display:inline-flex; align-items:center; text-decoration:none; padding:10px 16px; border-radius:8px; font-size:12px;">⚡ Filtered Stakes Manager</a>
+  </div>
 
   <div class="modal-bg" id="modalBg">
     <div class="modal">
@@ -2079,7 +2172,7 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
         <div class="field"><label>Min seconds to start</label><input id="f_min_seconds" type="number"></div>
         <div class="field"><label>Minimum liquidity</label><input id="f_min_liquidity" type="number" step="0.01"></div>
         <div class="field">
-          <label>Cash out at % of stake <span style="color:var(--muted); text-transform:none;">(single-step only)</span></label>
+          <label>Cash out at % of stake <span style="color:var(--muted); text-transform:none;">(single-step or compound)</span></label>
           <input id="f_cash_out_percent" type="number" step="0.1" placeholder="e.g. 5 — leave blank to disable">
         </div>
         <div class="field">
@@ -2473,22 +2566,31 @@ async function populateSportSelect(selectEl, selectedValue) {
 }
 
 async function populateMarketSelect(selectEl, sportName, selectedValue) {
-  selectEl.innerHTML = '<option value="">loading...</option>';
+  if (selectedValue) {
+    selectEl.innerHTML = `<option value="${selectedValue}" selected>${selectedValue}</option>`;
+  } else {
+    selectEl.innerHTML = '<option value="">loading...</option>';
+  }
   if (!sportName) { selectEl.innerHTML = '<option value="">— pick sport first —</option>'; return; }
   try {
     const res = await fetch('api/markets_for_sport?sport=' + encodeURIComponent(sportName));
     const data = await res.json();
     const markets = data.markets || [];
-    if (markets.length === 0) {
-      selectEl.innerHTML = '<option value="">no live markets found — try later</option>';
+    const list = selectedValue && !markets.includes(selectedValue) ? [selectedValue, ...markets] : markets;
+    if (list.length === 0) {
+      selectEl.innerHTML = selectedValue
+        ? `<option value="${selectedValue}" selected>${selectedValue}</option>`
+        : '<option value="">no markets found</option>';
       return;
     }
-    selectEl.innerHTML = markets.map(m => `<option value="${m}" ${m === selectedValue ? 'selected' : ''}>${m}</option>`).join('');
-    if (selectedValue && !markets.includes(selectedValue)) {
-      selectEl.insertAdjacentHTML('afterbegin', `<option value="${selectedValue}" selected>${selectedValue} (saved)</option>`);
-    }
+    const currentVal = selectedValue || selectEl.value;
+    selectEl.innerHTML = list.map(m => `<option value="${m}" ${m === currentVal ? 'selected' : ''}>${m}</option>`).join('');
   } catch (e) {
-    selectEl.innerHTML = '<option value="">error loading markets</option>';
+    if (selectedValue) {
+      selectEl.innerHTML = `<option value="${selectedValue}" selected>${selectedValue}</option>`;
+    } else {
+      selectEl.innerHTML = '<option value="">error loading markets</option>';
+    }
   }
 }
 
@@ -2511,6 +2613,9 @@ function openModal(index) {
   document.getElementById('f_name').value = s.name || '';
   const _fSportVal = s.sport_name || (s.sport_names || [])[0] || '';
   const _fMarketVal = s.market_name || (s.market_names || [])[0] || '';
+  if (_fMarketVal) {
+    document.getElementById('f_market').innerHTML = `<option value="${_fMarketVal}" selected>${_fMarketVal}</option>`;
+  }
   populateSportSelect(document.getElementById('f_sport'), _fSportVal).then(() => {
     onFSportChange(_fMarketVal);
   });
@@ -2524,7 +2629,7 @@ function openModal(index) {
   document.getElementById('f_runner_side').value = s.runner_side ?? '';
   const stratType = s.strategy_type || 'normal';
   document.getElementById('f_strategy_type').value = stratType;
-  document.getElementById('f_staking_plan').value = (s.staking_plan || [0.1,0.3,0.9,2.7,8.1,24.3]).join(', ');
+  document.getElementById('f_staking_plan').value = stratType === 'compound' ? '' : (s.staking_plan || [0.1,0.3,0.9,2.7,8.1,24.3]).join(', ');
   document.getElementById('f_compound_start').value = s.compound_start ?? '';
   document.getElementById('f_compound_target').value = s.compound_target ?? '';
   onStrategyTypeChange();
@@ -2894,7 +2999,7 @@ function saveStrategy() {
   const overlapGroupValue = document.getElementById('f_overlap_group').value.trim();
   const overlapGroup = overlapGroupValue === '' ? null : overlapGroupValue;
 
-  if (cashOutPercent && plan.length > 1) {
+  if (stratType !== 'compound' && cashOutPercent && plan.length > 1) {
     showError('Cash out is only supported for single-step strategies (staking plan with one number). Remove the extra steps or clear the cash out field.');
     return;
   }
@@ -2918,6 +3023,10 @@ function saveStrategy() {
   }
 
   const market = document.getElementById('f_market').value.trim();
+  if (!market) {
+    showError('Please select a market.');
+    return;
+  }
   const betSide = document.getElementById('f_bet_side').value;
   const betMode = document.getElementById('f_bet_mode').value;
   const totalRange = document.getElementById('f_total_range').value.trim();
@@ -2930,8 +3039,8 @@ function saveStrategy() {
   }
 
   if (betMode === 'double_chance') {
-    if (market !== 'Match Odds') {
-      showError('Bet mode "Double Chance" requires Market to be "Match Odds" (used as the trigger).');
+    if (market !== 'Match Odds' && market !== 'Double Chance') {
+      showError('Bet mode "Double Chance" requires Market to be "Match Odds" or "Double Chance".');
       return;
     }
     if (betSide === 'lay') {
@@ -3992,6 +4101,7 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
       <a class="nav-btn secondary" href="">Dashboard</a>
       <a class="nav-btn secondary" href="strategies">⚙ Manage Strategies</a>
       <a class="nav-btn secondary" href="categories">Leagues</a>
+      <a class="nav-btn secondary" href="league_review">🎯 League Review</a>
       <a class="nav-btn secondary" href="analytics">Analytics</a>
       <a class="nav-btn secondary" href="league_skips">League Skips</a>
       <button class="nav-btn" onclick="location.reload()">⟳ Refresh</button>
@@ -4179,6 +4289,7 @@ document.write('<base href="' + (window.location.pathname.startsWith('/matchbook
       <a class="nav-btn secondary" href="">Dashboard</a>
       <a class="nav-btn secondary" href="strategies">⚙ Manage Strategies</a>
       <a class="nav-btn secondary" href="categories">Leagues</a>
+      <a class="nav-btn secondary" href="league_review">🎯 League Review</a>
       <a class="nav-btn secondary" href="analytics">Analytics</a>
       <a class="nav-btn secondary" href="logs">Logs</a>
       <button class="nav-btn" onclick="location.reload()">⟳ Refresh</button>
@@ -4232,6 +4343,1202 @@ load();
 @require_password
 def league_skips_page():
     return render_template_string(LEAGUE_SKIPS_PAGE, build=BUILD_VERSION)
+
+
+LEAGUE_REVIEW_PAGE = """
+<!DOCTYPE html>
+<html>
+<head>
+<script>
+document.write('<base href="' + (window.location.pathname.startsWith('/matchbook') ? '/matchbook/' : '/') + '">');
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>League Review & Optimizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0e14">
+<style>
+  :root {
+    --bg: #0a0e14; --card: #11161f; --card2: #141a25;
+    --border: #1c2330; --text: #e4e7ec; --muted: #7a8699; --accent: #5b8def; --loss: #ff6b5e; --win: #2dd4a8; --pending: #f5b942;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 28px 32px 60px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; position: relative; flex-wrap: wrap; }
+  .hamburger { display: none; background: none; border: 1px solid var(--border); color: var(--text); font-size: 18px; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
+  @media (max-width: 760px) {
+    .hamburger { display: block; }
+    .nav-links { display: none; position: absolute; top: 48px; right: 0; flex-direction: column; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px; z-index: 100; min-width: 200px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+    .nav-links.open { display: flex; }
+    .nav-links .nav-btn { width: 100%; text-align: left; }
+  }
+  .topbar h0 { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+  .nav-btn { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--bg); background: var(--accent); border: none; border-radius: 8px; padding: 9px 16px; text-decoration: none; cursor: pointer; }
+  .nav-btn.secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; }
+  .card h2 { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; }
+  .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; align-items: flex-end; }
+  .field-group { display: flex; flex-direction: column; gap: 6px; }
+  .field-group label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  select, input[type=number], input[type=text] { background: var(--card2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 8px 10px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; width: 100%; }
+  select:focus, input:focus { outline: none; border-color: var(--accent); }
+  .btn { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 600; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--card2); color: var(--text); cursor: pointer; transition: all 0.15s ease; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.accent { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .btn.accent:hover { opacity: 0.9; }
+  .btn.danger { border-color: var(--loss); color: var(--loss); }
+  .btn.danger:hover { background: rgba(255,107,94,0.15); }
+  .btn.small { padding: 5px 10px; font-size: 11.5px; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; border-color: var(--border); color: var(--muted); background: var(--card2); }
+
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  .stat-card .val { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; margin-top: 4px; }
+  .stat-card .lbl { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .actions-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; background: var(--card2); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); }
+  .actions-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .actions-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+  table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  th { text-align: left; padding: 10px 12px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); background: var(--card); position: sticky; top: 0; }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .badge { display: inline-block; padding: 3px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  .badge.win { background: rgba(45,212,168,0.14); color: var(--win); border: 1px solid rgba(45,212,168,0.3); }
+  .badge.loss { background: rgba(255,107,94,0.14); color: var(--loss); border: 1px solid rgba(255,107,94,0.3); }
+  .badge.pending { background: rgba(245,185,66,0.14); color: var(--pending); border: 1px solid rgba(245,185,66,0.3); }
+  .badge.muted { background: var(--card2); color: var(--muted); border: 1px solid var(--border); }
+
+  .banner { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; line-height: 1.5; }
+  .banner.success { background: rgba(45,212,168,0.12); color: var(--win); border: 1px solid var(--win); }
+  .banner.error { background: rgba(255,107,94,0.12); color: var(--loss); border: 1px solid var(--loss); }
+  .banner.info { background: rgba(91,141,239,0.12); color: var(--accent); border: 1px solid var(--accent); }
+  
+  .table-container { overflow-x: auto; max-height: 65vh; border: 1px solid var(--border); border-radius: 8px; background: var(--card); }
+  .checkbox-cell { width: 34px; text-align: center; }
+  input[type=checkbox] { cursor: pointer; accent-color: var(--accent); width: 15px; height: 15px; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <h0>matchbook // league review & optimizer <span style="opacity:0.35;">{{ build }}</span></h0>
+    <button class="hamburger" onclick="toggleNav()">☰</button>
+    <div class="nav-links" id="navLinks">
+      <a class="nav-btn secondary" href="">Dashboard</a>
+      <a class="nav-btn secondary" href="strategies">⚙ Manage Strategies</a>
+      <a class="nav-btn secondary" href="filtered_stakes">⚡ Filtered Stakes</a>
+      <a class="nav-btn secondary" href="categories">Leagues</a>
+      <a class="nav-btn secondary" href="analytics">Analytics</a>
+      <a class="nav-btn secondary" href="logs">Logs</a>
+      <a class="nav-btn secondary" href="league_skips">League Skips</a>
+      <button class="nav-btn" onclick="location.reload()">⟳ Refresh</button>
+    </div>
+  </div>
+
+  <div class="banner" id="statusBanner"></div>
+
+  <div class="card">
+    <h2>Review Settings</h2>
+    <div class="controls-grid">
+      <div class="field-group">
+        <label>Strategy to Analyze</label>
+        <select id="strategySelect" onchange="onStrategyChange()">
+          <option value="">All Strategies</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label>Add Winners To (Filtered)</label>
+        <select id="targetIncludeCat"></select>
+      </div>
+
+      <div class="field-group">
+        <label>Add Losers To (Excluded)</label>
+        <select id="targetExcludeCat"></select>
+      </div>
+
+      <div class="field-group" style="max-width:130px;">
+        <label>Min Bets Sample</label>
+        <input type="number" id="minBets" value="20" min="5" step="5">
+      </div>
+
+      <div class="field-group" style="max-width:140px;">
+        <label>Time Window</label>
+        <select id="daysLookback">
+          <option value="0">All Time</option>
+          <option value="30">Last 30 Days</option>
+          <option value="60" selected>Last 60 Days</option>
+          <option value="90">Last 90 Days</option>
+        </select>
+      </div>
+
+      <div class="field-group" style="max-width:130px;">
+        <label>Edge Cutoff (%)</label>
+        <input type="number" id="edgeThreshold" value="5.0" min="1.0" step="0.5">
+      </div>
+
+      <div>
+        <button class="btn accent" style="width:100%; height:37px;" onclick="runReview()">🔍 Run Review</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-row" id="statsRow" style="display:none;">
+    <div class="stat-card">
+      <div class="lbl">Leagues Evaluated</div>
+      <div class="val" id="cntTotal">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="lbl" style="color:var(--win);">Recommended Adds (Winners)</div>
+      <div class="val" id="cntAdd" style="color:var(--win);">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="lbl" style="color:var(--loss);">Recommended Drops (Losers)</div>
+      <div class="val" id="cntExclude" style="color:var(--loss);">-</div>
+    </div>
+    <div class="stat-card">
+      <div class="lbl">Neutral / Already Set</div>
+      <div class="val" id="cntNeutral">-</div>
+    </div>
+  </div>
+
+  <div class="actions-bar" id="actionsBar" style="display:none;">
+    <div class="actions-left">
+      <button class="btn small" onclick="selectAllActionable(true)">Select Recommendations</button>
+      <button class="btn small" onclick="selectAllActionable(false)">Deselect All</button>
+      <span class="small" id="selectedCount" style="color:var(--muted); font-size:12px;">0 selected</span>
+    </div>
+    <div class="actions-right">
+      <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+        <input type="checkbox" id="restartBotCheckbox" checked> Restart bot after applying
+      </label>
+      <button class="btn accent" id="applyBtn" onclick="applySelected()" disabled>⚡ Apply Selected Changes</button>
+    </div>
+  </div>
+
+  <div class="table-container" id="tableContainer">
+    <div id="tableContent" style="padding:24px; text-align:center; color:var(--muted); font-size:13px;">
+      Select your settings and click <b>Run Review</b> to inspect league performance.
+    </div>
+  </div>
+
+<script>
+function toggleNav() { document.getElementById('navLinks').classList.toggle('open'); }
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/service-worker.js').catch(() => {}); }
+
+let metadata = { categories: [], strategies: [] };
+let currentResults = [];
+
+function showBanner(msg, type='info') {
+  const b = document.getElementById('statusBanner');
+  b.className = 'banner ' + type;
+  b.innerHTML = msg;
+  b.style.display = 'block';
+}
+
+function hideBanner() {
+  document.getElementById('statusBanner').style.display = 'none';
+}
+
+// Fetch meta information on page load
+fetch('api/league_review/meta')
+  .then(r => r.json())
+  .then(data => {
+    metadata = data;
+    
+    // Populate strategies dropdown
+    const stratSel = document.getElementById('strategySelect');
+    stratSel.innerHTML = '<option value="">All Strategies</option>';
+    data.strategies.forEach(s => {
+      stratSel.insertAdjacentHTML('beforeend', `<option value="${s.name}">${s.name} (${s.bets} bets)</option>`);
+    });
+
+    // Populate categories dropdowns
+    populateCategoryDropdowns();
+    
+    // Run review automatically on first load
+    runReview();
+  })
+  .catch(err => showBanner('Error loading metadata: ' + err, 'error'));
+
+function populateCategoryDropdowns(selectedInc = '', selectedExc = '') {
+  const incSel = document.getElementById('targetIncludeCat');
+  const excSel = document.getElementById('targetExcludeCat');
+  
+  incSel.innerHTML = '<option value="">-- None / Do not add --</option>';
+  excSel.innerHTML = '<option value="">-- None / Do not exclude --</option>';
+  
+  metadata.categories.forEach(c => {
+    incSel.insertAdjacentHTML('beforeend', `<option value="${c}" ${c === selectedInc ? 'selected' : ''}>${c}</option>`);
+    excSel.insertAdjacentHTML('beforeend', `<option value="${c}" ${c === selectedExc ? 'selected' : ''}>${c}</option>`);
+  });
+}
+
+function onStrategyChange() {
+  const stratName = document.getElementById('strategySelect').value;
+  if (!stratName) {
+    populateCategoryDropdowns('', '');
+    return;
+  }
+  const match = metadata.strategies.find(s => s.name === stratName);
+  if (match) {
+    populateCategoryDropdowns(match.cand_include || '', match.cand_exclude || '');
+  }
+}
+
+function runReview() {
+  hideBanner();
+  const strat = document.getElementById('strategySelect').value;
+  const targetInc = document.getElementById('targetIncludeCat').value;
+  const targetExc = document.getElementById('targetExcludeCat').value;
+  const minBets = document.getElementById('minBets').value || 20;
+  const days = document.getElementById('daysLookback').value || 60;
+  const edge = document.getElementById('edgeThreshold').value || 5.0;
+
+  document.getElementById('tableContent').innerHTML = '<div style="padding:32px; text-align:center; color:var(--muted);">Analyzing bet records from bets.db…</div>';
+
+  const params = new URLSearchParams({
+    strategy: strat,
+    target_include_cat: targetInc,
+    target_exclude_cat: targetExc,
+    min_bets: minBets,
+    days: days,
+    edge_threshold: edge
+  });
+
+  fetch('api/league_review/stats?' + params.toString())
+    .then(r => r.json())
+    .then(data => {
+      currentResults = data.leagues || [];
+      renderTable(currentResults, data.target_include_cat, data.target_exclude_cat);
+    })
+    .catch(err => {
+      showBanner('Failed to calculate league stats: ' + err, 'error');
+    });
+}
+
+function renderTable(leagues, incCat, excCat) {
+  if (!leagues || !leagues.length) {
+    document.getElementById('statsRow').style.display = 'none';
+    document.getElementById('actionsBar').style.display = 'none';
+    document.getElementById('tableContent').innerHTML = '<div style="padding:32px; text-align:center; color:var(--muted);">No leagues met the minimum bet count with the selected filters. Try lowering the "Min Bets Sample" or expanding the time window.</div>';
+    return;
+  }
+
+  let countAdd = 0, countExc = 0, countNeutral = 0;
+  leagues.forEach(l => {
+    if (l.rec_type === 'add_include' || l.rec_type === 'remove_exclude') countAdd++;
+    else if (l.rec_type === 'add_exclude' || l.rec_type === 'remove_include') countExc++;
+    else countNeutral++;
+  });
+
+  document.getElementById('cntTotal').textContent = leagues.length;
+  document.getElementById('cntAdd').textContent = countAdd;
+  document.getElementById('cntExclude').textContent = countExc;
+  document.getElementById('cntNeutral').textContent = countNeutral;
+  document.getElementById('statsRow').style.display = 'grid';
+  document.getElementById('actionsBar').style.display = 'flex';
+
+  let html = `<table>
+    <thead>
+      <tr>
+        <th class="checkbox-cell"><input type="checkbox" id="headerCheckbox" onchange="toggleAllCheckboxes(this.checked)"></th>
+        <th>League</th>
+        <th style="text-align:right;">Bets</th>
+        <th style="text-align:right;">Win %</th>
+        <th style="text-align:right;">BE %</th>
+        <th style="text-align:right;">Edge</th>
+        <th style="text-align:right;">Profit</th>
+        <th style="text-align:right;">ROI</th>
+        <th>Current Category</th>
+        <th>Recommended Action</th>
+        <th>Reason</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+  leagues.forEach((l, idx) => {
+    const isWin = l.profit > 0;
+    const profitColor = isWin ? 'var(--win)' : (l.profit < 0 ? 'var(--loss)' : 'var(--text)');
+    const edgeColor = l.edge > 0 ? 'var(--win)' : (l.edge < 0 ? 'var(--loss)' : 'var(--text)');
+
+    // Badge styling for recommendation
+    let badgeClass = 'badge muted';
+    if (l.rec_type === 'add_include') badgeClass = 'badge win';
+    else if (l.rec_type === 'add_exclude') badgeClass = 'badge loss';
+    else if (l.rec_type === 'remove_exclude' || l.rec_type === 'remove_include') badgeClass = 'badge pending';
+
+    // Status label
+    let curStatus = '<span style="color:var(--muted); font-size:11px;">None</span>';
+    if (l.in_include && l.in_exclude) curStatus = '<span class="badge pending" style="font-size:10px;">In Both!</span>';
+    else if (l.in_include) curStatus = `<span class="badge win" style="font-size:10px;">In Filtered</span>`;
+    else if (l.in_exclude) curStatus = `<span class="badge loss" style="font-size:10px;">In Excluded</span>`;
+
+    const isChecked = l.is_actionable ? 'checked' : '';
+
+    html += `<tr>
+      <td class="checkbox-cell">
+        <input type="checkbox" class="row-check" data-idx="${idx}" ${isChecked} onchange="updateSelectedCount()">
+      </td>
+      <td style="font-weight:600; color:var(--text);">${l.league}</td>
+      <td style="text-align:right;">${l.bets}</td>
+      <td style="text-align:right;">${l.win_rate}%</td>
+      <td style="text-align:right; color:var(--muted);">${l.break_even}%</td>
+      <td style="text-align:right; font-weight:600; color:${edgeColor};">${l.edge > 0 ? '+' : ''}${l.edge}%</td>
+      <td style="text-align:right; font-weight:600; color:${profitColor};">${l.profit > 0 ? '+' : ''}${l.profit.toFixed(2)}</td>
+      <td style="text-align:right; color:${profitColor};">${l.roi > 0 ? '+' : ''}${l.roi}%</td>
+      <td>${curStatus}</td>
+      <td><span class="${badgeClass}">${l.action_label}</span></td>
+      <td style="font-size:11.5px; color:var(--muted);">${l.reason}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('tableContent').innerHTML = html;
+  updateSelectedCount();
+}
+
+function updateSelectedCount() {
+  const checked = document.querySelectorAll('.row-check:checked');
+  const count = checked.length;
+  document.getElementById('selectedCount').textContent = `${count} selected`;
+  const applyBtn = document.getElementById('applyBtn');
+  applyBtn.disabled = (count === 0);
+  applyBtn.textContent = count > 0 ? `⚡ Apply Selected (${count})` : '⚡ Apply Selected';
+}
+
+function selectAllActionable(check) {
+  document.querySelectorAll('.row-check').forEach(cb => {
+    const idx = parseInt(cb.getAttribute('data-idx'));
+    const item = currentResults[idx];
+    if (check) {
+      cb.checked = item && item.is_actionable;
+    } else {
+      cb.checked = false;
+    }
+  });
+  updateSelectedCount();
+}
+
+function toggleAllCheckboxes(checked) {
+  document.querySelectorAll('.row-check').forEach(cb => cb.checked = checked);
+  updateSelectedCount();
+}
+
+function applySelected() {
+  const checkedBoxes = Array.from(document.querySelectorAll('.row-check:checked'));
+  if (!checkedBoxes.length) return;
+
+  const actions = [];
+  checkedBoxes.forEach(cb => {
+    const idx = parseInt(cb.getAttribute('data-idx'));
+    const item = currentResults[idx];
+    if (item && item.action_cat && item.action_type) {
+      actions.push({
+        action: item.action_type,
+        category: item.action_cat,
+        league: item.league
+      });
+    }
+  });
+
+  if (!actions.length) {
+    showBanner('None of the selected items have a valid target category configured. Please select target categories above.', 'error');
+    return;
+  }
+
+  const restartBot = document.getElementById('restartBotCheckbox').checked;
+  const confirmMsg = `Apply ${actions.length} league updates to config/league_categories.json${restartBot ? ' and restart the bot' : ''}? (A backup is automatically saved)`;
+  
+  if (!confirm(confirmMsg)) return;
+
+  const applyBtn = document.getElementById('applyBtn');
+  applyBtn.disabled = true;
+  applyBtn.textContent = 'Applying…';
+
+  fetch('api/league_review/apply', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ actions: actions, restart_bot: restartBot })
+  })
+  .then(r => r.json())
+  .then(res => {
+    if (res.error) {
+      showBanner('Failed: ' + res.error, 'error');
+      updateSelectedCount();
+    } else {
+      showBanner(`<b>${res.message}</b><br><span style="font-size:12px;">${(res.details || []).join(' • ')}</span>`, 'success');
+      // Re-run review to reflect new state
+      runReview();
+    }
+  })
+  .catch(err => {
+    showBanner('Error applying changes: ' + err, 'error');
+    updateSelectedCount();
+  });
+}
+</script>
+</body>
+</html>
+"""
+
+
+@app.route("/league_review")
+@require_password
+def league_review_page():
+    return render_template_string(LEAGUE_REVIEW_PAGE, build=BUILD_VERSION)
+
+
+@app.route("/api/league_review/meta")
+@require_password
+def api_league_review_meta():
+    cats = load_categories()
+    category_names = sorted(list(cats.keys()))
+
+    strat_map = {}
+    try:
+        with open(STRATEGIES_FILE, encoding="utf-8") as f:
+            for s in json.load(f).get("strategies", []):
+                strat_map[s.get("name")] = s
+    except Exception:
+        pass
+
+    db_rows = query("""
+        SELECT strategy_name, COUNT(*) as bets
+        FROM bets
+        WHERE result IN ('won', 'lost') AND league IS NOT NULL
+        GROUP BY strategy_name
+        ORDER BY bets DESC
+    """)
+
+    strategy_options = []
+    for r in db_rows:
+        name = r["strategy_name"]
+        if not name:
+            continue
+        s = strat_map.get(name, {})
+        inc = s.get("included_categories") or []
+        exc = s.get("excluded_categories") or []
+
+        cand_inc = inc[0] if inc else None
+        cand_exc = exc[0] if exc else None
+
+        # Sibling match if not directly assigned
+        if not cand_inc:
+            for s_name, s_obj in strat_map.items():
+                if s_name.startswith(name) and s_obj.get("included_categories"):
+                    cand_inc = s_obj["included_categories"][0]
+                    break
+        if not cand_exc:
+            for s_name, s_obj in strat_map.items():
+                if s_name.startswith(name) and s_obj.get("excluded_categories"):
+                    cand_exc = s_obj["excluded_categories"][0]
+                    break
+
+        strategy_options.append({
+            "name": name,
+            "bets": r["bets"],
+            "cand_include": cand_inc,
+            "cand_exclude": cand_exc,
+        })
+
+    return jsonify({
+        "categories": category_names,
+        "strategies": strategy_options,
+    })
+
+
+@app.route("/api/league_review/stats")
+@require_password
+def api_league_review_stats():
+    strategy = request.args.get("strategy", "").strip()
+    target_inc = request.args.get("target_include_cat", "").strip()
+    target_exc = request.args.get("target_exclude_cat", "").strip()
+    min_bets = int(request.args.get("min_bets", 20))
+    days = int(request.args.get("days", 60))
+    edge_thresh = float(request.args.get("edge_threshold", 5.0))
+
+    cats = load_categories()
+    inc_leagues = set(cats.get(target_inc, [])) if target_inc else set()
+    exc_leagues = set(cats.get(target_exc, [])) if target_exc else set()
+
+    where_clauses = ["result IN ('won', 'lost')", "league IS NOT NULL"]
+    params = []
+
+    if strategy:
+        where_clauses.append("strategy_name = ?")
+        params.append(strategy)
+
+    if days > 0:
+        where_clauses.append("date(placed_at) >= date('now', ?)")
+        params.append(f"-{days} days")
+
+    where_sql = " AND ".join(where_clauses)
+    sql = f"""
+        SELECT 
+            league,
+            COUNT(*) as bets,
+            SUM(CASE WHEN result = 'won' THEN 1 ELSE 0 END) as wins,
+            SUM(CASE WHEN result = 'lost' THEN 1 ELSE 0 END) as losses,
+            AVG(odds) as avg_odds,
+            COALESCE(SUM(profit), 0) as profit,
+            COALESCE(SUM(stake), 0) as staked
+        FROM bets
+        WHERE {where_sql}
+        GROUP BY league
+        HAVING bets >= ?
+        ORDER BY profit DESC
+    """
+    params.append(min_bets)
+    rows = query(sql, params)
+
+    results = []
+    for r in rows:
+        bets = r["bets"]
+        wins = r["wins"]
+        losses = r["losses"]
+        win_rate = round(100.0 * wins / bets, 1)
+        avg_odds = round(r["avg_odds"], 2) if r["avg_odds"] else 0.0
+        break_even = round(100.0 / avg_odds, 1) if avg_odds else 0.0
+        edge = round(win_rate - break_even, 1)
+        profit = round(r["profit"], 2)
+        staked = round(r["staked"], 2)
+        roi = round(100.0 * profit / staked, 1) if staked else 0.0
+
+        league = r["league"]
+        in_inc = league in inc_leagues
+        in_exc = league in exc_leagues
+
+        # Determine recommendation
+        rec_type = "neutral"
+        action_cat = ""
+        action_type = ""
+        action_label = "Neutral (Watchlist)"
+        is_actionable = False
+        reason = f"Within normal variance (edge: {edge:+.1f}%, ROI: {roi:+.1f}%)."
+
+        # Strong outperformance
+        if edge >= edge_thresh and profit > 0:
+            if in_exc and target_exc:
+                rec_type = "remove_exclude"
+                action_cat = target_exc
+                action_type = "remove"
+                action_label = f"✕ Remove from Excluded"
+                is_actionable = True
+                reason = f"Beating break-even by {edge:+.1f}% (+{roi}% ROI) over {bets} bets. Remove from exclusion blacklist."
+            elif not in_inc and target_inc:
+                rec_type = "add_include"
+                action_cat = target_inc
+                action_type = "add"
+                action_label = f"+ Add to Filtered"
+                is_actionable = True
+                reason = f"Beating break-even by {edge:+.1f}% (+{roi}% ROI) over {bets} bets. Good candidate for filtered betting."
+            elif in_inc:
+                rec_type = "already_included"
+                action_label = "Keep (Already Filtered)"
+                reason = f"Profitable (+{roi}% ROI, edge {edge:+.1f}%), already in allowed category."
+
+        # Significant underperformance
+        elif edge <= -edge_thresh and (profit < 0 or roi <= -5.0):
+            if in_inc and target_inc:
+                rec_type = "remove_include"
+                action_cat = target_inc
+                action_type = "remove"
+                action_label = f"✕ Remove from Filtered"
+                is_actionable = True
+                reason = f"Underperforming break-even by {abs(edge):.1f}% ({roi}% ROI) over {bets} bets. Remove from allowed category."
+            elif not in_exc and target_exc:
+                rec_type = "add_exclude"
+                action_cat = target_exc
+                action_type = "add"
+                action_label = f"+ Add to Excluded"
+                is_actionable = True
+                reason = f"Underperforming break-even by {abs(edge):.1f}% ({roi}% ROI) over {bets} bets. Blacklist to stop further losses."
+            elif in_exc:
+                rec_type = "already_excluded"
+                action_label = "Keep (Already Excluded)"
+                reason = f"Underperforming ({roi}% ROI, edge {edge:+.1f}%), already in excluded category."
+
+        results.append({
+            "league": league,
+            "bets": bets,
+            "wins": wins,
+            "losses": losses,
+            "win_rate": win_rate,
+            "avg_odds": avg_odds,
+            "break_even": break_even,
+            "edge": edge,
+            "profit": profit,
+            "staked": staked,
+            "roi": roi,
+            "in_include": in_inc,
+            "in_exclude": in_exc,
+            "rec_type": rec_type,
+            "action_cat": action_cat,
+            "action_type": action_type,
+            "action_label": action_label,
+            "is_actionable": is_actionable,
+            "reason": reason,
+        })
+
+    return jsonify({
+        "leagues": results,
+        "target_include_cat": target_inc,
+        "target_exclude_cat": target_exc,
+    })
+
+
+@app.route("/api/league_review/apply", methods=["POST"])
+@require_password
+def api_league_review_apply():
+    body = request.get_json(force=True)
+    actions = body.get("actions", [])
+    restart_bot = body.get("restart_bot", True)
+
+    if not actions:
+        return jsonify({"ok": True, "applied": 0, "message": "No actions selected."})
+
+    backup_categories()
+    cats = load_categories()
+
+    applied_count = 0
+    change_log = []
+
+    for item in actions:
+        cat = item.get("category")
+        action = item.get("action")
+        league = item.get("league")
+
+        if not cat or not league or not action:
+            continue
+
+        if cat not in cats:
+            cats[cat] = []
+
+        if action == "add":
+            if league not in cats[cat]:
+                cats[cat].append(league)
+                cats[cat].sort()
+                applied_count += 1
+                change_log.append(f"Added '{league}' to '{cat}'")
+        elif action == "remove":
+            if league in cats[cat]:
+                cats[cat].remove(league)
+                applied_count += 1
+                change_log.append(f"Removed '{league}' from '{cat}'")
+
+    if applied_count > 0:
+        save_categories(cats)
+
+    restart_msg = ""
+    if restart_bot and applied_count > 0:
+        ok, msg = restart_bot_container()
+        restart_msg = f" Bot restart: {msg}"
+
+    return jsonify({
+        "ok": True,
+        "applied": applied_count,
+        "details": change_log,
+        "message": f"Successfully applied {applied_count} change(s).{restart_msg}"
+    })
+
+
+FILTERED_STAKES_PAGE = """
+<!DOCTYPE html>
+<html>
+<head>
+<script>
+document.write('<base href="' + (window.location.pathname.startsWith('/matchbook') ? '/matchbook/' : '/') + '">');
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Filtered Strategies Stake Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0e14">
+<style>
+  :root {
+    --bg: #0a0e14; --card: #11161f; --card2: #141a25;
+    --border: #1c2330; --text: #e4e7ec; --muted: #7a8699; --accent: #5b8def; --loss: #ff6b5e; --win: #2dd4a8; --pending: #f5b942;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 28px 32px 60px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; position: relative; flex-wrap: wrap; }
+  .hamburger { display: none; background: none; border: 1px solid var(--border); color: var(--text); font-size: 18px; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .nav-links { display: flex; gap: 10px; flex-wrap: wrap; }
+  @media (max-width: 760px) {
+    .hamburger { display: block; }
+    .nav-links { display: none; position: absolute; top: 48px; right: 0; flex-direction: column; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px; z-index: 100; min-width: 200px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+    .nav-links.open { display: flex; }
+    .nav-links .nav-btn { width: 100%; text-align: left; }
+  }
+  .topbar h0 { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+  .nav-btn { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--bg); background: var(--accent); border: none; border-radius: 8px; padding: 9px 16px; text-decoration: none; cursor: pointer; }
+  .nav-btn.secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 20px; }
+  .card h2 { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; }
+  
+  .filter-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab-btn { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--card2); color: var(--muted); cursor: pointer; transition: all 0.15s ease; }
+  .tab-btn.active { color: var(--text); border-color: var(--accent); background: rgba(91,141,239,0.15); }
+
+  .batch-box { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+  .batch-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .batch-presets { display: flex; gap: 6px; }
+  .preset-btn { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; padding: 5px 9px; border-radius: 4px; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; }
+  .preset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  input[type=number], input[type=text] { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 7px 10px; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+  input[type=number]:focus { outline: none; border-color: var(--accent); }
+
+  .btn { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--card2); color: var(--text); cursor: pointer; transition: all 0.15s ease; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.accent { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .btn.accent:hover { opacity: 0.9; }
+  .btn.small { padding: 5px 10px; font-size: 11.5px; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; border-color: var(--border); color: var(--muted); background: var(--card2); }
+
+  .actions-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; background: var(--card2); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); }
+  .actions-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .actions-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+  table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  th { text-align: left; padding: 10px 12px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); background: var(--card); position: sticky; top: 0; }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .badge { display: inline-block; padding: 3px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  .badge.win { background: rgba(45,212,168,0.14); color: var(--win); border: 1px solid rgba(45,212,168,0.3); }
+  .badge.loss { background: rgba(255,107,94,0.14); color: var(--loss); border: 1px solid rgba(255,107,94,0.3); }
+  .badge.muted { background: var(--card2); color: var(--muted); border: 1px solid var(--border); }
+
+  .banner { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; line-height: 1.5; }
+  .banner.success { background: rgba(45,212,168,0.12); color: var(--win); border: 1px solid var(--win); }
+  .banner.error { background: rgba(255,107,94,0.12); color: var(--loss); border: 1px solid var(--loss); }
+
+  .table-container { overflow-x: auto; max-height: 68vh; border: 1px solid var(--border); border-radius: 8px; background: var(--card); }
+  .checkbox-cell { width: 34px; text-align: center; }
+  input[type=checkbox] { cursor: pointer; accent-color: var(--accent); width: 15px; height: 15px; }
+
+  .stake-input { width: 85px; text-align: right; }
+  .stake-input.modified { border-color: var(--accent); background: rgba(91,141,239,0.15); font-weight: 700; color: #fff; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <h0>matchbook // filtered strategies stake manager <span style="opacity:0.35;">{{ build }}</span></h0>
+    <button class="hamburger" onclick="toggleNav()">☰</button>
+    <div class="nav-links" id="navLinks">
+      <a class="nav-btn secondary" href="">Dashboard</a>
+      <a class="nav-btn secondary" href="strategies">⚙ Manage Strategies</a>
+      <a class="nav-btn secondary" href="categories">Leagues</a>
+      <a class="nav-btn secondary" href="league_review">🎯 League Review</a>
+      <a class="nav-btn secondary" href="analytics">Analytics</a>
+      <a class="nav-btn secondary" href="logs">Logs</a>
+      <button class="nav-btn" onclick="location.reload()">⟳ Refresh</button>
+    </div>
+  </div>
+
+  <div class="banner" id="statusBanner"></div>
+
+  <div class="card">
+    <h2>Semi-Auto Stake Batch Control</h2>
+    <div class="filter-tabs">
+      <button class="tab-btn active" id="tabSoccer" onclick="switchGroup('soccer_test')">🎯 Soccer Test Filtered (5)</button>
+      <button class="tab-btn" id="tabFiltered" onclick="switchGroup('other_filtered')">All Named Filtered (10)</button>
+      <button class="tab-btn" id="tabAll" onclick="switchGroup('all')">All Category-Filtered (36)</button>
+    </div>
+
+    <div class="batch-box">
+      <div class="batch-left">
+        <span style="font-size:12.5px; font-weight:600; color:var(--text);">Set Stake For Checked:</span>
+        <input type="number" id="batchStakeInput" value="0.25" step="0.05" min="0.01" style="width:85px;">
+        <button class="btn" onclick="applyBatchStake()">Apply to Checked Rows</button>
+        <div class="batch-presets">
+          <button class="preset-btn" onclick="setPreset(0.10)">0.10</button>
+          <button class="preset-btn" onclick="setPreset(0.25)">0.25</button>
+          <button class="preset-btn" onclick="setPreset(0.30)">0.30</button>
+          <button class="preset-btn" onclick="setPreset(0.50)">0.50</button>
+          <button class="preset-btn" onclick="setPreset(1.00)">1.00</button>
+        </div>
+      </div>
+      <div style="font-size:11.5px; color:var(--muted);">
+        Allows modifying only the stake without editing each strategy individually.
+      </div>
+    </div>
+
+    <div class="actions-bar">
+      <div class="actions-left">
+        <button class="btn small" onclick="selectAll(true)">Select All</button>
+        <button class="btn small" onclick="selectAll(false)">Deselect All</button>
+        <span id="selectedCount" style="color:var(--muted); font-size:12px;">0 selected</span>
+      </div>
+      <div class="actions-right">
+        <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;">
+          <input type="checkbox" id="restartBotCheckbox" checked> Restart bot container after saving
+        </label>
+        <button class="btn accent" id="saveBtn" onclick="saveStakes()">⚡ Save & Apply Stakes</button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <div id="tableContent" style="padding:24px; text-align:center; color:var(--muted);">Loading filtered strategies…</div>
+    </div>
+  </div>
+
+<script>
+function toggleNav() { document.getElementById('navLinks').classList.toggle('open'); }
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/service-worker.js').catch(() => {}); }
+
+let allStrategies = [];
+let currentGroup = 'soccer_test';
+
+function showBanner(msg, type='info') {
+  const b = document.getElementById('statusBanner');
+  b.className = 'banner ' + type;
+  b.innerHTML = msg;
+  b.style.display = 'block';
+}
+
+function hideBanner() {
+  document.getElementById('statusBanner').style.display = 'none';
+}
+
+function loadStrategies() {
+  fetch('api/filtered_stakes')
+    .then(r => r.json())
+    .then(data => {
+      allStrategies = data.strategies || [];
+      renderTable();
+    })
+    .catch(err => showBanner('Error loading strategies: ' + err, 'error'));
+}
+
+function switchGroup(group) {
+  currentGroup = group;
+  document.getElementById('tabSoccer').classList.toggle('active', group === 'soccer_test');
+  document.getElementById('tabFiltered').classList.toggle('active', group === 'other_filtered');
+  document.getElementById('tabAll').classList.toggle('active', group === 'all');
+  renderTable();
+}
+
+function setPreset(val) {
+  document.getElementById('batchStakeInput').value = val;
+  applyBatchStake();
+}
+
+function getVisibleStrategies() {
+  if (currentGroup === 'soccer_test') {
+    return allStrategies.filter(s => s.group === 'soccer_test');
+  } else if (currentGroup === 'other_filtered') {
+    return allStrategies.filter(s => s.group === 'soccer_test' || s.group === 'other_filtered');
+  }
+  return allStrategies;
+}
+
+function renderTable() {
+  const list = getVisibleStrategies();
+  if (!list.length) {
+    document.getElementById('tableContent').innerHTML = '<div style="padding:24px; text-align:center; color:var(--muted);">No matching strategies found.</div>';
+    return;
+  }
+
+  let html = `<table>
+    <thead>
+      <tr>
+        <th class="checkbox-cell"><input type="checkbox" id="headerCheckbox" checked onchange="toggleAllCheckboxes(this.checked)"></th>
+        <th>Strategy Name</th>
+        <th>Sport / Market</th>
+        <th>Status</th>
+        <th>Included Category</th>
+        <th style="text-align:right;">Current Stake</th>
+        <th style="text-align:right;">New Stake</th>
+        <th>Staking Plan</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+  list.forEach((s, idx) => {
+    const statusBadge = s.enabled !== false ? '<span class="badge win">Enabled</span>' : '<span class="badge muted">Disabled</span>';
+    const cats = (s.included_categories || []).join(', ') || '<span style="color:var(--muted);">—</span>';
+    const planText = s.staking_plan ? JSON.stringify(s.staking_plan) : '—';
+    const currentStake = s.base_stake !== null ? s.base_stake : '—';
+
+    html += `<tr>
+      <td class="checkbox-cell">
+        <input type="checkbox" class="row-check" data-name="${s.name}" checked onchange="updateSelectedCount()">
+      </td>
+      <td style="font-weight:600; color:var(--text);">${s.name}</td>
+      <td style="color:var(--muted); font-size:11.5px;">${s.sport || '—'} / ${s.market || '—'}</td>
+      <td>${statusBadge}</td>
+      <td style="font-size:11.5px; color:var(--accent);">${cats}</td>
+      <td style="text-align:right; font-weight:600;">${currentStake}</td>
+      <td style="text-align:right;">
+        <input type="number" step="0.05" min="0.01" class="stake-input" id="stake_${idx}" 
+               data-name="${s.name}" data-original="${currentStake}" value="${currentStake}" 
+               oninput="onStakeInput(this)">
+      </td>
+      <td style="color:var(--muted); font-size:11px;" id="plan_preview_${idx}">${planText}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('tableContent').innerHTML = html;
+  updateSelectedCount();
+}
+
+function onStakeInput(input) {
+  const orig = parseFloat(input.getAttribute('data-original'));
+  const current = parseFloat(input.value);
+  if (!isNaN(current) && current !== orig) {
+    input.classList.add('modified');
+  } else {
+    input.classList.remove('modified');
+  }
+}
+
+function applyBatchStake() {
+  const val = parseFloat(document.getElementById('batchStakeInput').value);
+  if (isNaN(val) || val <= 0) {
+    alert('Please enter a valid positive stake.');
+    return;
+  }
+
+  const checkedRows = Array.from(document.querySelectorAll('.row-check:checked'));
+  if (!checkedRows.length) {
+    alert('Please check at least one strategy to update.');
+    return;
+  }
+
+  checkedRows.forEach(cb => {
+    const name = cb.getAttribute('data-name');
+    const input = document.querySelector(`.stake-input[data-name="${name}"]`);
+    if (input) {
+      input.value = val;
+      onStakeInput(input);
+    }
+  });
+}
+
+function updateSelectedCount() {
+  const checked = document.querySelectorAll('.row-check:checked');
+  document.getElementById('selectedCount').textContent = `${checked.length} selected`;
+}
+
+function selectAll(check) {
+  document.querySelectorAll('.row-check').forEach(cb => cb.checked = check);
+  const headerCb = document.getElementById('headerCheckbox');
+  if (headerCb) headerCb.checked = check;
+  updateSelectedCount();
+}
+
+function toggleAllCheckboxes(checked) {
+  document.querySelectorAll('.row-check').forEach(cb => cb.checked = checked);
+  updateSelectedCount();
+}
+
+function saveStakes() {
+  hideBanner();
+  const checkedBoxes = Array.from(document.querySelectorAll('.row-check:checked'));
+  if (!checkedBoxes.length) {
+    alert('Please select at least one strategy to save.');
+    return;
+  }
+
+  const updates = [];
+  checkedBoxes.forEach(cb => {
+    const name = cb.getAttribute('data-name');
+    const input = document.querySelector(`.stake-input[data-name="${name}"]`);
+    if (input) {
+      const newStake = parseFloat(input.value);
+      if (!isNaN(newStake) && newStake > 0) {
+        updates.push({ name: name, new_stake: newStake });
+      }
+    }
+  });
+
+  if (!updates.length) {
+    alert('No valid stake updates found.');
+    return;
+  }
+
+  const restartBot = document.getElementById('restartBotCheckbox').checked;
+  const msg = `Save new stakes for ${updates.length} filtered strategies${restartBot ? ' and restart the bot' : ''}? (A backup of strategies.json is saved automatically)`;
+  if (!confirm(msg)) return;
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  fetch('api/filtered_stakes/apply', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ updates: updates, restart_bot: restartBot })
+  })
+  .then(r => r.json())
+  .then(res => {
+    btn.disabled = false;
+    btn.textContent = '⚡ Save & Apply Stakes';
+    if (res.error) {
+      showBanner('Failed: ' + res.error, 'error');
+    } else {
+      showBanner(`<b>${res.message}</b><br><span style="font-size:12px;">${(res.details || []).join(' • ')}</span>`, 'success');
+      loadStrategies();
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.textContent = '⚡ Save & Apply Stakes';
+    showBanner('Error saving stakes: ' + err, 'error');
+  });
+}
+
+loadStrategies();
+</script>
+</body>
+</html>
+"""
+
+
+@app.route("/filtered_stakes")
+@require_password
+def filtered_stakes_page():
+    return render_template_string(FILTERED_STAKES_PAGE, build=BUILD_VERSION)
+
+
+@app.route("/api/filtered_stakes", methods=["GET"])
+@require_password
+def api_filtered_stakes():
+    try:
+        with open(STRATEGIES_FILE, encoding="utf-8") as f:
+            all_strats = json.load(f).get("strategies", [])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    items = []
+    for s in all_strats:
+        name = s.get("name", "")
+        inc_cats = s.get("included_categories") or []
+        inc_leagues = s.get("included_leagues") or []
+        is_filtered_name = "filtered" in name.lower()
+        is_category_filtered = bool(inc_cats or inc_leagues)
+
+        if not is_filtered_name and not is_category_filtered:
+            continue
+
+        is_soccer_test = is_filtered_name and ("fix" in name.lower() or "test" in name.lower())
+
+        group = "category_limited"
+        if is_soccer_test:
+            group = "soccer_test"
+        elif is_filtered_name:
+            group = "other_filtered"
+
+        base_stake = s.get("base_stake")
+        plan = s.get("staking_plan")
+        if base_stake is None and plan:
+            base_stake = plan[0]
+
+        items.append({
+            "name": name,
+            "enabled": s.get("enabled", True),
+            "sport": s.get("sport_name", ""),
+            "market": s.get("market_name", ""),
+            "strategy_type": s.get("strategy_type", "normal"),
+            "base_stake": base_stake,
+            "staking_plan": plan,
+            "included_categories": inc_cats,
+            "included_leagues": inc_leagues,
+            "group": group,
+        })
+
+    order = {"soccer_test": 0, "other_filtered": 1, "category_limited": 2}
+    items.sort(key=lambda x: (order.get(x["group"], 9), x["name"]))
+
+    return jsonify({"strategies": items})
+
+
+@app.route("/api/filtered_stakes/apply", methods=["POST"])
+@require_password
+def api_filtered_stakes_apply():
+    body = request.get_json(force=True)
+    updates = body.get("updates", [])
+    restart_bot = body.get("restart_bot", True)
+
+    if not updates:
+        return jsonify({"ok": True, "updated": 0, "message": "No updates provided."})
+
+    try:
+        strategies = load_strategies_file()
+    except Exception as e:
+        return jsonify({"error": f"Could not load strategies: {e}"}), 500
+
+    strat_map = {s["name"]: s for s in strategies}
+    applied_count = 0
+    change_log = []
+
+    for item in updates:
+        name = item.get("name")
+        new_stake_raw = item.get("new_stake")
+        if not name or new_stake_raw is None or name not in strat_map:
+            continue
+
+        try:
+            new_stake = round(float(new_stake_raw), 2)
+            if new_stake <= 0:
+                continue
+        except (ValueError, TypeError):
+            continue
+
+        s = strat_map[name]
+        old_stake = s.get("base_stake")
+        old_plan = s.get("staking_plan")
+
+        if s.get("strategy_type") == "compound":
+            continue
+
+        s["base_stake"] = new_stake
+
+        if old_plan is None or len(old_plan) <= 1:
+            s["staking_plan"] = [new_stake]
+            s["staking_steps"] = 1
+        else:
+            ratio = new_stake / old_stake if (old_stake and old_stake > 0) else 1.0
+            s["staking_plan"] = [round(x * ratio, 2) for x in old_plan]
+            s["staking_steps"] = len(s["staking_plan"])
+
+        applied_count += 1
+        change_log.append(f"{name}: {old_stake} -> {new_stake}")
+
+    if applied_count > 0:
+        try:
+            save_strategies_file(strategies)
+        except Exception as e:
+            return jsonify({"error": f"Failed to save strategies: {e}"}), 500
+
+    restart_msg = ""
+    if restart_bot and applied_count > 0:
+        ok, msg = restart_bot_container()
+        restart_msg = f" Bot restart: {msg}"
+
+    return jsonify({
+        "ok": True,
+        "updated": applied_count,
+        "details": change_log,
+        "message": f"Successfully updated stakes for {applied_count} strategies.{restart_msg}"
+    })
 
 
 if __name__ == "__main__":

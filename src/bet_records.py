@@ -67,7 +67,7 @@ def record_bet_settled(row_id, result, odds, stake, bet_side="back"):
     A 'push' means the event was voided/cancelled — stake is returned,
     profit is always 0 regardless of side.
     """
-    if result == "push":
+    if result in ("push", "unmatched", "void", "canceled", "cancelled"):
         profit = 0.0
     elif bet_side == "lay":
         profit = round(stake, 4) if result == "won" else -round(stake * (odds - 1), 4)
@@ -78,6 +78,14 @@ def record_bet_settled(row_id, result, odds, stake, bet_side="back"):
         "UPDATE bets SET result = ?, profit = ?, settled_at = ?, result_type = 'normal' WHERE id = ?",
         (result, profit, datetime.utcnow().isoformat(), row_id),
     )
+    conn.commit()
+    conn.close()
+
+
+def delete_unmatched_bet(row_id):
+    """Removes an order that was never matched and expired/cancelled on the exchange."""
+    conn = _connect()
+    conn.execute("DELETE FROM bets WHERE id = ?", (row_id,))
     conn.commit()
     conn.close()
 

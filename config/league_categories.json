@@ -1,45 +1,33 @@
 {
   "Football_GG_Test_Fix_Excluded": [
-    "Germany 2.Bundesliga",
     "Israel Liga Leumit",
     "Japan J. League 3",
-    "Netherlands Eerste Divisie",
-    "Romania Liga II",
-    "UEFA Europa League",
     "US Major League Soccer"
   ],
   "Football_GG_Test_Fix_Filtered": [
     "England EFL Trophy",
-    "England National League",
-    "Mexico Liga Expansion MX",
-    "US USL Championship"
+    "England National League"
   ],
   "Football_Over2.5_Test_Fix_Excluded": [
-    "European Championship U21 Qualification",
-    "Germany 2.Bundesliga",
     "US Major League Soccer"
   ],
   "Football_Over2.5_Test_Fix_Filtered": [
-    "US USL Championship"
+    "UEFA Europa League"
   ],
-  "Football_Under2.5_Test_Fix_Excluded": [
-    "Argentina Liga Profesional de F\u00fatbol"
-  ],
-  "Football_Under3.5_Fix_Excluded": [
-    "Argentina Liga Profesional de F\u00fatbol Reserves",
-    "Guatemala Liga Nacional",
-    "International Friendlies",
-    "Italy Serie C Girone A",
-    "Italy Serie C Girone C",
-    "Paraguay Primera Division",
-    "Uruguay Cup"
-  ],
+  "Football_Under2.5_Test_Fix_Excluded": [],
+  "Football_Under2.5_Test_Fix_Filtered": [],
+  "Football_Under3.5_Fix_Excluded": [],
   "Football_Under3.5_Fix_Filtered": [
-    "Brazil Serie B",
     "Argentina Liga Profesional de F\u00fatbol",
+    "Brazil Serie B",
+    "China League Two",
     "Colombia Categor\u00eda Primera A",
+    "Ecuador Serie A",
+    "Japan J. League 2",
     "Uruguay Primera Divisi\u00f3n"
   ],
+  "Football_Win_Test_Excluded": [],
+  "Football_Win_Test_Filtered": [],
   "Horses": [
     "Ireland",
     "South Africa",

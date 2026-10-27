@@ -9,6 +9,8 @@ import json
 import time
 from datetime import datetime, timedelta
 
+SESSION_FILE = os.getenv("MATCHBOOK_SESSION_FILE", os.path.join(os.path.dirname(__file__), "..", "config", ".matchbook_session.json"))
+
 class MatchbookClient:
     def __init__(self):
         self.username = os.getenv("MATCHBOOK_USERNAME")
@@ -26,6 +28,36 @@ class MatchbookClient:
             "accept": "application/json"
         }
 
+    def _load_cached_session(self):
+        if not os.path.isfile(SESSION_FILE):
+            return False
+        try:
+            with open(SESSION_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            token = data.get("session_token")
+            login_time_str = data.get("login_time")
+            if token and login_time_str:
+                login_time = datetime.fromisoformat(login_time_str)
+                if datetime.utcnow() - login_time < timedelta(hours=3, minutes=30):
+                    self.session_token = token
+                    self.headers["session-token"] = token
+                    self.last_login_time = login_time
+                    return True
+        except Exception:
+            pass
+        return False
+
+    def _save_cached_session(self):
+        try:
+            os.makedirs(os.path.dirname(SESSION_FILE), exist_ok=True)
+            with open(SESSION_FILE, "w", encoding="utf-8") as f:
+                json.dump({
+                    "session_token": self.session_token,
+                    "login_time": self.last_login_time.isoformat() if self.last_login_time else datetime.utcnow().isoformat()
+                }, f)
+        except Exception:
+            pass
+
     def login(self, notify=True):
         """Authenticates with Matchbook and stores the session token with rate-limit recovery.
 
@@ -39,21 +71,26 @@ class MatchbookClient:
         
         attempt = 1
         wait_time = 10  # Start with a 10 second wait on 429 errors
+        network_retries = 0
 
         while True:
             try:
-                response = requests.post(self.auth_url, data=json.dumps(payload), headers=self.headers)
+                response = requests.post(self.auth_url, data=json.dumps(payload), headers=self.headers, timeout=10)
                 
                 if response.status_code == 200:
                     data = response.json()
                     self.session_token = data.get("session-token")
                     self.headers["session-token"] = self.session_token
                     self.last_login_time = datetime.utcnow()
+                    self._save_cached_session()
                     if notify:
                         self.send_telegram("✅ Matchbook login successful. Session token acquired.", login=True)
                     return True
                 
                 elif response.status_code == 429:
+                    if not notify:
+                        print("⚠️ Matchbook API login returned 429 (Rate Limited) during silent request. Not retrying.")
+                        return False
                     print(f"⚠️ Matchbook API login returned 429 (Rate Limited). Attempt {attempt}. Retrying in {wait_time}s...")
                     time.sleep(wait_time)
                     attempt += 1
@@ -65,6 +102,15 @@ class MatchbookClient:
                         self.send_telegram(f"❌ Login failed. Status: {response.status_code}", login=True)
                     return False
                     
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                network_retries += 1
+                if network_retries <= 3:
+                    print(f"⚠️ Network/DNS resolution warming up (attempt {network_retries}/3). Retrying in 2s...")
+                    time.sleep(2)
+                    continue
+                if notify:
+                    self.send_telegram(f"❌ Login exception encountered: {str(e)}", login=True)
+                return False
             except Exception as e:
                 if notify:
                     self.send_telegram(f"❌ Login exception encountered: {str(e)}", login=True)
@@ -73,11 +119,15 @@ class MatchbookClient:
     def ensure_valid_session(self, notify=True):
         """Proactively checks if the current token is older than 4 hours and refreshes if needed."""
         if not self.last_login_time or not self.session_token:
+            if self._load_cached_session():
+                return True
             print("No active session token found. Initializing login...")
             return self.login(notify=notify)
         
         # If token is older than 4 hours, force a proactive background refresh
         if datetime.utcnow() - self.last_login_time > timedelta(hours=4):
+            if self._load_cached_session():
+                return True
             print("🔄 Session token is older than 4 hours. Executing proactive background refresh...")
             return self.login(notify=notify)
         return True
@@ -386,41 +436,47 @@ class MatchbookClient:
         self.ensure_valid_session()
         url = f"{self.base_url}/reports/v2/bets/settled"
         target = str(offer_id)
-        offset = 0
-        per_page = 500
 
-        while True:
-            params = {"per-page": per_page, "offset": offset, "sport-ids": sport_id or "15"}
-            if after_dt:
-                params["after"] = after_dt.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-            if event_id:
-                params["event-ids"] = str(event_id)
+        def _fetch(ev_id):
+            offset = 0
+            per_page = 500
+            while True:
+                params = {"per-page": per_page, "offset": offset, "sport-ids": sport_id or "15"}
+                if after_dt:
+                    params["after"] = after_dt.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+                if ev_id:
+                    params["event-ids"] = str(ev_id)
 
-            try:
-                response = requests.get(url, params=params, headers=self.headers)
-                if response.status_code == 401:
-                    print("⚠️ Received 401 Unauthorized on get_settled_outcome_for_offer. Attempting reactive session refresh...")
-                    if self.login():
-                        response = requests.get(url, params=params, headers=self.headers)
+                try:
+                    response = requests.get(url, params=params, headers=self.headers)
+                    if response.status_code == 401:
+                        print("⚠️ Received 401 Unauthorized on get_settled_outcome_for_offer. Attempting reactive session refresh...")
+                        if self.login():
+                            response = requests.get(url, params=params, headers=self.headers)
 
-                if response.status_code != 200:
+                    if response.status_code != 200:
+                        return None, None
+
+                    data = response.json()
+                    for market in data.get("markets", []):
+                        for selection in market.get("selections", []):
+                            for bet in selection.get("bets", []):
+                                if str(bet.get("offer-id", bet.get("offer_id"))) != target:
+                                    continue
+                                return self._outcome_from_settled_bet(bet)
+
+                    total = data.get("total", 0)
+                    offset += per_page
+                    if offset >= total:
+                        return None, None
+                except Exception as e:
+                    print(f"Error fetching settled bets: {str(e)}")
                     return None, None
 
-                data = response.json()
-                for market in data.get("markets", []):
-                    for selection in market.get("selections", []):
-                        for bet in selection.get("bets", []):
-                            if str(bet.get("offer-id", bet.get("offer_id"))) != target:
-                                continue
-                            return self._outcome_from_settled_bet(bet)
-
-                total = data.get("total", 0)
-                offset += per_page
-                if offset >= total:
-                    return None, None
-            except Exception as e:
-                print(f"Error fetching settled bets: {str(e)}")
-                return None, None
+        res, odds = _fetch(event_id)
+        if res or not event_id:
+            return res, odds
+        return _fetch(None)
 
     def resolve_offer_outcome(self, offer_id, after_dt=None, event_id=None, sport_id=None):
         """Resolve won/lost from Matchbook only (offers API + settled-bets report).

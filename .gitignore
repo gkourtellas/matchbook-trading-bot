@@ -8,3 +8,10 @@ config/liquidity_log.csv
 config/skips.db
 config/backups/
 data/backups/
+venv/
+config/.matchbook_session.json
+
+config/horses_bets_read.db
+config/horses_tips_read.db
+config/valuebets_read.db
+data/

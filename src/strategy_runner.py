@@ -46,6 +46,7 @@ who's actually the favorite.
 """
 
 import asyncio
+import re
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -61,7 +62,7 @@ from state_store import load_state, save_state
 from log_util import setup_skip_logging
 
 _skip_logger = setup_skip_logging()
-from bet_records import record_bet_placed, record_bet_settled, record_bet_cashed_out
+from bet_records import record_bet_placed, record_bet_settled, record_bet_cashed_out, delete_unmatched_bet
 from league_tracker import record_league
 from strategy_loader import disable_strategy
 
@@ -114,9 +115,9 @@ class StrategyRunner:
 
             self.bet_side = strategy.get("bet_side", "back")
             if self.bet_mode == "double_chance":
-                if market_key != "Match Odds":
+                if market_key not in ("Match Odds", "Double Chance"):
                     raise ValueError(f"[{self.name}] bet_mode 'double_chance' requires "
-                                      f"market_name 'Match Odds' (used as the trigger).")
+                                      f"market_name 'Match Odds' or 'Double Chance'.")
                 if self.bet_side == "lay":
                     raise ValueError(f"[{self.name}] bet_mode 'double_chance' only supports "
                                       f"backing the Double Chance selection, not laying.")
@@ -141,17 +142,25 @@ class StrategyRunner:
             self.balance = saved_balance if saved_balance is not None else self.starting_bankroll
 
         self.max_open_bets = strategy.get("max_open_bets", 1)
-        self.poll_interval = strategy.get("poll_interval_seconds", 600)
+        self.live_mode = strategy.get("live_mode", "pre")
+
+        # Fast polling interval for in-play live strategies
+        configured_poll = strategy.get("poll_interval_seconds")
+        if self.live_mode in ("live", "both"):
+            self.poll_interval = configured_poll if configured_poll and configured_poll < 60 else 15
+        else:
+            self.poll_interval = configured_poll or 600
+
         self.cooldown_after_bet = strategy.get("open_positions_cooldown_seconds", 600)
         self.pause_while_open = strategy.get("pause_scanning_with_open_positions", True)
         self.lookahead_minutes = strategy.get("event_lookahead_minutes", 180)
         self.min_seconds_to_start = strategy.get("min_seconds_to_start", 300)
 
         requested_cash_out = strategy.get("cash_out_at_percent")
-        if requested_cash_out and self.max_steps > 1:
+        if requested_cash_out and self.strategy_type != "compound" and self.max_steps > 1:
             print(f"[{self.name}] ⚠️ cash_out_at_percent is set but this strategy has "
                   f"{self.max_steps} steps. Cash-out is only supported for single-step "
-                  f"strategies right now — ignoring it.")
+                  f"and compound strategies right now — ignoring it.")
             self.cash_out_at_percent = None
         elif requested_cash_out and self.bet_side == "lay":
             print(f"[{self.name}] ⚠️ cash_out_at_percent is set but this strategy lays "
@@ -162,10 +171,12 @@ class StrategyRunner:
 
         self.allowed_leagues = strategy.get("_allowed_leagues")
         self.blocked_leagues = strategy.get("_blocked_leagues") or set()
-        self.live_mode = strategy.get("live_mode", "pre")
         self.sport_configs = strategy.get("sport_configs")
         self.overlap_group = strategy.get("overlap_group") or None
         self.telegram_notifications = strategy.get("telegram_notifications", True)
+
+        self.stop_after_current_bet = bool(strategy.get("stop_after_current_bet", False))
+        self.is_stopped = False
 
         # Guards active_bets + the state file from being read/written by
         # check_settlements() and check_cash_out() at the same moment,
@@ -255,28 +266,31 @@ class StrategyRunner:
         side = "lay" if bet_side == "lay" else "back"
         last_available = None
 
-        for i in range(ODDS_CHECK_COUNT - 1):
-            await asyncio.sleep(ODDS_CHECK_GAP_SECONDS)
+        check_count = 2 if self.live_mode in ("live", "both") else ODDS_CHECK_COUNT
+        check_gap = 2 if self.live_mode in ("live", "both") else ODDS_CHECK_GAP_SECONDS
+
+        for i in range(check_count - 1):
+            await asyncio.sleep(check_gap)
 
             response = await asyncio.to_thread(
                 self.client.get_runner_prices, event_id, market_id, runner_id
             )
             if not response:
-                self.log(f"Skipped {event_name} — odds re-check {i + 2}/{ODDS_CHECK_COUNT} "
+                self.log(f"Skipped {event_name} — odds re-check {i + 2}/{check_count} "
                           f"got no response from Matchbook")
                 return False, None
 
             prices = response.get("prices", []) if isinstance(response, dict) else response
             matching = [p for p in prices if p.get("side") == side]
             if not matching:
-                self.log(f"Skipped {event_name} — odds re-check {i + 2}/{ODDS_CHECK_COUNT} "
+                self.log(f"Skipped {event_name} — odds re-check {i + 2}/{check_count} "
                           f"found no {side} price for this runner")
                 return False, None
 
             best = min(matching, key=lambda p: p.get("odds", float("inf")))
             odds_now = best.get("odds")
             if odds_now is None:
-                self.log(f"Skipped {event_name} — odds re-check {i + 2}/{ODDS_CHECK_COUNT} "
+                self.log(f"Skipped {event_name} — odds re-check {i + 2}/{check_count} "
                           f"returned no odds value")
                 return False, None
 
@@ -290,8 +304,8 @@ class StrategyRunner:
 
         spread_percent = (highest - lowest) / lowest * 100
         if spread_percent > ODDS_CHECK_MAX_SPREAD_PERCENT:
-            self.log(f"Skipped {event_name} — odds not stable across {ODDS_CHECK_COUNT} checks "
-                      f"({ODDS_CHECK_GAP_SECONDS}s apart): {checks} "
+            self.log(f"Skipped {event_name} — odds not stable across {check_count} checks "
+                      f"({check_gap}s apart): {checks} "
                       f"({spread_percent:.1f}% spread, max {ODDS_CHECK_MAX_SPREAD_PERCENT}%)")
             return False, None
 
@@ -307,8 +321,8 @@ class StrategyRunner:
                       f"allowed range {min_odds}-{max_odds}")
             return False, None
 
-        self.log(f"Odds confirmed stable across {ODDS_CHECK_COUNT} checks "
-                  f"({ODDS_CHECK_GAP_SECONDS}s apart): {checks}")
+        self.log(f"Odds confirmed stable across {check_count} checks "
+                  f"({check_gap}s apart): {checks}")
         return True, final_odds
 
     async def run(self):
@@ -317,6 +331,9 @@ class StrategyRunner:
         else:
             self.log(f"Starting. Market: {self.market_name}, odds {self.cfg['min_back_odds']}-{self.cfg['max_back_odds']}")
         while True:
+            if getattr(self, "is_stopped", False):
+                self.log("🛑 Strategy stopped — exiting runner loop.")
+                break
             try:
                 if len(self.active_bets) < self.max_open_bets:
                     await self.scan_and_bet()
@@ -327,7 +344,8 @@ class StrategyRunner:
             except Exception as e:
                 self.log(f"⚠️ Error in loop: {e}")
 
-            await asyncio.sleep(self.poll_interval if not self.active_bets else 30)
+            sleep_time = min(self.poll_interval, 15) if self.live_mode in ("live", "both") else self.poll_interval
+            await asyncio.sleep(sleep_time if not self.active_bets else (15 if self.live_mode in ("live", "both") else 30))
 
     async def cash_out_loop(self):
         """Own fast timer for cash-out checks, running the whole time
@@ -336,6 +354,8 @@ class StrategyRunner:
         task for strategies that actually have cash_out_at_percent set.
         """
         while True:
+            if getattr(self, "is_stopped", False):
+                break
             await asyncio.sleep(CASH_OUT_POLL_SECONDS)
 
             if not self.active_bets:
@@ -347,8 +367,13 @@ class StrategyRunner:
             except Exception as e:
                 self.log(f"⚠️ Error in cash-out loop: {e}")
 
+    @staticmethod
+    def _is_live(event):
+        """Real Matchbook API field for 'match is live in-play' is 'in-running-flag'."""
+        return bool(event.get("in-running-flag") or event.get("in-play") or event.get("live-execution"))
+
     def _event_passes_live_filter(self, event):
-        is_live = bool(event.get("in-play") or event.get("live-execution"))
+        is_live = self._is_live(event)
         if self.live_mode == "pre":
             return not is_live
         if self.live_mode == "live":
@@ -366,6 +391,8 @@ class StrategyRunner:
         return MATCHERS.get(market)
 
     async def scan_and_bet(self):
+        if self.stop_after_current_bet:
+            return
         if self.sport_configs:
             # One query per sport row — first sport with a matching, in-range
             # event wins (rows are checked in the order they were added).
@@ -397,7 +424,7 @@ class StrategyRunner:
             event_name_early = event.get("name", "Unknown Event")
 
             if not self._event_passes_live_filter(event):
-                is_live_flag = bool(event.get("in-play") or event.get("live-execution"))
+                is_live_flag = self._is_live(event)
                 self.log(f"Skipped {event_name_early} — live_mode='{self.live_mode}' but event in-play={is_live_flag}")
                 continue
 
@@ -422,12 +449,15 @@ class StrategyRunner:
                 self.log(f"Skipped {event_name_early} — no start time on event")
                 continue
             try:
-                start_time = datetime.strptime(start_str.replace("Z", ""), "%Y-%m-%dT%H:%M:%S.%f")
+                start_time = datetime.fromisoformat(start_str.replace("Z", "+00:00")).replace(tzinfo=None)
             except Exception:
-                self.log(f"Skipped {event_name_early} — could not parse start time '{start_str}'")
-                continue
+                try:
+                    start_time = datetime.strptime(start_str.replace("Z", ""), "%Y-%m-%dT%H:%M:%S.%f")
+                except Exception:
+                    self.log(f"Skipped {event_name_early} — could not parse start time '{start_str}'")
+                    continue
 
-            is_live = bool(event.get("in-play") or event.get("live-execution"))
+            is_live = self._is_live(event)
             if not is_live:
                 if start_time <= now:
                     self.log(f"Skipped {event_name_early} — already started ({start_time})")
@@ -437,6 +467,16 @@ class StrategyRunner:
                 if (start_time - now).total_seconds() < self.min_seconds_to_start:
                     secs_left = int((start_time - now).total_seconds())
                     self.log(f"Skipped {event_name_early} — starts in {secs_left}s, under min_seconds_to_start ({self.min_seconds_to_start}s)")
+                    continue
+            else:
+                elapsed_minutes = (now - start_time).total_seconds() / 60
+                min_elapsed = self.cfg.get("live_min_elapsed_minutes")
+                max_elapsed = self.cfg.get("live_max_elapsed_minutes")
+                if min_elapsed is not None and elapsed_minutes < min_elapsed:
+                    self.log(f"Skipped {event_name_early} — live elapsed {elapsed_minutes:.1f}m < min {min_elapsed}m")
+                    continue
+                if max_elapsed is not None and elapsed_minutes > max_elapsed:
+                    self.log(f"Skipped {event_name_early} — live elapsed {elapsed_minutes:.1f}m > max {max_elapsed}m")
                     continue
 
             event_name = event.get("name", "Unknown Event")
@@ -467,6 +507,7 @@ class StrategyRunner:
                     break
                 else:
                     market_found_on_event = False
+                    candidates = []
                     for market in event.get("markets", []):
                         if market.get("name") != scfg.get("market_name"):
                             continue
@@ -474,11 +515,20 @@ class StrategyRunner:
                         found = matcher.find_opportunity(market, scfg)
                         if not found:
                             continue
-                        runner_id, runner_name, odds = found
-                        market_id = market.get("id")
+                        r_id, r_name, r_odds = found
+                        candidates.append((r_id, r_name, r_odds, market.get("id")))
+
+                    if candidates:
+                        # For Total market with dynamic line, sort descending by line value for maximum goal cushion
+                        if scfg.get("market_name") == "Total" and str(scfg.get("total_range", "") or "").lower() in ("", "any", "dynamic", "none"):
+                            def _line_val(cand):
+                                m = re.search(r"(\d+(?:\.\d+)?)", cand[1])
+                                return float(m.group(1)) if m else 0.0
+                            candidates.sort(key=_line_val, reverse=True)
+
+                        runner_id, runner_name, odds, market_id = candidates[0]
                         matched_cfg = scfg
-                        break
-                    if not market_found_on_event:
+                    elif not market_found_on_event:
                         tried_markets.append(f"{scfg.get('market_name')} (not offered on this event)")
                     else:
                         tried_markets.append(f"{scfg.get('market_name')} (odds/liquidity/field-size didn't match)")
@@ -514,9 +564,11 @@ class StrategyRunner:
             if self.overlap_group:
                 await overlap_tracker.register(event_id, self.overlap_group, market_type)
 
+            min_odds_check = matched_cfg.get("min_back_odds")
+            max_odds_check = matched_cfg.get("max_back_odds")
             odds_ok, confirmed_odds = await self._confirm_odds_stable(
                 event_id, market_id, runner_id, odds, bet_side, event_name, stake,
-                min_odds=matched_cfg.get("min_back_odds"), max_odds=matched_cfg.get("max_back_odds")
+                min_odds=min_odds_check, max_odds=max_odds_check
             )
             if not odds_ok:
                 if self.overlap_group:
@@ -657,6 +709,35 @@ class StrategyRunner:
                        f"Locked in profit (equal both ways): {equal_profit}")
                 self.notify(msg)
 
+                if self.strategy_type == "compound":
+                    self.balance = round(self.balance + equal_profit, 2)
+                    comp_msg = (
+                        f"📈 Compounding [{self.name}]: Cash-out profit credited!\n"
+                        f"New Balance: €{self.balance:.2f} (Target: €{self.compound_target:.2f})"
+                    )
+                    self.log(comp_msg)
+                    self.notify(comp_msg)
+
+                    if self.balance >= self.compound_target:
+                        if self.auto_restart:
+                            restart_msg = (
+                                f"🏁 Target €{self.compound_target:.2f} reached via cash out! "
+                                f"Auto-restart is on — resetting to €{self.compound_start:.2f} and continuing."
+                            )
+                            self.log(restart_msg)
+                            self.notify(restart_msg)
+                            self.balance = self.compound_start
+                        else:
+                            done_msg = f"🏁 Target €{self.compound_target:.2f} reached via cash out! Disabling."
+                            self.log(done_msg)
+                            self.notify(done_msg)
+                            await disable_strategy(self.name, "target reached via cash out")
+
+                if self.stop_after_current_bet:
+                    self.log(f"🛑 'stop_after_current_bet' is active — disabling and stopping {self.name} now that cash out is complete.")
+                    await disable_strategy(self.name, "stop_after_current_bet")
+                    self.is_stopped = True
+
         self.active_bets = [b for b in self.active_bets if not b.get("cashed_out")]
         self._save()
 
@@ -696,7 +777,10 @@ class StrategyRunner:
                 still_open.append(bet)
                 continue
 
-            after_dt = bet.get("placed_at") or bet.get("start_time")
+            t1 = bet.get("start_time")
+            t2 = bet.get("placed_at")
+            earliest = min(t1, t2) if (t1 and t2) else (t1 or t2)
+            after_dt = (earliest - timedelta(hours=2)) if earliest else None
             outcome, source, real_odds = await asyncio.to_thread(
                 self.client.resolve_offer_outcome,
                 bet["offer_id"], after_dt=after_dt, event_id=bet.get("event_id"),
@@ -704,6 +788,14 @@ class StrategyRunner:
             )
 
             if outcome not in ("won", "lost", "push"):
+                event_start = bet.get("start_time")
+                if source == "not_found" and event_start and (datetime.utcnow() - event_start) > timedelta(hours=3):
+                    self.log(f"'{bet['event_name']}': offer {bet['offer_id']} not found on exchange and match finished >3h ago — bet was unmatched/cancelled.")
+                    await overlap_tracker.unregister(bet.get("event_id"), self.overlap_group, bet.get("market_type"))
+                    if bet.get("record_id"):
+                        delete_unmatched_bet(bet["record_id"])
+                    continue
+
                 self.log(f"Waiting on result for '{bet['event_name']}' — not settled yet.")
                 still_open.append(bet)
                 continue
@@ -793,6 +885,11 @@ class StrategyRunner:
 
                 self.log(settle_msg)
                 self.notify(settle_msg)
+
+            if self.stop_after_current_bet:
+                self.log(f"🛑 'stop_after_current_bet' is active — disabling and stopping {self.name} now that bet is settled.")
+                await disable_strategy(self.name, "stop_after_current_bet")
+                self.is_stopped = True
 
         self.active_bets = still_open
         self._save()

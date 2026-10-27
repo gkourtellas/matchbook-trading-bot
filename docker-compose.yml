@@ -3,10 +3,14 @@ services:
     build: .
     container_name: matchbook_trading_bot
     restart: "always"
+    command: ["python", "-u", "src/main.py"]
     env_file:
       - .env
     environment:
       - LOG_DIR=/app/logs
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     volumes:
       - ./src:/app/src
       - ./config:/app/config
@@ -26,6 +30,9 @@ services:
       - .env
     ports:
       - "8050:8050"
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     volumes:
       - ./src:/app/src
       - ./config:/app/config

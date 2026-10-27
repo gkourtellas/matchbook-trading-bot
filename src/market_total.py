@@ -2,19 +2,23 @@
 
 Needs the strategy to say which line and direction to look for,
 e.g. total_range "2.5" and total_direction "Over".
+If total_range is "any" or empty, matches any line for that direction.
 
 Filters added:
 - spread_cap_percent: skip runner if (lay-back)/back * 100 > cap (thin market)
 """
+
+import re
 
 
 def find_opportunity(market, strategy):
     """Returns (runner_id, runner_name, odds) if this market has a bet
     worth placing, otherwise None.
     """
-    wanted_range = str(strategy.get("total_range", "")).strip()
-    wanted_direction = str(strategy.get("total_direction", "")).strip().lower()
+    wanted_range = str(strategy.get("total_range", "") or "").strip()
+    wanted_direction = str(strategy.get("total_direction", "") or "").strip().lower()
     spread_cap = strategy.get("spread_cap_percent")
+    is_dynamic = wanted_range.lower() in ("", "any", "dynamic", "none")
 
     for runner in market.get("runners", []):
         runner_name = (runner.get("name") or "")
@@ -22,7 +26,7 @@ def find_opportunity(market, strategy):
 
         if wanted_direction not in name_lower:
             continue
-        if wanted_range not in runner_name:
+        if not is_dynamic and wanted_range not in runner_name:
             continue
 
         prices = runner.get("prices", [])
